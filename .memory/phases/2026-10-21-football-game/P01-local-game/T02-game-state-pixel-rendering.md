@@ -1,6 +1,6 @@
 ﻿# Task: T02 경기 상태와 픽셀 경기장 렌더링
 
-## Status: pending
+## Status: in_progress
 
 ## Goal
 6대6 경기의 시작 상태를 일관된 데이터 구조로 만들고, Canvas에 경기장·골대·12명의 선수·공을 탑다운 픽셀 스타일로 그린다.

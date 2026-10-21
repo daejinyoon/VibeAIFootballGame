@@ -1,6 +1,6 @@
 ﻿# Task: T01 React JavaScript 앱 뼈대
 
-## Status: in_progress
+## Status: done
 
 ## Goal
 저장소의 기존 스타터 파일을 보존하면서 `game/` 안에 실행·빌드 가능한 React 앱을 만든다. 이후 게임 화면과 UI를 넣을 안정된 진입점을 마련한다.
@@ -56,9 +56,9 @@
 - **Error & Exception Handling**: root mount 노드 누락 시 브라우저 콘솔에 원인을 알리고 조용히 빈 화면으로 끝내지 않는다.
 
 ## Acceptance Criteria
-- [ ] `game/`에서 Vite 개발 서버가 `http://127.0.0.1:5173`으로 열리고 React 타이틀 화면을 표시한다.
-- [ ] `npm run build`가 성공하며 기존 루트 `README.md`와 `.memory/` 파일은 바뀌지 않는다.
-- [ ] 테스트 스크립트가 `node --test`를 호출한다.
+- [x] `game/`에서 Vite 개발 서버가 `http://127.0.0.1:5173`으로 열리고 React 타이틀 화면을 표시한다.
+- [x] `npm run build`가 성공하며 기존 루트 `README.md`와 `.memory/` 파일은 바뀌지 않는다.
+- [x] 테스트 스크립트가 `node --test`를 호출한다.
 
 ## Validation
 - `cd game; npm run build` — Vite production build 성공.
@@ -78,6 +78,6 @@ Task: T01-project-shell
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
-- commit: pending
+- [x] 구현 완료
+- [x] 검증 통과
+- commit: recorded in Git history

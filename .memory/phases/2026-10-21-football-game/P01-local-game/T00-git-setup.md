@@ -64,4 +64,4 @@ Task: T00-git-setup
 ## Progress
 - [x] 구현 완료
 - [x] 검증 통과
-- commit: pending
+- commit: `178c2fb`
