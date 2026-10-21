@@ -32,6 +32,9 @@ test('starts stage one at a home kickoff with a clean score and gauges', () => {
   assert.equal(state.controlledPlayerId, 'home-fw');
   assert.equal(state.possessionTeam, 'home');
   assert.deepEqual(state.skillGauge, { home: 0, away: 0 });
+  assert.equal(state.aiRandomSeed, 0x6d2b79f5);
+  assert.ok(state.players.filter((player) => player.team === 'home')
+    .every((player) => player.aiTarget === null && player.aiRetargetSeconds >= 1.2 && player.aiRetargetSeconds <= 2.4));
 });
 
 test('clamps invalid stage and player coordinates and accepts partial skill data', () => {

@@ -362,6 +362,46 @@ function controlBallAction(state, controlled, input, deltaSeconds) {
   return handleHomeAttack(state, controlled, input, deltaSeconds);
 }
 
+function nextRandom(state) {
+  const seed = Number.isInteger(state.aiRandomSeed) && state.aiRandomSeed >= 0
+    ? state.aiRandomSeed >>> 0
+    : 0x6d2b79f5;
+  state.aiRandomSeed = (Math.imul(1664525, seed) + 1013904223) >>> 0;
+  return state.aiRandomSeed / 0x100000000;
+}
+
+function chooseSupportTarget(state) {
+  return {
+    x: clamp(state.ball.x + (nextRandom(state) * 2 - 1) * 220, 0, FIELD.width),
+    y: clamp(state.ball.y + (nextRandom(state) * 2 - 1) * 150, 0, FIELD.height),
+  };
+}
+
+function updateHomeSupportPlayer(state, player, deltaSeconds) {
+  player.aiRetargetSeconds = Math.max(0, (player.aiRetargetSeconds ?? 0) - deltaSeconds);
+  const targetIsValid = player.aiTarget
+    && Number.isFinite(player.aiTarget.x)
+    && Number.isFinite(player.aiTarget.y);
+
+  if (!targetIsValid || player.aiRetargetSeconds <= 0) {
+    player.aiTarget = chooseSupportTarget(state);
+    player.aiRetargetSeconds = 1.2 + nextRandom(state) * 1.2;
+  }
+
+  moveToward(player, player.aiTarget, AI_SPEED, deltaSeconds);
+}
+
+function updateHomeSupportAi(state, controlled, deltaSeconds) {
+  for (const player of state.players) {
+    if (player.team !== 'home'
+        || player.role === 'goalkeeper'
+        || player.id === controlled?.id
+        || player.id === state.ball.ownerId
+        || state.rainbowReflection?.playerId === player.id) continue;
+    updateHomeSupportPlayer(state, player, deltaSeconds);
+  }
+}
+
 function targetForRole(player, possessionTeam, ball, ballCarrier) {
   if (player.role === 'goalkeeper') {
     const x = player.team === 'home' ? 48 : FIELD.width - 48;
@@ -426,6 +466,11 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
       } else {
         moveToward(player, goal, AI_SPEED, deltaSeconds);
       }
+      continue;
+    }
+
+    if (player.team === 'home' && player.role !== 'goalkeeper') {
+      updateHomeSupportPlayer(state, player, deltaSeconds);
       continue;
     }
 
@@ -608,6 +653,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
       moveByInput(controlled, input.moveX, input.moveY, PLAYER_SPEED, dt);
       events.push(...controlBallAction(state, controlled, input, dt));
     }
+    updateHomeSupportAi(state, byId(state, state.controlledPlayerId), dt);
   } else {
     controlled = updateAi(state, controlled, input, dt, events);
   }

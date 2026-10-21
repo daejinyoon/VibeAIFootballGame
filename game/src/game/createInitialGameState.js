@@ -11,7 +11,7 @@ const homeFormation = [
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-function createPlayer({ id, team, role, x, y, skillId = null }) {
+function createPlayer({ id, team, role, x, y, skillId = null, aiRetargetSeconds = 1.2 }) {
   const homeDirection = team === 'home' ? 1 : -1;
 
   return {
@@ -25,6 +25,8 @@ function createPlayer({ id, team, role, x, y, skillId = null }) {
     facingX: homeDirection,
     facingY: 0,
     stunnedSeconds: 0,
+    aiTarget: null,
+    aiRetargetSeconds,
     skillId: typeof skillId === 'string' ? skillId : null,
   };
 }
@@ -46,9 +48,10 @@ export function createInitialGameState({ stage = 1, loadout, opponentSkillIds = 
     ? opponentSkillIds.filter((skillId) => typeof skillId === 'string')
     : [];
 
-  const homePlayers = homeFormation.map((player) => createPlayer({
+  const homePlayers = homeFormation.map((player, index) => createPlayer({
     ...player,
     team: 'home',
+    aiRetargetSeconds: 1.2 + index * 0.2,
     skillId: safeLoadout[player.id],
   }));
 
@@ -83,6 +86,7 @@ export function createInitialGameState({ stage = 1, loadout, opponentSkillIds = 
     possessionTeam: 'home',
     skillGauge: { home: 0, away: 0 },
     charge: { action: null, elapsedSeconds: 0 },
+    aiRandomSeed: 0x6d2b79f5,
     opponentSkillIds: [...safeOpponentSkills],
   };
 }

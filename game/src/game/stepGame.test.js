@@ -25,6 +25,71 @@ test('moves the selected player at the intended speed and normalizes diagonals',
   assert.equal(state.ball.x, player.x + player.facingX * 17);
 });
 
+test('home support AI is deterministic and keeps targets inside the pitch', () => {
+  const first = createInitialGameState();
+  const second = structuredClone(first);
+
+  for (let index = 0; index < 40; index += 1) {
+    stepGame(first, frame(), 0.05);
+    stepGame(second, frame(), 0.05);
+  }
+
+  assert.equal(first.aiRandomSeed, second.aiRandomSeed);
+  assert.deepEqual(first.players, second.players);
+  assert.ok(first.players.filter((player) => player.team === 'home'
+    && player.role !== 'goalkeeper'
+    && player.id !== first.controlledPlayerId
+    && player.id !== first.ball.ownerId)
+    .every((player) => player.aiTarget.x >= 0 && player.aiTarget.x <= FIELD.width
+      && player.aiTarget.y >= 0 && player.aiTarget.y <= FIELD.height));
+});
+
+test('home support players choose new ball-centered targets when their timer expires', () => {
+  const state = createInitialGameState();
+  const teammate = state.players.find((player) => player.id === 'home-def-1');
+
+  stepGame(state, frame(), 0.05);
+  const firstTarget = { ...teammate.aiTarget };
+  teammate.aiRetargetSeconds = 0;
+  const previousSeed = state.aiRandomSeed;
+  stepGame(state, frame(), 0.05);
+
+  assert.notDeepEqual(teammate.aiTarget, firstTarget);
+  assert.notEqual(state.aiRandomSeed, previousSeed);
+  assert.ok(Math.abs(teammate.aiTarget.x - state.ball.x) <= 220);
+  assert.ok(Math.abs(teammate.aiTarget.y - state.ball.y) <= 150);
+});
+
+test('support movement excludes the controlled player, goalkeeper, and away players', () => {
+  const state = createInitialGameState();
+  const controlled = state.players.find((player) => player.id === 'home-fw');
+  const goalkeeper = state.players.find((player) => player.id === 'home-gk');
+  const awayPlayer = state.players.find((player) => player.id === 'away-def-1');
+  const goalkeeperStart = { x: goalkeeper.x, y: goalkeeper.y };
+  const awayStart = { x: awayPlayer.x, y: awayPlayer.y };
+  const teammate = state.players.find((player) => player.id === 'home-def-1');
+  const teammateStart = { x: teammate.x, y: teammate.y };
+
+  stepGame(state, frame({ moveX: 1 }), 0.05);
+
+  assert.equal(controlled.x, 488);
+  assert.deepEqual({ x: goalkeeper.x, y: goalkeeper.y }, goalkeeperStart);
+  assert.deepEqual({ x: awayPlayer.x, y: awayPlayer.y }, awayStart);
+  assert.notDeepEqual({ x: teammate.x, y: teammate.y }, teammateStart);
+});
+
+test('stunned home support players do not move toward their targets', () => {
+  const state = createInitialGameState();
+  const teammate = state.players.find((player) => player.id === 'home-def-1');
+  teammate.stunnedSeconds = 1;
+  const start = { x: teammate.x, y: teammate.y };
+
+  stepGame(state, frame(), 0.05);
+
+  assert.deepEqual({ x: teammate.x, y: teammate.y }, start);
+  assert.equal(teammate.stunnedSeconds, 0.95);
+});
+
 test('an arrow direction selects the intended teammate for a charged lob pass', () => {
   const state = createInitialGameState();
   stepGame(state, frame({ moveY: -1, down: ['a'], pressed: ['a'] }), 0.05);
@@ -45,7 +110,8 @@ test('S releases a ground pass and transfers control to the receiver', () => {
 
   assert.equal(state.controlledPlayerId, 'home-mid-2');
   assert.equal(state.ball.flightKind, 'ground');
-  assert.deepEqual(state.ball.passTarget, { x: 345, y: 365 });
+  const receiver = state.players.find((player) => player.id === state.controlledPlayerId);
+  assert.deepEqual(state.ball.passTarget, { x: receiver.x, y: receiver.y });
   assert.ok(state.ball.passProtectionSeconds > 0);
   assert.ok(events.some((event) => event.type === 'pass' && event.action === 'groundPass'));
 });
