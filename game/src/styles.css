@@ -129,3 +129,45 @@ h1 em { color: var(--lime); font-style: normal; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+.app-shell { overflow: visible; }
+.screen-panel, .game-panel { position: relative; width: min(1100px, 100%); min-height: min(720px, calc(100vh - 150px)); margin: 34px auto; }
+.screen-panel { display: flex; flex-direction: column; justify-content: center; padding: clamp(24px, 5vw, 64px); border: 1px solid rgb(223 235 210 / 13%); background: linear-gradient(145deg, #19241e, #141c18); box-shadow: 0 30px 100px rgb(0 0 0 / 22%); }
+.screen-panel h1, .game-panel h1 { margin: 0; font-size: clamp(34px, 5vw, 58px); line-height: 1.12; }
+.screen-panel .intro { max-width: 600px; }
+.start-panel { display: grid; min-height: 610px; grid-template-columns: 1fr .9fr; align-content: center; gap: 24px 7%; }
+.start-copy h1 em { color: var(--lime); font-style: normal; }
+.welcome { margin: -12px 0 24px; color: #9da99d; font-size: 12px; }
+.start-preview { align-self: center; padding: 18px; border: 1px solid rgb(223 235 210 / 14%); background: #111914; transform: rotate(1deg); }
+.preview-score { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 0 4px 12px; font: 700 13px Consolas, monospace; }
+.preview-score span:first-child { margin-right: auto; }.preview-score span { color: #869388; font: 9px Consolas, monospace; }.preview-score i { color: #69766b; font-style: normal; }
+.preview-pitch { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid #d9ebd580; background: repeating-linear-gradient(90deg, #276347 0 10%, #2c6d4d 10% 20%); }
+.preview-lines { position: absolute; inset: 5% 4%; border: 1px solid #e2f4d899; background: linear-gradient(90deg, transparent calc(50% - .5px), #e2f4d899 50%, transparent calc(50% + .5px)); }
+.preview-lines::after { position: absolute; top: 50%; left: 50%; width: 22%; aspect-ratio: 1; border: 1px solid #e2f4d899; border-radius: 50%; content: ''; transform: translate(-50%, -50%); }
+.preview-player, .preview-ball { position: absolute; z-index: 1; width: 3%; aspect-ratio: 1; border: 1px solid white; border-radius: 35%; background: #62a0ff; transform: rotate(45deg); }
+.preview-player.away { background: var(--orange); }.preview-ball { top: 49%; left: 52%; width: 2%; border: 1px solid #172019; border-radius: 50%; background: #f4f0db; }
+.control-guide { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgb(243 241 233 / 10%); }
+.control-guide div { display: flex; flex-direction: column; gap: 7px; }.control-guide strong { color: var(--lime); font-size: 11px; }.control-guide span { color: #b4beb4; font-size: 10px; line-height: 1.6; }
+.panel-heading { margin-bottom: 24px; }.back-button { width: max-content; margin: 0 0 24px; padding: 8px 0; border: 0; background: transparent; color: #b8c2b8; cursor: pointer; font-size: 12px; }.back-button:hover, .secondary-button:hover { color: var(--lime); }
+.roster-list { display: flex; flex-direction: column; border-top: 1px solid rgb(243 241 233 / 11%); }.roster-row { display: grid; grid-template-columns: 40px minmax(120px, 1fr) minmax(190px, 1.3fr) 100px; align-items: center; gap: 16px; min-height: 68px; border-bottom: 1px solid rgb(243 241 233 / 9%); }
+.roster-number { color: #77857a; font: 11px Consolas, monospace; }.roster-name { display: flex; flex-direction: column; gap: 4px; }.roster-name b { font-size: 12px; }.roster-name small, .skill-type { color: #87958a; font-size: 10px; }
+.roster-row select { width: 100%; padding: 10px 12px; border: 1px solid #435048; border-radius: 0; background: #202a24; color: var(--ink); font: inherit; font-size: 11px; }.roster-row select:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }.roster-row option:disabled { color: #768078; }
+.setup-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 24px; }.validation-note, .validation-ok { color: #b8c2b8; font-size: 11px; }.validation-ok { color: var(--lime); }.primary-button:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.game-panel { min-height: 0; padding: clamp(18px, 3vw, 34px); border: 1px solid rgb(223 235 210 / 13%); background: #17211b; }
+.game-topline { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }.game-topline .eyebrow { margin-bottom: 5px; }.game-panel h1 { font-size: clamp(24px, 3vw, 36px); }.pause-button { padding: 10px 14px; border: 1px solid #526054; }
+.match-hud { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin-bottom: 14px; }.scoreboard { display: flex; align-items: center; justify-content: center; gap: 20px; }.scoreboard > div { display: flex; align-items: center; gap: 10px; }.scoreboard small, .timer-box small, .possession-box small { color: #89978c; font-size: 10px; }.scoreboard b { font: 700 26px Consolas, monospace; }.scoreboard > span { color: #758176; }
+.timer-box, .possession-box { display: flex; flex-direction: column; gap: 4px; }.timer-box b, .possession-box b { font-size: 12px; }.timer-box { text-align: center; }.possession-box { text-align: right; }
+.game-canvas-wrap { width: 100%; border: 1px solid #e2f4d899; background: #245c45; }.game-canvas-wrap .pitch-canvas { width: 100%; height: auto; }.game-bottomline { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; padding-top: 16px; }.gauge { display: grid; grid-template-columns: 1fr auto; gap: 7px 10px; align-items: center; color: #aebaae; font-size: 10px; }.gauge > div { grid-column: 1; height: 7px; overflow: hidden; background: #303c33; }.gauge i { display: block; height: 100%; background: var(--lime); transition: width .12s linear; }.gauge b { grid-column: 2; grid-row: 2; font: 10px Consolas, monospace; }.away-gauge i { background: var(--orange); }.game-bottomline > p { grid-column: 1 / -1; margin: 0; color: #79877c; font-size: 10px; text-align: center; }
+.pause-overlay { position: absolute; z-index: 5; inset: 0; display: grid; place-items: center; background: rgb(8 12 10 / 78%); }.pause-card { display: flex; width: min(390px, calc(100% - 32px)); flex-direction: column; align-items: flex-start; gap: 14px; padding: 34px; border: 1px solid #536250; background: #19241e; box-shadow: 0 24px 90px #0008; }.pause-card h2 { margin: 0; font-size: 26px; }.pause-card p:not(.eyebrow) { margin: 0 0 8px; color: #a5b0a6; font-size: 12px; }.pause-card .secondary-button { padding: 8px 0; }
+.result-panel { align-items: flex-start; }.result-panel h1 { color: var(--lime); }.result-score { display: flex; align-items: center; gap: 18px; margin: 28px 0 4px; }.result-score span { color: #9aa69c; font-size: 11px; }.result-score b { font: 700 40px Consolas, monospace; }.result-score i { color: #758176; font-style: normal; }.result-panel .actions { margin-top: 18px; }
+.leaderboard-panel { min-height: 520px; }.record-list { width: 100%; margin: 26px 0 0; padding: 0; list-style: none; }.record-list li { display: grid; grid-template-columns: 50px 1fr 120px 120px; gap: 12px; padding: 16px 8px; border-top: 1px solid rgb(243 241 233 / 10%); font-size: 12px; }.record-list li b { color: var(--lime); font-family: Consolas, monospace; }.record-list li span:not(:nth-child(2)) { color: #a8b3a9; }.empty-records { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #aab5ab; }.empty-records > span { font-size: 34px; }.empty-records small { color: #7e8b80; }
+
+@media (max-width: 720px) {
+  .screen-panel, .game-panel { min-height: 0; margin: 18px auto; padding: 22px; }
+  .start-panel { grid-template-columns: 1fr; }.start-preview { max-width: 560px; width: 100%; }.control-guide { grid-template-columns: 1fr 1fr; }
+  .roster-row { grid-template-columns: 24px minmax(85px, 1fr) minmax(130px, 1.3fr); gap: 8px; }.skill-type { display: none; }
+  .match-hud { grid-template-columns: 1fr auto; }.scoreboard { grid-row: 1; justify-content: flex-start; }.timer-box { grid-column: 2; grid-row: 1; }.possession-box { grid-column: 1 / -1; text-align: left; }
+  .game-bottomline { grid-template-columns: 1fr; }.game-bottomline > p { grid-column: 1; }.record-list li { grid-template-columns: 35px 1fr 72px; }.record-list li span:last-child { grid-column: 2 / -1; }
+}
+
+@media (max-width: 420px) { .setup-actions { align-items: flex-start; flex-direction: column; }.roster-row select { padding: 8px 4px; font-size: 10px; }.roster-name b { font-size: 10px; } }

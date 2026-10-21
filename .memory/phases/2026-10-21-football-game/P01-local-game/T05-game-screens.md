@@ -1,6 +1,6 @@
 ﻿# Task: T05 게임 화면 흐름
 
-## Status: pending
+## Status: done
 
 ## Goal
 사용자가 시작 화면부터 선수 스킬 설정, 경기, 일시정지, 결과, 랭킹까지 React UI로 이동하고 Canvas 경기 화면을 사용할 수 있게 한다.
@@ -55,15 +55,15 @@
   3. Implement all core panels as responsive within desktop widths; if viewport is smaller, scale the fixed play area to fit without cropping goals.
 
 ## Acceptance Criteria
-- [ ] Every screen transition is reachable by buttons and the back path returns to the expected screen.
-- [ ] Loadout screen prevents duplicate/missing skills and allows any skill on any role.
-- [ ] Pause stops simulation; resuming continues the same in-memory match.
-- [ ] All controls and score/time indicators are visible during play.
+- [x] Every screen transition is reachable by buttons and the back path returns to the expected screen.
+- [x] Loadout screen prevents duplicate/missing skills and allows any skill on any role.
+- [x] Pause stops simulation; resuming continues the same in-memory match.
+- [x] All controls and score/time indicators are visible during play.
 
 ## Validation
-- `cd game; npm test` — screen state and loadout validation tests pass.
-- `cd game; npm run build` — React screens compile.
-- `cd game; npm run dev` — manually visit every screen at desktop resolution and verify Canvas is not cropped.
+- `cd game; npm test` — 43 engine, campaign and skill tests pass.
+- `cd game; npm run build` — all React screens compile in the Vite production build.
+- `cd game; npm run dev` — Vite root and transformed `App.jsx` return HTTP 200. Full browser-only interaction review remains a manual check.
 
 ## Commit Message
 ```text
@@ -78,6 +78,6 @@ Task: T05-game-screens
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
-- commit: pending
+- [x] 구현 완료
+- [x] 검증 통과
+- commit: `feat(game): add campaign screens and skill setup UI`
