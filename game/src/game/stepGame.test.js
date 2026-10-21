@@ -231,6 +231,98 @@ test('a goal restarts from the center for the conceding team', () => {
   assert.deepEqual(state.score, { home: 1, away: 0 });
 });
 
+test('touchline exits restart with an automatic throw-in for the team that did not touch last', () => {
+  const cases = [
+    { y: -1, lastTouchTeam: 'home', restartTeam: 'away', restartY: 0 },
+    { y: FIELD.height + 1, lastTouchTeam: 'away', restartTeam: 'home', restartY: FIELD.height },
+  ];
+
+  for (const scenario of cases) {
+    const state = createInitialGameState({ stage: 2 });
+    state.remainingSeconds = 37;
+    state.score = { home: 2, away: 1 };
+    Object.assign(state.ball, {
+      ownerId: null,
+      x: 420,
+      y: scenario.y,
+      vx: 0,
+      vy: 0,
+      lastTouchTeam: scenario.lastTouchTeam,
+    });
+
+    const events = stepGame(state, frame(), 0.01);
+    const restart = events.find((event) => event.type === 'throwIn');
+    const thrower = state.players.find((player) => player.id === restart?.playerId);
+
+    assert.equal(restart?.team, scenario.restartTeam);
+    assert.ok(thrower);
+    assert.equal(thrower.x, 420);
+    assert.equal(thrower.y, scenario.restartY);
+    assert.deepEqual(state.score, { home: 2, away: 1 });
+    assert.equal(state.stage, 2);
+    assert.ok(state.remainingSeconds < 37 && state.remainingSeconds > 36.9);
+  }
+});
+
+test('goal-line exits award goal kicks or corners based on the last touch', () => {
+  const cases = [
+    { x: FIELD.width + 1, y: 400, lastTouchTeam: 'home', restart: 'goalKick', team: 'away', keeper: 'away-gk' },
+    { x: -1, y: 100, lastTouchTeam: 'away', restart: 'goalKick', team: 'home', keeper: 'home-gk' },
+    { x: FIELD.width + 1, y: FIELD.goalTop - 1, lastTouchTeam: 'away', restart: 'cornerKick', team: 'home' },
+    { x: -1, y: FIELD.goalBottom + 1, lastTouchTeam: 'home', restart: 'cornerKick', team: 'away' },
+  ];
+
+  for (const scenario of cases) {
+    const state = createInitialGameState({ stage: 3 });
+    state.remainingSeconds = 29;
+    state.score = { home: 1, away: 2 };
+    Object.assign(state.ball, {
+      ownerId: null,
+      x: scenario.x,
+      y: scenario.y,
+      vx: 0,
+      vy: 0,
+      lastTouchTeam: scenario.lastTouchTeam,
+    });
+
+    const events = stepGame(state, frame(), 0.01);
+    const restart = events.find((event) => event.type === scenario.restart);
+
+    assert.equal(restart?.team, scenario.team);
+    if (scenario.keeper) {
+      assert.equal(state.phase, 'goalKick');
+      assert.equal(state.ball.ownerId, scenario.keeper);
+      assert.equal(restart.playerId, scenario.keeper);
+    } else {
+      assert.equal(state.phase, 'playing');
+      assert.ok(restart.playerId.startsWith(`${scenario.team}-`));
+      assert.ok(restart.receiverId);
+      const cornerPlayer = state.players.find((player) => player.id === restart.playerId);
+      assert.equal(cornerPlayer.x, scenario.x < 0 ? 18 : FIELD.width - 18);
+      assert.equal(cornerPlayer.y, scenario.y > FIELD.height / 2 ? FIELD.height - 18 : 18);
+    }
+    assert.deepEqual(state.score, { home: 1, away: 2 });
+    assert.equal(state.stage, 3);
+    assert.ok(state.remainingSeconds < 29 && state.remainingSeconds > 28.9);
+  }
+});
+
+test('a missing last-touch team uses the home-team restart fallback', () => {
+  const state = createInitialGameState();
+  Object.assign(state.ball, {
+    ownerId: null,
+    x: FIELD.width + 1,
+    y: 400,
+    vx: 0,
+    vy: 0,
+    lastTouchTeam: null,
+  });
+
+  const events = stepGame(state, frame(), 0.01);
+
+  assert.ok(events.some((event) => event.type === 'cornerKick' && event.team === 'home'));
+});
+
 test('a golden-goal score immediately finishes the stage', () => {
   const state = createInitialGameState();
   state.phase = 'overtime';
