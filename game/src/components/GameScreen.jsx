@@ -8,6 +8,8 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
   const stage = gameState.stage;
   const time = viewState.phase === 'overtime' ? '골든골' : `${Math.ceil(viewState.remainingSeconds)}초`;
   const possession = viewState.possessionTeam === 'home' ? '우리 팀 공격' : viewState.possessionTeam === 'away' ? '상대 공격' : '공 경합 중';
+  const chargePercent = Math.min(100, Math.max(0, Math.round((viewState.charge?.elapsedSeconds ?? 0) * 100)));
+  const chargeLabels = { lobPass: 'A 로빙 패스', groundPass: 'S 땅볼 패스', shot: 'D 슛' };
 
   return (
     <section className="game-panel" aria-label="축구 경기">
@@ -25,6 +27,10 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
         }
       }} /></div>
       <div className="game-bottomline">
+        {viewState.charge?.action && <div className="charge-gauge" role="progressbar" aria-label={`${chargeLabels[viewState.charge.action]} 힘`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={chargePercent}>
+          <div className="charge-gauge-label"><span>{chargeLabels[viewState.charge.action]}</span><b>{chargePercent}%</b></div>
+          <div className="charge-gauge-track"><i style={{ width: `${chargePercent}%` }} /></div>
+        </div>}
         <div className="gauge"><span>우리 스킬 게이지</span><div><i style={{ width: `${viewState.skillGauge.home}%` }} /></div><b>{Math.floor(viewState.skillGauge.home)}%</b></div>
         <div className="gauge away-gauge"><span>상대 스킬 게이지</span><div><i style={{ width: `${viewState.skillGauge.away}%` }} /></div><b>{Math.floor(viewState.skillGauge.away)}%</b></div>
         <p>방향키 이동 · A/S/D 공격·수비 · F 스킬</p>

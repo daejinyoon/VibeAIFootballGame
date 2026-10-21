@@ -45,11 +45,14 @@ test('S releases a ground pass and transfers control to the receiver', () => {
 
   assert.equal(state.controlledPlayerId, 'home-mid-2');
   assert.equal(state.ball.flightKind, 'ground');
+  assert.deepEqual(state.ball.passTarget, { x: 345, y: 365 });
+  assert.ok(state.ball.passProtectionSeconds > 0);
   assert.ok(events.some((event) => event.type === 'pass' && event.action === 'groundPass'));
 });
 
-test('a charged shot releases toward the opponent goal', () => {
+test('a charged shot follows the selected player facing direction', () => {
   const state = createInitialGameState();
+  state.players.find((player) => player.id === 'home-fw').facingX = 1;
   stepGame(state, frame({ down: ['d'], pressed: ['d'] }), 0.05);
   const events = stepGame(state, frame({ released: ['d'] }), 0.05);
 
@@ -57,6 +60,73 @@ test('a charged shot releases toward the opponent goal', () => {
   assert.equal(state.ball.flightKind, 'shot');
   assert.ok(state.ball.vx > 0);
   assert.ok(events.some((event) => event.type === 'shot' && event.team === 'home'));
+});
+
+test('shots use all eight facing directions without aiming correction', () => {
+  const directions = [
+    [1, 0], [1, -1], [0, -1], [-1, -1],
+    [-1, 0], [-1, 1], [0, 1], [1, 1],
+  ];
+
+  for (const [facingX, facingY] of directions) {
+    const state = createInitialGameState();
+    const shooter = state.players.find((player) => player.id === 'home-fw');
+    shooter.facingX = facingX;
+    shooter.facingY = facingY;
+    stepGame(state, frame({ down: ['d'], pressed: ['d'] }), 0.01);
+    stepGame(state, frame({ released: ['d'] }), 0.01);
+
+    assert.equal(Math.sign(state.ball.vx), Math.sign(facingX));
+    assert.equal(Math.sign(state.ball.vy), Math.sign(facingY));
+  }
+});
+
+test('shot power ranges from 55 percent on a quick release to 100 percent after one second', () => {
+  const quick = createInitialGameState();
+  stepGame(quick, frame({ down: ['d'], pressed: ['d'] }), 0.05);
+  stepGame(quick, frame({ released: ['d'] }), 0.01);
+
+  const full = createInitialGameState();
+  for (let index = 0; index < 20; index += 1) {
+    stepGame(full, frame({ down: ['d'], pressed: index === 0 ? ['d'] : [] }), 0.05);
+  }
+  stepGame(full, frame({ released: ['d'] }), 0.01);
+
+  assert.ok(Math.hypot(quick.ball.vx, quick.ball.vy) < Math.hypot(full.ball.vx, full.ball.vy));
+  assert.ok(Math.abs(Math.hypot(quick.ball.vx, quick.ball.vy) / Math.hypot(full.ball.vx, full.ball.vy) - 0.55) < 0.04);
+});
+
+test('opponents cannot intercept a ground pass before its target window ends', () => {
+  const state = createInitialGameState();
+  stepGame(state, frame({ moveY: -1, down: ['s'], pressed: ['s'] }), 0.05);
+  stepGame(state, frame({ moveY: -1, released: ['s'] }), 0.05);
+
+  const receiver = state.players.find((player) => player.id === state.controlledPlayerId);
+  receiver.x = 20;
+  receiver.y = 20;
+  const opponent = state.players.find((player) => player.id === 'away-fw');
+  opponent.x = state.ball.x;
+  opponent.y = state.ball.y;
+
+  stepGame(state, frame(), 0.01);
+
+  assert.equal(state.ball.ownerId, null);
+  assert.ok(state.ball.passProtectionSeconds > 0);
+});
+
+test('a ground pass can be collected by either team after its target window expires', () => {
+  const state = createInitialGameState();
+  stepGame(state, frame({ moveY: -1, down: ['s'], pressed: ['s'] }), 0.05);
+  stepGame(state, frame({ moveY: -1, released: ['s'] }), 0.05);
+  const opponent = state.players.find((player) => player.id === 'away-fw');
+  opponent.x = state.ball.x;
+  opponent.y = state.ball.y;
+  state.ball.passProtectionSeconds = 0.001;
+
+  stepGame(state, frame(), 0.01);
+
+  assert.equal(state.ball.ownerId, opponent.id);
+  assert.equal(state.possessionTeam, 'away');
 });
 
 test('a keeper catches an ordinary shot and starts a timed goal kick', () => {

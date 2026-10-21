@@ -76,6 +76,8 @@ export function createInitialGameState({ stage = 1, loadout, opponentSkillIds = 
       flightKind: 'ground',
       flightSeconds: 0,
       lastTouchTeam: 'home',
+      passTarget: null,
+      passProtectionSeconds: 0,
     },
     controlledPlayerId: 'home-fw',
     possessionTeam: 'home',

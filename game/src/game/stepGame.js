@@ -67,6 +67,8 @@ function setBallOwner(state, player) {
   delete state.ball.flightDurationSeconds;
   delete state.ball.skillId;
   delete state.ball.passTeam;
+  delete state.ball.passTarget;
+  state.ball.passProtectionSeconds = 0;
   state.ball.lastTouchTeam = player.team;
   state.possessionTeam = player.team;
 }
@@ -111,6 +113,13 @@ function releasePass(state, player, kind, chargeRatio, moveX, moveY) {
   state.ball.height = 0;
   delete state.ball.skillId;
   state.ball.passTeam = player.team;
+  if (kind === 'groundPass') {
+    state.ball.passTarget = { x: receiver.x, y: receiver.y };
+    state.ball.passProtectionSeconds = state.ball.flightDurationSeconds;
+  } else {
+    delete state.ball.passTarget;
+    state.ball.passProtectionSeconds = 0;
+  }
   state.ball.lastTouchTeam = player.team;
   state.possessionTeam = player.team;
   state.controlledPlayerId = receiver.id;
@@ -121,11 +130,14 @@ function releasePass(state, player, kind, chargeRatio, moveX, moveY) {
 function releaseShot(state, player, chargeRatio) {
   const attackDirection = player.team === 'home' ? 1 : -1;
   const power = 0.55 + 0.45 * chargeRatio;
-  const targetY = FIELD.height / 2 + player.facingY * 58;
-  const direction = unit(attackDirection * FIELD.width, targetY - player.y);
+  const facing = player.facingX === 0 && player.facingY === 0
+    ? { x: attackDirection, y: 0 }
+    : { x: player.facingX, y: player.facingY };
+  const direction = unit(facing.x, facing.y);
   const speed = (player.team === 'home' ? 500 : 430) * power;
 
   putBallAtPlayer(state, player);
+  const start = { x: state.ball.x, y: state.ball.y };
   state.ball.ownerId = null;
   state.ball.vx = direction.x * speed;
   state.ball.vy = direction.y * speed;
@@ -138,7 +150,12 @@ function releaseShot(state, player, chargeRatio) {
   state.ball.lastTouchTeam = player.team;
   state.possessionTeam = player.team;
 
-  const onTarget = targetY >= FIELD.goalTop && targetY <= FIELD.goalBottom;
+  const goalX = attackDirection > 0 ? FIELD.width : 0;
+  const distanceToGoal = (goalX - start.x) / direction.x;
+  const targetY = start.y + direction.y * distanceToGoal;
+  const onTarget = distanceToGoal > 0
+    && targetY >= FIELD.goalTop
+    && targetY <= FIELD.goalBottom;
   return [{ type: 'shot', team: player.team }, ...(onTarget ? [{ type: 'shotOnTarget', team: player.team }] : [])];
 }
 
@@ -236,6 +253,34 @@ function integrateLooseBall(state, deltaSeconds) {
       ball.vy += awayFromDefender * 420 * (1 - distance(defender, ball) / 100) * deltaSeconds;
     }
   }
+  if (ball.flightKind === 'ground'
+      && ball.passTeam
+      && ball.passProtectionSeconds > 0
+      && ball.passTarget) {
+    const dx = ball.passTarget.x - ball.x;
+    const dy = ball.passTarget.y - ball.y;
+    const remaining = Math.hypot(dx, dy);
+    const speed = Math.hypot(ball.vx, ball.vy);
+    const travel = Math.min(remaining, speed * deltaSeconds);
+    if (remaining <= travel || remaining <= 0.001) {
+      ball.x = ball.passTarget.x;
+      ball.y = ball.passTarget.y;
+      ball.vx = 0;
+      ball.vy = 0;
+      ball.passProtectionSeconds = 0;
+      delete ball.passTarget;
+    } else if (speed > 0) {
+      ball.x += dx / remaining * travel;
+      ball.y += dy / remaining * travel;
+      ball.vx = dx / remaining * speed;
+      ball.vy = dy / remaining * speed;
+      ball.passProtectionSeconds = Math.max(0, ball.passProtectionSeconds - deltaSeconds);
+      if (ball.passProtectionSeconds === 0) delete ball.passTarget;
+    }
+    ball.flightSeconds = (ball.flightSeconds ?? 0) + deltaSeconds;
+    return;
+  }
+
   ball.x += ball.vx * deltaSeconds;
   ball.y += ball.vy * deltaSeconds;
   ball.flightSeconds = (ball.flightSeconds ?? 0) + deltaSeconds;
@@ -260,7 +305,8 @@ function collectLooseBall(state) {
   if (ball.flightKind === 'skill-shot' && ['eagleShot', 'tornadoShot'].includes(ball.skillId)) return [];
   const candidates = state.players
     .map((player) => ({ player, distance: distance(player, ball) }))
-    .filter(({ distance: playerDistance }) => playerDistance <= 18)
+    .filter(({ player, distance: playerDistance }) => playerDistance <= 18
+      && !(ball.passProtectionSeconds > 0 && ball.passTeam && player.team !== ball.passTeam))
     .sort((a, b) => a.distance - b.distance);
   const pickedUp = candidates[0]?.player;
   if (!pickedUp) return [];
