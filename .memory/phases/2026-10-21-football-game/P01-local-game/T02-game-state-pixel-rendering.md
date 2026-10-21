@@ -1,6 +1,6 @@
 ﻿# Task: T02 경기 상태와 픽셀 경기장 렌더링
 
-## Status: in_progress
+## Status: done
 
 ## Goal
 6대6 경기의 시작 상태를 일관된 데이터 구조로 만들고, Canvas에 경기장·골대·12명의 선수·공을 탑다운 픽셀 스타일로 그린다.
@@ -53,9 +53,9 @@
 - **Error & Exception Handling**: If `ctx` is absent, throw a descriptive `TypeError`; never mutate the passed `state`.
 
 ## Acceptance Criteria
-- [ ] Initial state contains exactly 12 players in the specified roles and a 0-0 kickoff state.
-- [ ] Canvas draws the entire pitch and all entities without external assets.
-- [ ] `drawGameFrame` leaves input state unchanged.
+- [x] Initial state contains exactly 12 players in the specified roles and a 0-0 kickoff state.
+- [x] Canvas draws the entire pitch and all entities without external assets.
+- [x] `drawGameFrame` leaves input state unchanged.
 
 ## Validation
 - `cd game; npm test` — initial state and draw-call tests pass.
@@ -74,6 +74,6 @@ Task: T02-game-state-pixel-rendering
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
-- commit: pending
+- [x] 구현 완료
+- [x] 검증 통과
+- commit: recorded in Git history
