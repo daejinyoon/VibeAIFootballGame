@@ -1,6 +1,6 @@
 ﻿# Task: T03 경기 조작과 기본 축구 규칙
 
-## Status: in_progress
+## Status: done
 
 ## Goal
 사용자가 방향키와 A/S/D로 6대6 경기를 플레이하고, 패스·슛·태클·압박·세이브·골·60초 종료·골든골까지 한 경기 규칙을 완성한다.
@@ -25,7 +25,9 @@
   ```
 - **Data & Schema Fields**:
   - `InputFrame`: `{ moveX: -1|0|1, moveY: -1|0|1, down: Set<string>, pressed: Set<string>, released: Set<string> }`; keys normalized to `ArrowUp`, `ArrowDown`, `ArrowLeft`, `ArrowRight`, `a`, `s`, `d`, `f`, `Escape`.
-  - `GameEvent`: `{ type: "goal"|"keeperCatch"|"matchWon"|"matchLost", team?: "home"|"away", score?: { home: number, away: number } }`.
+  - T03 adds optional `Player.slideSeconds: number` (default `0`), `Ball.flightDurationSeconds: number` (lob flight), and `Ball.skillId: string|null` (used by T04 skill shots).
+  - T03 adds optional `GameState.phaseSeconds: number`, `pendingKickoffTeam: "home"|"away"`, and `aiShotCooldownSeconds: number` for goal/goal-kick transitions and opponent AI pacing.
+  - `GameEvent`: `{ type: "goal"|"keeperCatch"|"matchWon"|"matchLost"|"overtime"|"kickoff"|"goalKick"|"outOfBounds"|"possessionChange"|"pass"|"shot"|"tackle", team?: "home"|"away", score?: { home: number, away: number }, action?: "lobPass"|"groundPass", receiverId?: string, playerId?: string, keeperId?: string }`.
 - **Execution Flow / Logic**:
   1. Arrow keys move the controlled home player in four directions; normalize diagonal movement and clamp to pitch bounds. Starting speeds: user player 160 field units/sec, AI field player 125, goalkeeper 95.
   2. Prevent browser scrolling for game keys only while the match screen is focused. On blur or unmount, clear key state and remove all listeners.
@@ -53,10 +55,10 @@
   4. Keep canvas backing dimensions at `960 × 540`; CSS scales the canvas while preserving the 16:9 ratio and pixelated rendering.
 
 ## Acceptance Criteria
-- [ ] All selected controls work in attack and defense modes without page scroll.
-- [ ] Pass direction chooses a teammate and transfers control to the receiver.
-- [ ] Goal, keeper rebound/catch, goal kick, kickoff, timer, and golden-goal states follow D05.
-- [ ] AI can attack either goal and returns to formation when it loses possession.
+- [x] All selected controls work in attack and defense modes without page scroll.
+- [x] Pass direction chooses a teammate and transfers control to the receiver.
+- [x] Goal, keeper rebound/catch, goal kick, kickoff, timer, and golden-goal states follow D05.
+- [x] AI can attack either goal and returns to formation when it loses possession.
 
 ## Validation
 - `cd game; npm test` — movement, input cleanup, possession, pass/shot, keeper, goal, regulation and overtime tests pass.
@@ -76,6 +78,6 @@ Task: T03-match-controls-rules
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
-- commit: pending
+- [x] 구현 완료
+- [x] 검증 통과
+- commit: recorded in Git history

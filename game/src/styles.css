@@ -61,6 +61,8 @@ h1 em { color: var(--lime); font-style: normal; }
 .screen-note { min-height: 18px; margin: 18px 0 0; color: #78867b; font: 10px 'IBM Plex Mono', monospace; letter-spacing: .03em; }
 
 .pitch-card { position: relative; padding: 20px; border: 1px solid rgb(223 235 210 / 13%); background: #18221d; box-shadow: 0 30px 100px rgb(0 0 0 / 25%); transform: rotate(1.2deg); }
+.pitch-canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; image-rendering: pixelated; outline: none; }
+.pitch-canvas:focus-visible { outline: 3px solid var(--lime); outline-offset: 4px; }
 .score-chip { display: flex; height: 36px; align-items: center; justify-content: flex-end; gap: 10px; padding: 0 5px 13px; color: #f5f5eb; font: 600 12px 'Cascadia Mono', Consolas, monospace; }
 .score-chip span { color: #8d9b8f; font-size: 8px; letter-spacing: .11em; }
 .score-chip span:first-child { margin-right: auto; }
