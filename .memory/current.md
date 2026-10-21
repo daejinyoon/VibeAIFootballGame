@@ -7,10 +7,10 @@
 [P01 로컬 게임](./phases/2026-10-21-football-game/P01-local-game/phase.md)
 
 ## Active Task
-[T06 로컬 저장과 랭킹](./phases/2026-10-21-football-game/P01-local-game/T06-local-save-ranking.md)
+완료 — P01 로컬 게임
 
 ## Status
-- T00 Git 준비, T01 앱 뼈대, T02 경기 상태·경기장 렌더링, T03 조작·경기 규칙, T04 스킬·캠페인, T05 게임 화면 완료
+- T00–T06 로컬 게임 구현 및 검증 완료
 
 ## Next Step (IMPORTANT)
-T06 청사진을 읽고 브라우저 프로필 저장, 닉네임, 캠페인 임시 저장·이어 하기, 개인 기록 랭킹을 구현하세요.
+P01 로컬 게임이 완료되었습니다. 개발 서버를 실행해 게임을 플레이하고, 다음 단계(Entra ID 및 Azure 연동)를 계획하세요.

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { assignOpponentSkills, createCampaign, finishStage } from './game/campaign.js';
 import { createInitialGameState } from './game/createInitialGameState.js';
 import { HOME_PLAYER_IDS, SKILLS, SKILL_IDS, validateLoadout } from './game/skills.js';
+import { createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
 import GameScreen from './components/GameScreen.jsx';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
 import LoadoutScreen from './components/LoadoutScreen.jsx';
@@ -26,7 +27,9 @@ export default function App() {
   const [campaign, setCampaign] = useState(null);
   const [matchState, setMatchState] = useState(null);
   const [result, setResult] = useState(null);
-  const [records] = useState([]);
+  const [profile, setProfile] = useState(() => readProfile());
+  const [profileError, setProfileError] = useState('');
+  const [overwriteApproved, setOverwriteApproved] = useState(false);
 
   const playerRows = useMemo(() => {
     const state = createInitialGameState();
@@ -40,9 +43,23 @@ export default function App() {
   }, [loadout]);
 
   const startNewCampaign = () => {
+    if (profile.campaignSave && !window.confirm('저장된 캠페인이 새 캠페인으로 바뀝니다. 새 캠페인을 시작할까요?')) return;
+    setOverwriteApproved(true);
     setResult(null);
     setLoadout({});
     setScreen('loadout');
+  };
+
+  const handleNicknameSave = (nickname) => {
+    try {
+      const nextProfile = setNickname(profile, nickname);
+      setProfile(nextProfile);
+      const written = writeProfile(nextProfile);
+      setProfile(written);
+      setProfileError('');
+    } catch (error) {
+      setProfileError(error.message || '별명을 저장하지 못했습니다. 다시 시도해 주세요.');
+    }
   };
 
   const beginCampaign = () => {
@@ -59,6 +76,17 @@ export default function App() {
     setCampaign(nextCampaign);
     setMatchState(makeMatchState(nextCampaign));
     setScreen('match');
+    if (overwriteApproved) {
+      const nextProfile = { ...profile, campaignSave: null };
+      setProfile(nextProfile);
+      try {
+        writeProfile(nextProfile);
+        setProfileError('');
+      } catch (error) {
+        setProfileError(error.message || '기존 저장 데이터를 지우지 못했습니다.');
+      }
+    }
+    setOverwriteApproved(false);
   };
 
   const startStage = (activeCampaign = campaign) => {
@@ -83,6 +111,20 @@ export default function App() {
       stageReached: nextCampaign.currentStage,
       goalDifference: nextCampaign.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0),
     });
+    const bestProfile = updateBestRecord(profile, {
+      stageReached: campaign.currentStage,
+      goalDifference: nextCampaign.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0),
+    });
+    const savedProfile = nextCampaign.status === 'complete'
+      ? { ...bestProfile, campaignSave: null }
+      : bestProfile;
+    setProfile(savedProfile);
+    try {
+      writeProfile(savedProfile);
+      setProfileError('');
+    } catch (error) {
+      setProfileError(error.message || '기록을 저장하지 못했습니다.');
+    }
     setScreen('results');
   };
 
@@ -96,6 +138,37 @@ export default function App() {
     setMatchState(null);
   };
 
+  const continueSavedCampaign = () => {
+    const saved = profile.campaignSave;
+    if (!saved) return;
+    const resumed = {
+      id: `resume-${Date.now()}`,
+      currentStage: saved.currentStage,
+      clearedStageResults: saved.clearedStageResults,
+      homeLoadout: saved.homeLoadout,
+      opponentSkillSets: saved.opponentSkillSets,
+      status: 'active',
+    };
+    setCampaign(resumed);
+    setLoadout({ ...saved.homeLoadout });
+    startStage(resumed);
+  };
+
+  const saveAndExit = () => {
+    if (!campaign) return home();
+    const nextProfile = { ...profile, campaignSave: createCampaignSave(campaign) };
+    try {
+      writeProfile(nextProfile);
+      setProfile(nextProfile);
+      setProfileError('');
+      home();
+    } catch (error) {
+      setProfileError(error.message || '저장하지 못했습니다. 저장 공간을 확인하고 다시 시도해 주세요.');
+    }
+  };
+
+  const records = sortLeaderboard(profile.bestRecord ? [profile.bestRecord] : []);
+
   return (
     <main className="page-shell app-shell">
       <header className="topbar">
@@ -105,7 +178,7 @@ export default function App() {
         <span className="local-badge"><span /> LOCAL PLAY</span>
       </header>
 
-      {screen === 'start' && <StartScreen hasSave={false} nickname="플레이어" onStart={startNewCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} />}
+      {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} />}
       {screen === 'loadout' && <LoadoutScreen
         playerRows={playerRows}
         loadout={loadout}
@@ -119,14 +192,16 @@ export default function App() {
         key={campaign?.currentStage ?? 1}
         gameState={matchState}
         paused={screen === 'pause'}
+        errorMessage={profileError}
         onPause={() => setScreen('pause')}
         onResume={() => setScreen('match')}
-        onSaveAndExit={home}
+        onSaveAndExit={saveAndExit}
         onGameEvents={handleGameEvents}
       />}
       {screen === 'results' && result && <ResultsScreen
         result={result}
-        leaderboardPlace={null}
+        leaderboardPlace={records.length ? 1 : null}
+        errorMessage={profileError}
         onRetry={() => startStage(campaign)}
         onContinue={() => {
           if (result.outcome === 'win') setScreen('loadout');

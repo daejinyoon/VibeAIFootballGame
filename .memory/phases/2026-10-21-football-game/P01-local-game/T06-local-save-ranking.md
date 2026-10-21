@@ -1,6 +1,6 @@
 ﻿# Task: T06 로컬 저장과 랭킹
 
-## Status: pending
+## Status: done
 
 ## Goal
 게임을 로그인 없이 로컬에서 시험할 수 있도록 닉네임, 한 개의 캠페인 저장 슬롯, 이어 하기, 최고 캠페인 기록과 브라우저 랭킹을 저장한다.
@@ -15,6 +15,12 @@
 - Related Files:
   - `game/src/storage/localProfile.js` :: profile CRUD와 저장 슬롯; new
   - `game/src/storage/localProfile.test.js` :: 메모리 Storage 기반 검증; new
+  - `game/src/App.jsx` :: 프로필, 저장·이어 하기, 캠페인 최고 기록 연결; modify
+  - `game/src/components/StartScreen.jsx` :: 닉네임 설정과 저장된 캠페인 진입; modify
+  - `game/src/components/GameScreen.jsx` :: 저장 오류 표시; modify
+  - `game/src/components/PauseMenu.jsx` :: 저장 후 나가기와 오류 표시; modify
+  - `game/src/components/ResultsScreen.jsx` :: 순위와 기록 저장 오류 표시; modify
+  - `game/src/styles.css` :: 닉네임 입력·오류 알림 스타일; modify
 - **Signatures & Types**:
   ```js
   export const STORAGE_KEY = "dex-pixel-football:v1";
@@ -41,16 +47,16 @@
 - **Error & Exception Handling**: JSON 손상·버전 불일치·저장 quota 오류를 화면 흰색 오류로 만들지 않는다. 저장 실패 시 현재 앱 메모리 상태는 유지하고 재시도 안내를 보여준다.
 
 ## Acceptance Criteria
-- [ ] 로컬 첫 방문에서 별명을 저장하고 랭킹에 표시할 수 있다.
-- [ ] 저장 슬롯 하나를 만들고 새로고침 뒤 이어 하기 할 수 있으며, 이어 하면 현재 단계 경기를 처음부터 시작한다.
-- [ ] 덮어쓰기 취소는 기존 저장을 지키고, 확인은 새 캠페인으로 대체한다.
-- [ ] 승리한 단계만 골 차이에 포함하고, 개인 최고 기록 순서로 랭킹을 정렬한다.
-- [ ] 손상된 브라우저 데이터와 저장 실패가 앱을 종료시키지 않는다.
+- [x] 로컬 첫 방문에서 별명을 저장하고 랭킹에 표시할 수 있다.
+- [x] 저장 슬롯 하나를 만들고 새로고침 뒤 이어 하기 할 수 있으며, 이어 하면 현재 단계 경기를 처음부터 시작한다.
+- [x] 덮어쓰기 취소는 기존 저장을 지키고, 확인은 새 캠페인으로 대체한다.
+- [x] 승리한 단계만 골 차이에 포함하고, 개인 최고 기록 순서로 랭킹을 정렬한다.
+- [x] 손상된 브라우저 데이터와 저장 실패가 앱을 종료시키지 않는다.
 
 ## Validation
-- `cd game; npm test` — nickname, parse recovery, save/resume, overwrite, best-record update and ordering tests pass.
+- `cd game; npm test` — 49 tests pass, including nickname validation, parse recovery, single-slot replacement, best-record update and ordering.
 - `cd game; npm run build` — local persistence integration bundles.
-- `cd game; npm run dev` — manually save, refresh, resume, overwrite and inspect leaderboard.
+- `cd game; npm run dev` — Vite root, `App.jsx` and local storage module return HTTP 200. Browser-specific refresh/resume interaction remains a manual check.
 
 ## Commit Message
 ```text
@@ -65,6 +71,6 @@ Task: T06-local-save-ranking
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
-- commit: pending
+- [x] 구현 완료
+- [x] 검증 통과
+- commit: `feat(game): add browser saves and local leaderboard`

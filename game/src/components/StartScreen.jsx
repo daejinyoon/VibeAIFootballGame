@@ -1,15 +1,23 @@
-export default function StartScreen({ hasSave, nickname, onStart, onContinue, onOpenLeaderboard }) {
+import { useState } from 'react';
+
+export default function StartScreen({ hasSave, nickname, profileError, onNicknameSave, onStart, onContinue, onOpenLeaderboard }) {
+  const [draftNickname, setDraftNickname] = useState(nickname);
   return (
     <section className="screen-panel start-panel" aria-labelledby="game-title">
       <div className="start-copy">
         <p className="eyebrow"><span>SEASON 01</span> · GOLDEN ROAD</p>
         <h1 id="game-title">덱스 픽셀<br /><em>축구왕을 향해.</em></h1>
         <p className="intro">6대6 경기를 이기고, 세 단계를 돌파해 보스에게 도전하세요.</p>
-        <p className="welcome">환영합니다, {nickname}님</p>
+        <p className="welcome">{nickname ? `환영합니다, ${nickname}님` : '플레이에 사용할 별명을 입력해 주세요.'}</p>
+        <form className="nickname-form" onSubmit={(event) => { event.preventDefault(); onNicknameSave(draftNickname); }}>
+          <label htmlFor="nickname">플레이어 별명</label>
+          <div><input id="nickname" value={draftNickname} onChange={(event) => setDraftNickname(event.target.value)} maxLength={16} placeholder="2~16자" /><button className="secondary-button" type="submit">별명 저장</button></div>
+        </form>
+        {profileError && <p className="profile-error" role="alert">{profileError}</p>}
         <div className="actions">
-          <button className="primary-button" onClick={onStart}>새 캠페인 시작 <span aria-hidden="true">→</span></button>
-          {hasSave && <button className="secondary-button" onClick={onContinue}>이어 하기 →</button>}
-          <button className="secondary-button" onClick={onOpenLeaderboard}>랭킹 보기 →</button>
+          <button className="primary-button" disabled={!nickname} onClick={onStart}>새 캠페인 시작 <span aria-hidden="true">→</span></button>
+          {hasSave && <button className="secondary-button" disabled={!nickname} onClick={onContinue}>이어 하기 →</button>}
+          <button className="secondary-button" disabled={!nickname} onClick={onOpenLeaderboard}>랭킹 보기 →</button>
         </div>
       </div>
       <div className="start-preview" aria-hidden="true">

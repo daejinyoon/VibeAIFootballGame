@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import PitchCanvas from './PitchCanvas.jsx';
 import PauseMenu from './PauseMenu.jsx';
 
-export default function GameScreen({ gameState, paused, onPause, onResume, onSaveAndExit, onGameEvents }) {
+export default function GameScreen({ gameState, paused, errorMessage, onPause, onResume, onSaveAndExit, onGameEvents }) {
   const [viewState, setViewState] = useState(gameState);
   const lastUpdate = useRef(0);
   const stage = gameState.stage;
@@ -29,7 +29,8 @@ export default function GameScreen({ gameState, paused, onPause, onResume, onSav
         <div className="gauge away-gauge"><span>상대 스킬 게이지</span><div><i style={{ width: `${viewState.skillGauge.away}%` }} /></div><b>{Math.floor(viewState.skillGauge.away)}%</b></div>
         <p>방향키 이동 · A/S/D 공격·수비 · F 스킬</p>
       </div>
-      {paused && <PauseMenu onResume={onResume} onSaveAndExit={onSaveAndExit} />}
+      {errorMessage && <p className="profile-error" role="alert">{errorMessage}</p>}
+      {paused && <PauseMenu onResume={onResume} onSaveAndExit={onSaveAndExit} errorMessage={errorMessage} />}
     </section>
   );
 }

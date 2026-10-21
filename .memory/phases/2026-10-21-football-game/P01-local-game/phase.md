@@ -9,7 +9,7 @@
 | T03 | `done` | 조작, 공 물리, AI, 골키퍼, 경기 시계와 승패 규칙을 연결한다. | [T03](./T03-match-controls-rules.md) |
 | T04 | `done` | 6종 스킬, 선수 배정, 상대 스킬 구성과 캠페인 진행을 만든다. | [T04](./T04-skills-and-campaign.md) |
 | T05 | `done` | 시작·스킬 설정·경기·일시정지·결과·랭킹 화면을 만든다. | [T05](./T05-game-screens.md) |
-| T06 | `in_progress` | 브라우저 임시 저장, 이어 하기와 개인 최고 기록 랭킹을 연결한다. | [T06](./T06-local-save-ranking.md) |
+| T06 | `done` | 브라우저 임시 저장, 이어 하기와 개인 최고 기록 랭킹을 연결한다. | [T06](./T06-local-save-ranking.md) |
 
 ## Progress
-- done: 6/7 (active: T06)
+- done: 7/7 (active: complete)
