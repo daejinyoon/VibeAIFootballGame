@@ -6,7 +6,7 @@
 ## Phases
 | Phase | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
-| P01 | `in_progress` | 경기 조작·규칙·표현을 순차적으로 아케이드풍으로 갱신 | [P01](../phases/2026-10-21-retro-arcade-gameplay/P01-arcade-match/phase.md) |
+| P01 | `done` | 경기 조작·규칙·표현 아케이드풍 갱신 완료 | [P01](../phases/2026-10-21-retro-arcade-gameplay/P01-arcade-match/phase.md) |
 
 ## 결정 근거
 - [확정된 레트로 아케이드 경기 결정](../decisions/2026-10-21-retro-arcade-gameplay.md)
@@ -27,4 +27,3 @@ T01 패스·슛 조작 → T02 우리 선수 AI 이동 → T03 아웃·재개 �
 - 태클 반칙 접촉 거리 22, 페널티 구역 폭·높이 기존 필드 크기 기준 132×200, 세트피스 대기 1초.
 - 원근 투영의 세로 곡선 지수 1.22와 먼 쪽 배율 0.72.
 - 스로인·코너 자동 배급 속도 275. 골킥 재개는 기존 1초 흐름을 사용한다.
-

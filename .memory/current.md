@@ -7,12 +7,10 @@
 [P01 아케이드 경기](./phases/2026-10-21-retro-arcade-gameplay/P01-arcade-match/phase.md)
 
 ## Active Task
-[T05 retro match rendering](./phases/2026-10-21-retro-arcade-gameplay/P01-arcade-match/T05-retro-match-rendering.md)
+완료 — P01 아케이드 경기
 
 ## Status
-- T01–T04 구현·검증·커밋 완료; T05 준비됨
+- T01–T05 구현·검증·커밋 완료
 
 ## Next Step (IMPORTANT)
-T05 청사진에 따라 레트로 원근 경기 렌더링을 구현하세요.
-
-
+P01 아케이드 경기 단계가 완료되었습니다. 게임을 실행해 원근감과 조작감을 확인하세요.

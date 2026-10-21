@@ -1,6 +1,6 @@
 ﻿# Task: T05 ?덊듃濡??먭렐 寃쎄린 ?붾㈃
 
-## Status: in_progress
+## Status: done
 
 ## Goal
 湲곗〈 ?됰㈃ ?묐떎??罹붾쾭?ㅻ? 愿以묒꽍쨌?먭렐 ?붾뵒쨌??댁긽???좎닔 ?ㅽ봽?쇱씠?멸? ?덈뒗 ?꾩??대뱶 寃쎄린 ?붾㈃?쇰줈 諛붽씀怨? 寃쎄린 ?먯닔? ?쒓컙? 罹붾쾭???꾩そ??怨좎젙?쒕떎.
@@ -50,11 +50,11 @@
   - Keep canvas aspect ratio 16:9 and mobile width behavior. CSS keeps `image-rendering: pixelated` and keyboard focus outline.
 
 ## Acceptance Criteria
-- [ ] Distant rows of pitch and players are smaller than near rows; movement/collision world coordinates are unchanged.
-- [ ] Canvas contains a deterministic crowd, striped perspective field, recognizable goals/lines, low-resolution team sprites, and scoreboard.
-- [ ] Scoreboard stays in the top HUD while the camera follows the ball smoothly.
-- [ ] Drawing the same state/options twice produces the same canvas call sequence and never mutates the state.
-- [ ] Existing skill effects, controlled-player marker, charge HUD, and mobile canvas sizing remain visible.
+- [x] Distant rows of pitch and players are smaller than near rows; movement/collision world coordinates are unchanged.
+- [x] Canvas contains a deterministic crowd, striped perspective field, recognizable goals/lines, low-resolution team sprites, and scoreboard.
+- [x] Scoreboard stays in the top HUD while the camera follows the ball smoothly.
+- [x] Drawing the same state/options twice produces the same canvas call sequence and never mutates the state.
+- [x] Existing skill effects, controlled-player marker, charge HUD, and mobile canvas sizing remain visible.
 
 ## Validation
 - `cd game; npm test -- --test-name-pattern="draw|render|canvas|projection"` ??rendering behavior passes
@@ -75,8 +75,6 @@ Task: T05-retro-match-rendering
 ```
 
 ## Progress
-- [ ] 援ы쁽 ?꾨즺
-- [ ] 寃利??듦낵
-- commit: pending
-
-
+- [x] Implementation complete
+- [x] Validation passed
+- commit: 2026-10-21
