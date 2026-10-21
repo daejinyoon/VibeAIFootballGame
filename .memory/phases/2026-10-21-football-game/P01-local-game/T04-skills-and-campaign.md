@@ -1,6 +1,6 @@
 ﻿# Task: T04 선수 스킬과 캠페인 진행
 
-## Status: in_progress
+## Status: done
 
 ## Goal
 6종 스킬을 중복 없이 선수에게 배정하고, 무작위 상대 스킬과 3단계 캠페인을 연결해 일반 경기·보스전까지 진행할 수 있게 한다.
@@ -16,13 +16,18 @@
   - `game/src/game/skills.js` :: 스킬 정의, 검증, 발동; new
   - `game/src/game/skills.test.js` :: 스킬 규칙 테스트; new
   - `game/src/game/constants.js` :: 스킬 수치 상수 추가; modify
+  - `game/src/game/stepGame.js` :: 게이지 보상, F 발동, 상대 AI, 특수 공 처리; modify
+  - `game/src/game/drawGameFrame.js` :: 스킬 효과 렌더링; modify
+  - `game/src/game/drawGameFrame.test.js` :: 스킬 이펙트 렌더링 검증; modify
 - **Signatures & Types**:
   ```js
   export const SKILL_IDS = ["eagleShot", "tornadoShot", "powerTackle", "eulryongta", "vacuumCleaner", "rainbowReflect"];
   export function validateLoadout(loadout, playerIds);
   export function applySkill(state, playerId);
-  export function applyAutomaticRainbowReflect(state);
-  export function addSkillGauge(state, eventType);
+  export function applyAutomaticRainbowReflect(state, defendingTeam, deltaSeconds);
+  export function addSkillGauge(state, eventType, team, amount);
+  export function finishStage(campaign, result);
+  export function assignOpponentSkills(players, skillIds);
   ```
 - **Data & Schema Fields**:
   - `loadout`: 객체 `{ [homePlayerId: string]: SkillId }`; 정확히 6개의 서로 다른 스킬 ID를 포함한다.
@@ -30,6 +35,9 @@
   - `state.skillGauge`: `{ home: number, away: number }`; 각각 0–100, 초기 0, 해당 팀이 스킬을 쓰면 100 소모.
   - `state.players[*].stunnedSeconds`: 을룡타가 맞은 선수는 2초로 설정.
   - `state.players[*].powerTackleSeconds`: 파워 태클 지속시간(초)을 추가한다. 초기값 4초.
+  - `state.ball.skillId`와 `state.ball.flightKind`: 스킬 슛의 종류와 비행 상태를 보관한다.
+  - `state.vacuumEffect`와 `state.rainbowReflection`: 진행 중인 진공 효과와 무지개반사 주자를 보관한다.
+  - `GameEvent`에 `skillUsed`, `shotOnTarget`, `rainbowStarted` 이벤트를 추가한다.
 - **Execution Flow / Logic**:
   1. 스킬 상수 초기값: 수동 패스/슛 charge max 1초; 각 팀 게이지는 시간에 따라 분당 100점 차고, 해당 팀의 성공 패스 `+12`, 공을 빼앗은 태클 `+20`, 유효 슛 `+15`, 골키퍼 선방 `+20`; 상한 100.
   2. 스킬 사용 전에는 해당 팀 게이지 100, `playerId`가 그 팀의 유효 선수, 스킬별 상황 조건을 검증한다. 실패하면 상태와 게이지를 바꾸지 않는다.
@@ -64,14 +72,14 @@
   6. 현재 단계의 상대 스킬 ID를 상대 선수들에게 중복 없이 하나씩 배정한다. 각 단계에서 사용 가능한 스킬 종류 수는 각각 3/4/6개이며, 한 경기에서의 사용 횟수는 공용 게이지와 상황 조건에 따라 정하고 별도의 횟수 상한은 두지 않는다.
 
 ## Acceptance Criteria
-- [ ] 우리 팀 스킬 여섯 개를 한 번씩만 배정해야 시작할 수 있다. 역할과 스킬 범주 간 제한은 없다.
-- [ ] 상대 스킬 조합은 새 캠페인마다 달라질 수 있지만, 같은 캠페인의 재도전에서는 유지된다.
-- [ ] 진 경기에서는 현재 단계가 유지되고, 이긴 경기만 누적 골 차이에 들어간다.
-- [ ] 일반/보스 스킬이 D07의 효과와 발동 조건을 따른다.
+- [x] 우리 팀 스킬 여섯 개를 한 번씩만 배정해야 시작할 수 있다. 역할과 스킬 범주 간 제한은 없다.
+- [x] 상대 스킬 조합은 새 캠페인마다 달라질 수 있지만, 같은 캠페인의 재도전에서는 유지된다.
+- [x] 진 경기에서는 현재 단계가 유지되고, 이긴 경기만 누적 골 차이에 들어간다.
+- [x] 일반/보스 스킬이 D07의 효과와 발동 조건을 따른다.
 
 ## Validation
-- `cd game; npm test` — 중복 장착, 게이지 상한, 스킬 조건, RNG 결과, stage 승패 테스트 통과.
-- `cd game; npm run build` — 엔진과 React 연결 빌드 성공.
+- `cd game; npm test` — 43개 테스트 통과. 중복 장착, 게이지, 스킬 조건/효과, RNG, stage 승패 검증.
+- `cd game; npm run build` — Vite production build 성공.
 
 ## Commit Message
 ```text
@@ -86,6 +94,6 @@ Task: T04-skills-and-campaign
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
-- commit: pending
+- [x] 구현 완료
+- [x] 검증 통과
+- commit: `feat(game): add player skills and campaign progression`

@@ -15,3 +15,11 @@ export const ROLES = Object.freeze({
 });
 
 export const REGULATION_SECONDS = 60;
+
+export const MAX_SKILL_GAUGE = 100;
+export const SKILL_GAUGE_REWARDS = Object.freeze({
+  pass: 12,
+  tackle: 20,
+  shotOnTarget: 15,
+  keeperCatch: 20,
+});

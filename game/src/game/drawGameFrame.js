@@ -32,6 +32,11 @@ function drawPlayer(ctx, player, isControlled) {
   }
 
   ctx.fillStyle = color;
+  if (player.powerTackleSeconds > 0) {
+    ctx.strokeStyle = '#ffcf63';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x - 5, y - 5, size + 10, size + 10);
+  }
   ctx.fillRect(x, y, size, size);
   ctx.fillStyle = player.team === 'home' ? '#17334b' : '#5a2d24';
   ctx.fillRect(x + 4, y + 4, size - 8, 4);
@@ -47,6 +52,43 @@ function drawPlayer(ctx, player, isControlled) {
     ctx.fillStyle = COLORS.stun;
     ctx.fillRect(x + size - 2, y - 7, 4, 4);
     ctx.fillRect(x + size + 3, y - 4, 3, 3);
+  }
+}
+
+function drawSkillEffects(ctx, state) {
+  const vacuum = state.vacuumEffect;
+  if (vacuum) {
+    const player = state.players.find((candidate) => candidate.id === vacuum.playerId);
+    if (player) {
+      ctx.strokeStyle = '#b8fff0';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(state.ball.x, state.ball.y);
+      ctx.lineTo(player.x, player.y);
+      ctx.stroke();
+      ctx.lineWidth = 3;
+      for (const radius of [14, 23, 32]) {
+        ctx.beginPath();
+        ctx.arc(state.ball.x, state.ball.y, radius, Math.PI * 0.2, Math.PI * 1.65);
+        ctx.stroke();
+      }
+    }
+  }
+
+  const reflection = state.rainbowReflection;
+  if (reflection) {
+    const player = state.players.find((candidate) => candidate.id === reflection.playerId);
+    if (player) {
+      ctx.strokeStyle = '#ed8dff';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 22, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(player.x, player.y);
+      ctx.lineTo(state.ball.x, state.ball.y);
+      ctx.stroke();
+    }
   }
 }
 
@@ -109,10 +151,23 @@ function drawBall(ctx, ball) {
     ctx.fillRect(Math.round(ball.x - 4), Math.round(ball.y - 3), 8, 5);
   }
 
-  ctx.fillStyle = COLORS.ball;
+  ctx.fillStyle = ball.skillId === 'eagleShot'
+    ? '#fff078'
+    : ball.skillId === 'tornadoShot'
+      ? '#bfe8ff'
+      : ball.skillId === 'rainbowReflect'
+        ? '#f4a9ff'
+        : COLORS.ball;
   ctx.fillRect(x, y, size, size);
   ctx.fillStyle = '#38433a';
   ctx.fillRect(x + size / 2 - 1, y + size / 2 - 1, 2, 2);
+  if (ball.skillId === 'tornadoShot' || ball.skillId === 'rainbowReflect') {
+    ctx.strokeStyle = ball.skillId === 'tornadoShot' ? '#bfe8ff' : '#f4a9ff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y - lift, size, 0, Math.PI * 1.6);
+    ctx.stroke();
+  }
 }
 
 /** Draw one immutable game-state snapshot onto a 960 × 540 canvas. */
@@ -131,5 +186,6 @@ export function drawGameFrame(ctx, state) {
     drawPlayer(ctx, player, player.id === state.controlledPlayerId);
   }
 
+  drawSkillEffects(ctx, state);
   drawBall(ctx, state.ball);
 }

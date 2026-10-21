@@ -1,5 +1,6 @@
-import { FIELD } from './constants.js';
+import { FIELD, MAX_SKILL_GAUGE } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
+import { addSkillGauge, applyAutomaticRainbowReflect, applySkill, SKILL_IDS } from './skills.js';
 
 const PLAYER_SPEED = 160;
 const AI_SPEED = 125;
@@ -65,6 +66,7 @@ function setBallOwner(state, player) {
   state.ball.flightSeconds = 0;
   delete state.ball.flightDurationSeconds;
   delete state.ball.skillId;
+  delete state.ball.passTeam;
   state.ball.lastTouchTeam = player.team;
   state.possessionTeam = player.team;
 }
@@ -108,11 +110,12 @@ function releasePass(state, player, kind, chargeRatio, moveX, moveY) {
   state.ball.flightDurationSeconds = Math.max(0.35, distance(receiver, player) / speed);
   state.ball.height = 0;
   delete state.ball.skillId;
+  state.ball.passTeam = player.team;
   state.ball.lastTouchTeam = player.team;
   state.possessionTeam = player.team;
   state.controlledPlayerId = receiver.id;
 
-  return [{ type: 'pass', team: player.team, action: kind, receiverId: receiver.id }];
+  return [{ type: 'pass', team: player.team, action: kind, receiverId: receiver.id, completed: false }];
 }
 
 function releaseShot(state, player, chargeRatio) {
@@ -131,10 +134,12 @@ function releaseShot(state, player, chargeRatio) {
   state.ball.height = 0;
   delete state.ball.flightDurationSeconds;
   delete state.ball.skillId;
+  delete state.ball.passTeam;
   state.ball.lastTouchTeam = player.team;
   state.possessionTeam = player.team;
 
-  return [{ type: 'shot', team: player.team }];
+  const onTarget = targetY >= FIELD.goalTop && targetY <= FIELD.goalBottom;
+  return [{ type: 'shot', team: player.team }, ...(onTarget ? [{ type: 'shotOnTarget', team: player.team }] : [])];
 }
 
 function resetForKickoff(state, kickoffTeam) {
@@ -207,28 +212,30 @@ function handleKeeperContact(state) {
   for (const keeper of state.players.filter((player) => player.role === 'goalkeeper')) {
     if (Math.abs(ball.x - keeper.x) > 12 || Math.abs(ball.y - keeper.y) > 14) continue;
 
-    if (ball.skillId === 'eagleShot') continue;
-
-    if (ball.flightKind === 'skill-shot' && ball.skillId && ball.skillId !== 'eagleShot') {
-      // The skill system will add special interaction rules in T04.
-    }
-
     if (ball.lastTouchTeam === keeper.team) continue;
-
     if (ball.skillId === 'eagleShot') continue;
-    if (!['eagleShot'].includes(ball.skillId)) {
-      setBallOwner(state, keeper);
-      state.phase = 'goalKick';
-      state.phaseSeconds = 1;
-      putBallAtPlayer(state, keeper);
-      return [{ type: 'keeperCatch', team: keeper.team, keeperId: keeper.id }];
-    }
+    setBallOwner(state, keeper);
+    state.phase = 'goalKick';
+    state.phaseSeconds = 1;
+    putBallAtPlayer(state, keeper);
+    return [{ type: 'keeperCatch', team: keeper.team, keeperId: keeper.id }];
   }
   return [];
 }
 
 function integrateLooseBall(state, deltaSeconds) {
   const { ball } = state;
+  if (ball.flightKind === 'skill-shot' && ball.skillId === 'tornadoShot') {
+    const defender = state.players
+      .filter((player) => player.team !== ball.lastTouchTeam && player.role !== 'goalkeeper')
+      .map((player) => ({ player, distance: distance(player, ball) }))
+      .filter((entry) => entry.distance < 100)
+      .sort((a, b) => a.distance - b.distance)[0]?.player;
+    if (defender) {
+      const awayFromDefender = Math.sign(ball.y - defender.y) || (ball.lastTouchTeam === 'home' ? -1 : 1);
+      ball.vy += awayFromDefender * 420 * (1 - distance(defender, ball) / 100) * deltaSeconds;
+    }
+  }
   ball.x += ball.vx * deltaSeconds;
   ball.y += ball.vy * deltaSeconds;
   ball.flightSeconds = (ball.flightSeconds ?? 0) + deltaSeconds;
@@ -250,6 +257,7 @@ function integrateLooseBall(state, deltaSeconds) {
 function collectLooseBall(state) {
   const { ball } = state;
   if (ball.ownerId || ball.height > 14) return [];
+  if (ball.flightKind === 'skill-shot' && ['eagleShot', 'tornadoShot'].includes(ball.skillId)) return [];
   const candidates = state.players
     .map((player) => ({ player, distance: distance(player, ball) }))
     .filter(({ distance: playerDistance }) => playerDistance <= 18)
@@ -258,11 +266,13 @@ function collectLooseBall(state) {
   if (!pickedUp) return [];
 
   const previousTeam = state.possessionTeam;
+  const completedPass = ball.passTeam === pickedUp.team;
   setBallOwner(state, pickedUp);
   if (pickedUp.team === 'home') state.controlledPlayerId = pickedUp.id;
-  return previousTeam !== pickedUp.team
-    ? [{ type: 'possessionChange', team: pickedUp.team, playerId: pickedUp.id }]
-    : [];
+  return [
+    ...(previousTeam !== pickedUp.team ? [{ type: 'possessionChange', team: pickedUp.team, playerId: pickedUp.id }] : []),
+    ...(completedPass ? [{ type: 'pass', team: pickedUp.team, completed: true, receiverId: pickedUp.id }] : []),
+  ];
 }
 
 function handleHomeAttack(state, controlled, input, deltaSeconds) {
@@ -332,7 +342,7 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
   const ballCarrier = carrier(state);
   const opponentCarrier = state.players.find((player) => player.team !== 'home' && player.id === state.ball.ownerId);
 
-  if (controlled.stunnedSeconds <= 0) {
+  if (controlled.stunnedSeconds <= 0 && state.rainbowReflection?.playerId !== controlled.id) {
     if (state.possessionTeam === 'away' && input.down.has('d') && opponentCarrier) {
       moveToward(controlled, opponentCarrier, PRESSURE_SPEED, deltaSeconds);
     } else if (controlled.slideSeconds > 0 && opponentCarrier) {
@@ -356,6 +366,7 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
 
   for (const player of state.players) {
     if (player.id === controlled.id) continue;
+    if (state.rainbowReflection?.playerId === player.id) continue;
     if (player.id === state.ball.ownerId) {
       const direction = player.team === 'home' ? 1 : -1;
       const goal = { x: direction > 0 ? FIELD.width : 0, y: FIELD.height / 2 };
@@ -376,7 +387,8 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
     moveToward(player, target, player.role === 'goalkeeper' ? KEEPER_SPEED : AI_SPEED, deltaSeconds);
   }
 
-  if (opponentCarrier && controlled.slideSeconds > 0 && distance(controlled, opponentCarrier) <= 26) {
+  const tackleRange = controlled.powerTackleSeconds > 0 ? 39 : 26;
+  if (opponentCarrier && controlled.slideSeconds > 0 && distance(controlled, opponentCarrier) <= tackleRange) {
     setBallOwner(state, controlled);
     state.controlledPlayerId = controlled.id;
     events.push({ type: 'tackle', team: 'home', playerId: controlled.id });
@@ -387,6 +399,69 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
     state.controlledPlayerId = homeCarrier.id;
   }
   return byId(state, state.controlledPlayerId);
+}
+
+function maybeUseAiSkill(state, team, events) {
+  if ((state.skillGauge?.[team] ?? 0) < MAX_SKILL_GAUGE) return;
+  const opponentCarrier = state.players.find((player) => player.team !== team && player.id === state.ball.ownerId);
+  const candidates = state.players.filter((player) => player.team === team && SKILL_IDS.includes(player.skillId));
+
+  for (const player of candidates) {
+    if (player.skillId === 'rainbowReflect') continue;
+    if (['eagleShot', 'tornadoShot'].includes(player.skillId)
+        && (state.ball.ownerId !== player.id || state.possessionTeam !== team)) continue;
+    if (player.skillId === 'powerTackle'
+        && (!opponentCarrier || distance(player, opponentCarrier) > 180)) continue;
+    if (player.skillId === 'vacuumCleaner'
+        && (state.ball.ownerId === player.id || distance(player, state.ball) > 220)) continue;
+
+    const attempt = applySkill(state, player.id);
+    if (attempt.ok) {
+      events.push(...attempt.events);
+      return;
+    }
+  }
+}
+
+function advanceVacuum(state, deltaSeconds) {
+  const effect = state.vacuumEffect;
+  const player = byId(state, effect?.playerId);
+  if (!effect || !player) {
+    delete state.vacuumEffect;
+    return [];
+  }
+
+  const dx = player.x - state.ball.x;
+  const dy = player.y - state.ball.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const travel = Math.min(length, 440 * deltaSeconds);
+  state.ball.x = clamp(state.ball.x + dx / length * travel, 0, FIELD.width);
+  state.ball.y = clamp(state.ball.y + dy / length * travel, 0, FIELD.height);
+  state.ball.vx = 0;
+  state.ball.vy = 0;
+  effect.remainingSeconds -= deltaSeconds;
+
+  if (length <= 18 || effect.remainingSeconds <= 0) {
+    setBallOwner(state, player);
+    putBallAtPlayer(state, player);
+    if (player.role === 'goalkeeper') {
+      state.phase = 'goalKick';
+      state.phaseSeconds = 1;
+    }
+    if (player.team === 'home') state.controlledPlayerId = player.id;
+    delete state.vacuumEffect;
+    return [{ type: 'vacuumComplete', team: player.team, playerId: player.id }];
+  }
+  return [];
+}
+
+function awardSkillGauge(state, events) {
+  for (const event of events) {
+    if (event.type === 'pass' && event.completed) addSkillGauge(state, 'pass', event.team);
+    if (event.type === 'tackle') addSkillGauge(state, 'tackle', event.team);
+    if (event.type === 'shotOnTarget') addSkillGauge(state, 'shotOnTarget', event.team);
+    if (event.type === 'keeperCatch') addSkillGauge(state, 'keeperCatch', event.team);
+  }
 }
 
 function updateOwnedBall(state) {
@@ -451,6 +526,11 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   if (state.phase === 'goalPause') return beginKickoff(state, dt);
   if (state.phase === 'goalKick') return beginGoalKick(state, dt);
 
+  if (state.phase === 'playing' || state.phase === 'overtime') {
+    addSkillGauge(state, 'time', 'home', dt);
+    addSkillGauge(state, 'time', 'away', dt);
+  }
+
   if (state.phase === 'playing') {
     state.remainingSeconds = Math.max(0, state.remainingSeconds - dt);
     if (state.remainingSeconds === 0) {
@@ -466,29 +546,47 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   let controlled = byId(state, state.controlledPlayerId);
   if (!controlled) throw new Error(`조작 선수를 찾을 수 없습니다: ${state.controlledPlayerId}`);
 
+  for (const team of ['home', 'away']) {
+    const reflectionEvent = applyAutomaticRainbowReflect(state, team, dt);
+    if (reflectionEvent) events.push(reflectionEvent);
+  }
+
+  if (input.pressed.has('f') && state.rainbowReflection?.playerId !== controlled.id) {
+    const attempt = applySkill(state, controlled.id);
+    if (attempt.ok) events.push(...attempt.events);
+  }
+  maybeUseAiSkill(state, 'away', events);
+
   if (state.possessionTeam === 'home') {
-    moveByInput(controlled, input.moveX, input.moveY, PLAYER_SPEED, dt);
-    events.push(...controlBallAction(state, controlled, input, dt));
+    if (state.rainbowReflection?.playerId !== controlled.id) {
+      moveByInput(controlled, input.moveX, input.moveY, PLAYER_SPEED, dt);
+      events.push(...controlBallAction(state, controlled, input, dt));
+    }
   } else {
     controlled = updateAi(state, controlled, input, dt, events);
   }
 
-  const owner = carrier(state);
-  if (owner && owner.id === controlled.id && state.possessionTeam === 'home') {
-    updateOwnedBall(state);
-  } else if (state.ball.ownerId && owner) {
-    const direction = unit(owner.team === 'home' ? 1 : -1, 0);
-    owner.facingX = direction.x;
-    updateOwnedBall(state);
+  if (state.vacuumEffect) {
+    events.push(...advanceVacuum(state, dt));
   } else {
-    integrateLooseBall(state, dt);
-    events.push(...handleKeeperContact(state));
-    events.push(...checkBallBoundary(state));
-    if (!['goalPause', 'goalKick', 'finished'].includes(state.phase)) {
-      events.push(...collectLooseBall(state));
+    const owner = carrier(state);
+    if (owner && owner.id === controlled.id && state.possessionTeam === 'home') {
+      updateOwnedBall(state);
+    } else if (state.ball.ownerId && owner) {
+      const direction = unit(owner.team === 'home' ? 1 : -1, 0);
+      owner.facingX = direction.x;
+      updateOwnedBall(state);
+    } else {
+      integrateLooseBall(state, dt);
+      events.push(...handleKeeperContact(state));
+      events.push(...checkBallBoundary(state));
+      if (!['goalPause', 'goalKick', 'finished'].includes(state.phase)) {
+        events.push(...collectLooseBall(state));
+      }
     }
   }
 
+  awardSkillGauge(state, events);
   return events;
 }
 

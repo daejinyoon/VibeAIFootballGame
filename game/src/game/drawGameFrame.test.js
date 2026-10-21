@@ -49,6 +49,18 @@ test('does not mutate the supplied game state', () => {
   assert.deepEqual(state, snapshot);
 });
 
+test('renders the vacuum effect and the player approaching an incoming skill shot', () => {
+  const state = createInitialGameState();
+  state.vacuumEffect = { playerId: 'home-fw', team: 'home', remainingSeconds: 0.3 };
+  state.rainbowReflection = { playerId: 'home-gk', team: 'home', remainingSeconds: 1 };
+  const { context, calls } = createMockContext();
+
+  drawGameFrame(context, state);
+
+  assert.ok(calls.some((call) => call.method === 'arc'));
+  assert.ok(calls.some((call) => call.method === 'lineTo'));
+});
+
 test('requires a canvas context and valid game state', () => {
   assert.throws(() => drawGameFrame(null, createInitialGameState()), TypeError);
   assert.throws(() => drawGameFrame(createMockContext().context, {}), TypeError);
