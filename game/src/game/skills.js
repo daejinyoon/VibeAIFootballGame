@@ -90,7 +90,7 @@ function launchSkillShot(state, player, skillId) {
 
 function findEulryongtaTarget(state, player) {
   return state.players
-    .filter((candidate) => candidate.team !== player.team && candidate.stunnedSeconds <= 0)
+    .filter((candidate) => candidate.team !== player.team && !candidate.dismissed && candidate.stunnedSeconds <= 0)
     .map((candidate) => {
       const dx = candidate.x - player.x;
       const dy = candidate.y - player.y;
@@ -105,6 +105,7 @@ function findEulryongtaTarget(state, player) {
 export function applySkill(state, playerId) {
   const player = state?.players?.find((candidate) => candidate.id === playerId);
   if (!player) return result(false, null, null, 'playerNotFound');
+  if (player.dismissed) return result(false, player.skillId ?? null, player.team, 'playerDismissed');
   const skillId = player.skillId;
   if (!SKILL_IDS.includes(skillId)) return result(false, skillId ?? null, player.team, 'noSkillEquipped');
   if (!state.skillGauge) return result(false, skillId, player.team, 'gaugeUnavailable');
@@ -148,7 +149,7 @@ export function applyAutomaticRainbowReflect(state, defendingTeam = 'home', delt
   const active = state.rainbowReflection;
   if (active) {
     if (active.team !== defendingTeam) return null;
-    const player = state.players.find((candidate) => candidate.id === active.playerId);
+    const player = state.players.find((candidate) => candidate.id === active.playerId && !candidate.dismissed);
     if (!player || state.ball.ownerId || state.ball.flightKind !== 'skill-shot') {
       delete state.rainbowReflection;
       return null;
@@ -190,7 +191,7 @@ export function applyAutomaticRainbowReflect(state, defendingTeam = 'home', delt
       || (state.skillGauge[defendingTeam] ?? 0) < MAX_SKILL_GAUGE) return null;
 
   const reflector = state.players
-    .filter((player) => player.team === defendingTeam && player.skillId === 'rainbowReflect')
+    .filter((player) => player.team === defendingTeam && !player.dismissed && player.skillId === 'rainbowReflect')
     .sort((a, b) => distance(a, state.ball) - distance(b, state.ball))[0];
   if (!reflector) return null;
 

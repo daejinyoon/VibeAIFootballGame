@@ -25,6 +25,10 @@ function createPlayer({ id, team, role, x, y, skillId = null, aiRetargetSeconds 
     facingX: homeDirection,
     facingY: 0,
     stunnedSeconds: 0,
+    foulCount: 0,
+    card: 'none',
+    dismissed: false,
+    aiTackleCooldownSeconds: 0,
     aiTarget: null,
     aiRetargetSeconds,
     skillId: typeof skillId === 'string' ? skillId : null,
@@ -87,6 +91,8 @@ export function createInitialGameState({ stage = 1, loadout, opponentSkillIds = 
     skillGauge: { home: 0, away: 0 },
     charge: { action: null, elapsedSeconds: 0 },
     aiRandomSeed: 0x6d2b79f5,
+    foulSpot: null,
+    foulNoticeSeconds: 0,
     opponentSkillIds: [...safeOpponentSkills],
   };
 }

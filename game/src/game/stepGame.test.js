@@ -370,6 +370,130 @@ test('the defensive A action can win possession with a short slide tackle', () =
   assert.ok(events.some((event) => event.type === 'tackle'));
 });
 
+test('a rear slide tackle gives a yellow, then a red card and switches control after dismissal', () => {
+  const state = createInitialGameState();
+  const tackler = state.players.find((player) => player.id === 'home-fw');
+  const ballCarrier = state.players.find((player) => player.id === 'away-fw');
+  tackler.x = 514;
+  tackler.y = 270;
+  ballCarrier.x = 500;
+  ballCarrier.y = 270;
+  ballCarrier.facingX = -1;
+  state.controlledPlayerId = tackler.id;
+  state.possessionTeam = 'away';
+  state.ball.ownerId = ballCarrier.id;
+  state.ball.x = 483;
+  state.ball.y = 270;
+
+  const first = stepGame(state, frame({ pressed: ['a'] }), 0.01);
+  assert.ok(first.some((event) => event.type === 'foul'));
+  assert.ok(first.some((event) => event.type === 'yellowCard'));
+  assert.equal(tackler.foulCount, 1);
+  assert.equal(tackler.card, 'yellow');
+  assert.equal(state.phase, 'freeKick');
+  assert.equal(state.possessionTeam, 'away');
+
+  state.phase = 'playing';
+  state.ball.ownerId = ballCarrier.id;
+  state.ball.x = 483;
+  state.ball.y = 270;
+  state.possessionTeam = 'away';
+  tackler.x = 514;
+  tackler.y = 270;
+  ballCarrier.x = 500;
+  ballCarrier.y = 270;
+  const second = stepGame(state, frame({ pressed: ['a'] }), 0.01);
+
+  assert.ok(second.some((event) => event.type === 'redCard'));
+  assert.ok(second.some((event) => event.type === 'playerDismissed'));
+  assert.equal(tackler.foulCount, 2);
+  assert.equal(tackler.dismissed, true);
+  assert.notEqual(state.controlledPlayerId, tackler.id);
+  assert.equal(state.players.filter((player) => player.team === 'home' && !player.dismissed).length, 5);
+});
+
+test('a foul in the defending penalty area awards a penalty and power tackle is protected', () => {
+  const state = createInitialGameState();
+  const tackler = state.players.find((player) => player.id === 'home-fw');
+  const ballCarrier = state.players.find((player) => player.id === 'away-fw');
+  tackler.x = 114;
+  tackler.y = 270;
+  ballCarrier.x = 100;
+  ballCarrier.y = 270;
+  ballCarrier.facingX = -1;
+  state.controlledPlayerId = tackler.id;
+  state.possessionTeam = 'away';
+  state.ball.ownerId = ballCarrier.id;
+  state.ball.x = 83;
+  state.ball.y = 270;
+
+  const penaltyEvents = stepGame(state, frame({ pressed: ['a'] }), 0.01);
+  assert.ok(penaltyEvents.some((event) => event.type === 'penaltyKick'));
+  assert.equal(state.phase, 'penaltyKick');
+
+  const protectedState = createInitialGameState();
+  const protectedTackler = protectedState.players.find((player) => player.id === 'home-fw');
+  const protectedCarrier = protectedState.players.find((player) => player.id === 'away-fw');
+  protectedTackler.x = 514;
+  protectedTackler.y = 270;
+  protectedTackler.powerTackleSeconds = 2;
+  protectedCarrier.x = 500;
+  protectedCarrier.y = 270;
+  protectedCarrier.facingX = -1;
+  protectedState.possessionTeam = 'away';
+  protectedState.ball.ownerId = protectedCarrier.id;
+  protectedState.ball.x = 483;
+  protectedState.ball.y = 270;
+
+  const protectedEvents = stepGame(protectedState, frame({ pressed: ['a'] }), 0.01);
+  assert.ok(protectedEvents.some((event) => event.type === 'tackle'));
+  assert.ok(!protectedEvents.some((event) => event.type === 'foul'));
+  assert.equal(protectedTackler.foulCount, 0);
+});
+
+test('away defenders receive the same foul rules and dismissed keepers cannot catch shots', () => {
+  const state = createInitialGameState();
+  const attacker = state.players.find((player) => player.id === 'home-fw');
+  attacker.x = 420;
+  attacker.y = 270;
+  attacker.facingX = 1;
+  state.ball.ownerId = attacker.id;
+  state.ball.x = 437;
+  state.ball.y = 270;
+  state.possessionTeam = 'home';
+  state.players.filter((player) => player.team === 'away').forEach((player, index) => {
+    player.x = 20 + index * 45;
+    player.y = 20;
+  });
+  const defender = state.players.find((player) => player.id === 'away-def-1');
+  defender.x = 398;
+  defender.y = 270;
+
+  const foulEvents = stepGame(state, frame(), 0.01);
+  assert.ok(foulEvents.some((event) => event.type === 'foul' && event.team === 'away'));
+  assert.ok(foulEvents.some((event) => event.type === 'yellowCard' && event.team === 'away'));
+  assert.equal(defender.foulCount, 1);
+
+  const keeperState = createInitialGameState();
+  const keeper = keeperState.players.find((player) => player.id === 'home-gk');
+  keeper.dismissed = true;
+  keeper.card = 'red';
+  Object.assign(keeperState.ball, { ownerId: null, x: 55, y: 270, vx: -30, vy: 0, flightKind: 'shot', lastTouchTeam: 'away' });
+  const keeperEvents = stepGame(keeperState, frame(), 0.01);
+  assert.ok(!keeperEvents.some((event) => event.type === 'keeperCatch'));
+  assert.equal(keeperState.phase, 'playing');
+
+  keeperState.phase = 'playing';
+  keeperState.possessionTeam = 'away';
+  keeperState.ball.ownerId = 'away-fw';
+  keeperState.controlledPlayerId = keeper.id;
+  keeperState.players.filter((player) => player.team === 'home' && player.id !== 'home-def-1')
+    .forEach((player) => { player.dismissed = true; });
+  stepGame(keeperState, frame({ pressed: ['s'] }), 0.01);
+  assert.equal(keeperState.controlledPlayerId, 'home-def-1');
+  assert.equal(keeperState.players.filter((player) => player.team === 'home' && !player.dismissed).length, 1);
+});
+
 test('defensive S switches through the six home players, including the goalkeeper', () => {
   const state = createInitialGameState();
   state.possessionTeam = 'away';

@@ -9,6 +9,9 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
   const time = viewState.phase === 'overtime' ? '골든골' : `${Math.ceil(viewState.remainingSeconds)}초`;
   const possession = viewState.possessionTeam === 'home' ? '우리 팀 공격' : viewState.possessionTeam === 'away' ? '상대 공격' : '공 경합 중';
   const chargePercent = Math.min(100, Math.max(0, Math.round((viewState.charge?.elapsedSeconds ?? 0) * 100)));
+  const activeHome = viewState.players.filter((player) => player.team === 'home' && !player.dismissed).length;
+  const activeAway = viewState.players.filter((player) => player.team === 'away' && !player.dismissed).length;
+  const foulLabel = viewState.lastFoul?.restart === 'penaltyKick' ? 'PENALTY KICK' : 'FREE KICK';
   const chargeLabels = { lobPass: 'A 로빙 패스', groundPass: 'S 땅볼 패스', shot: 'D 슛' };
 
   return (
@@ -18,6 +21,10 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
         <div className="scoreboard"><div><small>우리 팀</small><b>{viewState.score.home}</b></div><span>:</span><div><small>상대 팀</small><b>{viewState.score.away}</b></div></div>
         <div className="timer-box"><small>남은 시간</small><b>{time}</b></div>
         <div className="possession-box"><small>경기 상황</small><b>{possession}</b></div>
+      </div>
+      <div className="match-card-status" aria-live="polite">
+        <span>ACTIVE PLAYERS <b>{activeHome}</b> : <b>{activeAway}</b></span>
+        {viewState.foulNoticeSeconds > 0 && viewState.lastFoul && <strong>{foulLabel} · {viewState.lastFoul.team.toUpperCase()} FOUL</strong>}
       </div>
       <div className="game-canvas-wrap"><PitchCanvas initialState={gameState} paused={paused} onGameEvents={onGameEvents} onStateChange={(next) => {
         const now = performance.now();
