@@ -450,6 +450,66 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
 .validation-note, .validation-ok { color: #42637a; font-weight: 800; }
 .profile-error { color: #b63e35 !important; }
 
+.stage-select-panel { margin-block: 34px 48px; background: radial-gradient(circle at 100% 0, #fff3cf 0 16%, transparent 16.5%), var(--arcade-paper); }
+.stage-map-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 22px; }
+.stage-map-heading h1 { margin-bottom: 10px; font-size: clamp(36px, 5vw, 58px); text-shadow: 3px 3px 0 #62c9f555; }
+.stage-map-heading .intro { max-width: 640px; margin: 0; line-height: 1.7; }
+.stage-unlock-badge { display: flex; min-width: 114px; flex-direction: column; align-items: center; gap: 4px; padding: 12px; border: 3px solid var(--ink); border-radius: 12px 4px 12px 4px; background: var(--mint); box-shadow: 4px 4px 0 var(--ink); transform: rotate(2deg); }
+.stage-unlock-badge span { font: 900 9px Consolas, monospace; letter-spacing: .1em; }
+.stage-unlock-badge b { font: 1000 20px Consolas, monospace; }
+.campaign-clear-banner { margin: 22px 0 0; padding: 12px 16px; border: 2px solid var(--ink); border-radius: 10px 4px 10px 4px; background: #fff0bf; font-weight: 900; box-shadow: 3px 3px 0 var(--ink); }
+.stage-card-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 13px; margin-top: 28px; }
+.stage-card { display: flex; min-width: 0; min-height: 236px; flex-direction: column; align-items: flex-start; padding: 14px 12px; border: 3px solid var(--ink); border-radius: 15px 5px 15px 5px; background: linear-gradient(160deg, white, #effaff); color: var(--ink); text-align: left; box-shadow: 4px 5px 0 #15334f88; transition: transform .16s ease, box-shadow .16s ease, background .16s ease; }
+.stage-card:not(:disabled) { cursor: pointer; }
+.stage-card:not(:disabled):hover { transform: translateY(-4px) rotate(-.5deg); box-shadow: 6px 8px 0 var(--ink); }
+.stage-card:focus-visible { outline: 4px solid var(--coral); outline-offset: 4px; }
+.stage-card.is-selected { border-color: #e94f43; background: linear-gradient(160deg, #fff8e0, #ffe8d6); box-shadow: 0 0 0 3px #ff765e55, 5px 6px 0 var(--ink); transform: translateY(-3px); }
+.stage-card.is-cleared { background: linear-gradient(160deg, white, #e4ffec); }
+.stage-card.is-selected.is-cleared { background: linear-gradient(160deg, #fff8e0, #e8ffe8); }
+.stage-card.is-locked { border-style: dashed; background: #e9eff0; color: #71848b; box-shadow: 2px 3px 0 #15334f55; cursor: not-allowed; }
+.stage-card-topline { display: flex; width: 100%; align-items: center; justify-content: space-between; font: 900 9px Consolas, monospace; letter-spacing: .08em; }
+.stage-card-topline b { font-size: 18px; }
+.stage-card-emblem { display: grid; width: 45px; height: 45px; place-items: center; margin: 13px 0 9px; border: 2px solid var(--ink); border-radius: 50%; background: var(--cream); font-size: 23px; }
+.stage-card.is-locked .stage-card-emblem { filter: grayscale(1); background: #dce3e5; }
+.stage-card > strong { font: 1000 11px Consolas, monospace; letter-spacing: .04em; }
+.stage-card-status { margin-top: 7px; color: #258453; font-size: 10px; font-weight: 900; }
+.stage-card-status.cleared { color: #19724d; }
+.stage-card-status.locked { color: #71848b; }
+.stage-card-score { display: flex; min-height: 31px; flex-wrap: wrap; align-items: flex-end; gap: 4px; margin-top: auto; padding-top: 10px; color: #547087; font-size: 9px; font-weight: 800; line-height: 1.4; }
+.stage-card-score b { color: var(--ink); font: 1000 14px Consolas, monospace; }
+.stage-select-actions { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 26px; padding-top: 20px; border-top: 2px dashed #9bbbc5; }
+.stage-selection-summary { display: flex; align-items: baseline; gap: 10px; color: #45667b; font-weight: 900; }
+.stage-selection-summary b { color: var(--ink); font: 1000 30px Consolas, monospace; }
+.stage-selection-summary small { color: #648091; font-size: 10px; }
+.stage-action-buttons { display: flex; align-items: center; gap: 12px; }
+.stage-home-button { padding: 10px 12px; border: 0; background: transparent; color: #47667a; font-size: 11px; font-weight: 900; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.stage-home-button:focus-visible { outline: 3px solid var(--coral); outline-offset: 3px; }
+
+@media (max-width: 900px) {
+  .stage-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stage-card { min-height: 210px; }
+}
+@media (max-width: 720px) {
+  .stage-select-panel { margin-block: 18px 30px; }
+  .stage-map-heading { gap: 12px; }
+  .stage-unlock-badge { min-width: 88px; padding: 9px 7px; }
+  .stage-unlock-badge b { font-size: 16px; }
+  .stage-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 20px; }
+  .stage-card { min-height: 190px; }
+  .stage-select-actions { align-items: stretch; flex-direction: column; }
+  .stage-action-buttons { display: grid; grid-template-columns: 1fr 1fr; }
+  .stage-action-buttons .primary-button { grid-column: 1 / -1; grid-row: 1; }
+  .stage-action-buttons .stage-home-button { grid-column: 1 / -1; }
+}
+@media (max-width: 420px) {
+  .stage-map-heading h1 { font-size: 31px; }
+  .stage-map-heading { align-items: center; }
+  .stage-unlock-badge { min-width: 75px; }
+  .stage-card { min-height: 180px; padding: 11px 9px; }
+  .stage-card-topline b { font-size: 15px; }
+  .stage-selection-summary { flex-wrap: wrap; }
+}
+
 @media (max-width: 720px) {
   .page-shell { padding-inline: 15px; }
   .topbar { height: 66px; }

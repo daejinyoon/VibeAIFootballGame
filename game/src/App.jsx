@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useRef, useState } from 'react';
-import { assignOpponentSkills, createCampaign, finishStage } from './game/campaign.js';
+import { assignOpponentSkills, createCampaign, finishStage, getUnlockedStage } from './game/campaign.js';
 import { createInitialGameState } from './game/createInitialGameState.js';
 import { FIELD_PLAYER_IDS, SKILLS, assignSkillCard, awardSkillCard } from './game/skills.js';
 import { createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
@@ -8,6 +8,7 @@ import ResultsScreen from './components/ResultsScreen.jsx';
 import LoadoutScreen from './components/LoadoutScreen.jsx';
 import SkillRewardScreen from './components/SkillRewardScreen.jsx';
 import StartScreen from './components/StartScreen.jsx';
+import StageSelectScreen from './components/StageSelectScreen.jsx';
 
 const GameScreen = lazy(() => import('./components/GameScreen.jsx'));
 
@@ -29,6 +30,7 @@ function makeMatchState(campaign) {
 export default function App() {
   const [screen, setScreen] = useState('start');
   const [campaign, setCampaign] = useState(null);
+  const [selectedStage, setSelectedStage] = useState(1);
   const [matchState, setMatchState] = useState(null);
   const [result, setResult] = useState(null);
   const [profile, setProfile] = useState(() => readProfile());
@@ -68,9 +70,10 @@ export default function App() {
     if (profile.campaignSave && !window.confirm('저장된 캠페인을 지우고 새 캠페인을 시작할까요?')) return;
     const nextCampaign = createCampaign();
     setCampaign(nextCampaign);
+    setSelectedStage(1);
     setResult(null);
     setPendingAssignmentSkill(null);
-    startStage(nextCampaign);
+    setScreen('stageSelect');
     if (profile.campaignSave) {
       const nextProfile = { ...profile, campaignSave: null };
       setProfile(nextProfile);
@@ -93,6 +96,26 @@ export default function App() {
     }
   };
 
+  const selectStage = (stage) => {
+    if (!campaign || !Number.isInteger(stage) || stage < 1 || stage > getUnlockedStage(campaign)) return;
+    setSelectedStage(stage);
+    setProfileError('');
+  };
+
+  const startSelectedStage = () => {
+    if (!campaign || !Number.isInteger(selectedStage) || selectedStage < 1
+        || selectedStage > getUnlockedStage(campaign)) {
+      setProfileError('아직 열리지 않은 스테이지입니다.');
+      return;
+    }
+    const activeCampaign = { ...campaign, currentStage: selectedStage, status: 'active' };
+    setCampaign(activeCampaign);
+    setResult(null);
+    setProfileError('');
+    persistCampaign(activeCampaign);
+    startStage(activeCampaign);
+  };
+
   const handleGameEvents = (events) => {
     const endEvent = events.find((event) => ['matchWon', 'matchLost', 'matchDraw'].includes(event.type));
     if (!endEvent || !campaign) return;
@@ -104,6 +127,7 @@ export default function App() {
     const outcome = endEvent.type === 'matchDraw' ? 'draw' : endEvent.type === 'matchLost' ? 'loss' : 'win';
     const nextCampaign = outcome === 'win' ? finishStage(campaign, { score }) : campaign;
     setCampaign(nextCampaign);
+    if (outcome === 'win') setSelectedStage(nextCampaign.currentStage);
     setPendingAssignmentSkill(null);
     const goalDifference = nextCampaign.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0);
     setResult({
@@ -142,10 +166,7 @@ export default function App() {
     setCampaign(nextCampaign);
     setPendingAssignmentSkill(null);
     persistCampaign(nextCampaign);
-    if (nextCampaign.status === 'complete') {
-      setResult((current) => current ? { ...current, outcome: 'campaignComplete' } : current);
-      setScreen('results');
-    } else setScreen('loadout');
+    setScreen('stageSelect');
   };
 
   const assignSkill = (playerId) => {
@@ -154,10 +175,7 @@ export default function App() {
     setCampaign(assigned.campaign);
     setPendingAssignmentSkill(null);
     persistCampaign(assigned.campaign);
-    if (assigned.campaign.status === 'complete') {
-      setResult((current) => current ? { ...current, outcome: 'campaignComplete' } : current);
-      setScreen('results');
-    } else setScreen('loadout');
+    setScreen('stageSelect');
   };
 
   const assignInventorySkill = (playerId, skillId) => {
@@ -189,23 +207,10 @@ export default function App() {
       status: saved.status === 'complete' ? 'complete' : 'active',
     };
     setCampaign(resumed);
+    setSelectedStage(resumed.currentStage);
+    setResult(null);
     setPendingAssignmentSkill(resumed.pendingSkillAssignment ?? null);
-    if (resumed.pendingSkillOffer || resumed.pendingSkillAssignment || resumed.status === 'complete') {
-      const lastResult = resumed.clearedStageResults.at(-1);
-      if (lastResult) {
-        setResult({
-          stage: lastResult.stage,
-          homeGoals: lastResult.homeGoals,
-          awayGoals: lastResult.awayGoals,
-          outcome: resumed.status === 'complete' ? 'campaignComplete' : 'win',
-          stageReached: lastResult.stage,
-          goalDifference: resumed.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0),
-        });
-        setScreen(resumed.pendingSkillOffer || resumed.pendingSkillAssignment ? 'skillReward' : 'results');
-      }
-    } else {
-      startStage(resumed);
-    }
+    setScreen(resumed.pendingSkillOffer || resumed.pendingSkillAssignment ? 'skillReward' : 'stageSelect');
   };
 
   const saveAndExit = () => {
@@ -245,6 +250,15 @@ export default function App() {
       </header>
 
       {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} />}
+      {screen === 'stageSelect' && campaign && <StageSelectScreen
+        campaign={campaign}
+        stageResults={campaign.clearedStageResults}
+        selectedStage={selectedStage}
+        onSelectStage={selectStage}
+        onStartStage={startSelectedStage}
+        onOpenLoadout={() => setScreen('loadout')}
+        onHome={home}
+      />}
       {(screen === 'match' || screen === 'pause') && matchState && <Suspense fallback={<div className="game-screen-loading" role="status">경기장을 준비하고 있어요…</div>}>
         <GameScreen
           key={campaign?.currentStage ?? 1}
@@ -281,14 +295,14 @@ export default function App() {
         onHome={home}
       />}
       {screen === 'loadout' && campaign && <LoadoutScreen
-        stage={campaign.currentStage}
+        stage={selectedStage}
         playerRows={playerRows}
         playerSkillStacks={campaign.playerSkillStacks}
         inventory={campaign.skillInventory}
         skills={SKILLS}
         onAssign={assignInventorySkill}
-        onConfirm={() => startStage(campaign)}
-        onBack={home}
+        onConfirm={() => setScreen('stageSelect')}
+        onBack={() => setScreen('stageSelect')}
       />}
       {screen === 'leaderboard' && <LeaderboardScreen records={records} onBack={() => setScreen('start')} />}
 
