@@ -16,11 +16,55 @@ const createInitialGameState = (options) => {
   const state = createGameState(options);
   state.kickoffLocked = false;
   state.kickoffTakerId = null;
+  state.hasMatchClockStarted = true;
   const opposingForward = state.players.find((player) => player.id === 'away-fw');
   opposingForward.x = FIELD.width / 2;
   opposingForward.y = FIELD.height / 2;
   return state;
 };
+
+test('the opening clock stays stopped until the opening taker actually kicks the ball', () => {
+  const state = createGameState();
+
+  stepGame(state, frame(), 0.05);
+  stepGame(state, frame({ moveX: 1 }), 0.05);
+  assert.equal(state.remainingSeconds, 60);
+  assert.equal(state.hasMatchClockStarted, false);
+
+  stepGame(state, frame({ pressed: ['s'] }), 0.05);
+  assert.equal(state.hasMatchClockStarted, true);
+  assert.equal(state.remainingSeconds, 60, 'the kick frame is not charged');
+
+  stepGame(state, frame(), 0.05);
+  assert.equal(state.remainingSeconds, 59.95);
+});
+
+test('only the opening kickoff taker can start the clock, and later kickoffs preserve the started clock', () => {
+  const state = createGameState();
+  state.controlledPlayerId = 'home-def-1';
+  state.ball.ownerId = 'home-def-1';
+  state.possessionTeam = 'home';
+  state.players.find((player) => player.id === 'home-def-1').x -= 30;
+  state.ball.x -= 30;
+
+  stepGame(state, frame({ pressed: ['s'] }), 0.05);
+  assert.equal(state.hasMatchClockStarted, false);
+  assert.equal(state.remainingSeconds, 60);
+
+  state.controlledPlayerId = 'home-fw';
+  state.ball.ownerId = 'home-fw';
+  stepGame(state, frame({ pressed: ['a'] }), 0.05);
+  assert.equal(state.hasMatchClockStarted, true);
+
+  const beforeGoalRestart = state.remainingSeconds;
+  state.score = { home: 1, away: 0 };
+  state.phase = 'goalPause';
+  state.phaseSeconds = 0.01;
+  state.pendingKickoffTeam = 'away';
+  stepGame(state, frame(), 0.05);
+  assert.equal(state.hasMatchClockStarted, true);
+  assert.ok(state.remainingSeconds < beforeGoalRestart);
+});
 
 test('kickoff circle keeps non-kickers outside until the ball moves clear', () => {
   const state = createGameState();

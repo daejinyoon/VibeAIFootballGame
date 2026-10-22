@@ -1,18 +1,17 @@
 # Current Context
 
 ## Active Plan
-[3D Scene Visibility](./plans/2026-10-22-3d-scene-visibility.md)
+[Arcade Match Results, Skills, and Stage Replay](./plans/2026-10-22-arcade-match-results-skills-and-replay.md)
 
 ## Active Phase
-None — all tasks in P01 are complete.
+[P01 Match Simulation](./phases/2026-10-22-arcade-match-results-skills-and-replay/P01-match-simulation/phase.md)
 
 ## Active Task
-None — plan complete.
+[T02 Aerial Input](./phases/2026-10-22-arcade-match-results-skills-and-replay/P01-match-simulation/T02-aerial-input.md)
 
 ## Status
-- T01 complete: corrected the camera framing unit mismatch and improved ball contrast; build and desktop/narrow Chrome checks passed.
-- T02 complete: added WebGL 2 initialization checks, renderer error fallback, and context-loss guidance; build and browser checks passed.
-- Phase progress: 2/2 tasks complete; plan complete.
+- T01 kickoff clock is implemented, validated, and committed.
+- Phase progress: P01 1/4, P02 0/2, P03 0/2.
 
 ## Next Step (IMPORTANT)
-Plan complete. If further graphics work is requested, inspect the local game in Chrome and use the existing 3D scene as the baseline.
+Read T02-aerial-input.md, implement and validate the aerial input behavior, then update its status and commit using the blueprint message before advancing the pointer.

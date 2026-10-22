@@ -22,6 +22,8 @@ test('starts stage one at a home kickoff with a clean score and no skill gauges'
   assert.equal(state.phase, 'playing');
   assert.equal(state.kickoffLocked, true);
   assert.equal(state.kickoffTakerId, 'home-fw');
+  assert.equal(state.openingKickoffTakerId, 'home-fw');
+  assert.equal(state.hasMatchClockStarted, false);
   assert.equal(state.remainingSeconds, 60);
   assert.deepEqual(state.score, { home: 0, away: 0 });
   assert.equal(state.ball.ownerId, 'home-fw');

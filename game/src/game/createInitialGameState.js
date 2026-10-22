@@ -122,6 +122,8 @@ export function createInitialGameState({
     phase: 'playing',
     kickoffLocked: true,
     kickoffTakerId: 'home-fw',
+    openingKickoffTakerId: 'home-fw',
+    hasMatchClockStarted: false,
     remainingSeconds: REGULATION_SECONDS,
     overtimeRemainingSeconds: null,
     score: { home: 0, away: 0 },

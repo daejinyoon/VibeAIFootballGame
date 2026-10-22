@@ -223,6 +223,9 @@ function releasePass(state, player, kind, receiverOverride = null) {
     };
   const direction = unit(target.x - state.ball.x, target.y - state.ball.y);
   if (direction.x === 0 && direction.y === 0) return [];
+  if (!state.hasMatchClockStarted && player.id === state.openingKickoffTakerId) {
+    state.hasMatchClockStarted = true;
+  }
   const speed = kind === 'lobPass' ? 300 : 330;
   state.ball.ownerId = null;
   state.ball.vx = direction.x * speed;
@@ -267,6 +270,9 @@ function releaseShot(state, player) {
   const facing = facingFor(player);
 
   putBallAtPlayer(state, player);
+  if (!state.hasMatchClockStarted && player.id === state.openingKickoffTakerId) {
+    state.hasMatchClockStarted = true;
+  }
   const start = { x: state.ball.x, y: state.ball.y };
   const goalX = attackDirection > 0 ? FIELD.width : 0;
   let direction = facing;
@@ -337,6 +343,8 @@ function resetForKickoff(state, kickoffTeam) {
     opponentSkillStacks,
   });
   const score = { ...state.score };
+  const hasMatchClockStarted = state.hasMatchClockStarted;
+  const openingKickoffTakerId = state.openingKickoffTakerId;
   const remainingSeconds = state.remainingSeconds;
   const overtimeRemainingSeconds = state.overtimeRemainingSeconds;
   const remainingUses = new Map(state.players.map((player) => [player.id, player.skillUsesRemaining]));
@@ -350,7 +358,13 @@ function resetForKickoff(state, kickoffTeam) {
     dismissed: Boolean(player.dismissed),
   }]));
 
-  Object.assign(state, fresh, { score, remainingSeconds, overtimeRemainingSeconds });
+  Object.assign(state, fresh, {
+    score,
+    hasMatchClockStarted,
+    openingKickoffTakerId,
+    remainingSeconds,
+    overtimeRemainingSeconds,
+  });
   for (const player of state.players) {
     Object.assign(player, discipline.get(player.id));
     player.skillUsesRemaining = remainingUses.get(player.id) ?? player.skillUsesRemaining;
@@ -1530,21 +1544,23 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   state.foulNoticeSeconds = Math.max(0, (state.foulNoticeSeconds ?? 0) - dt);
   releaseKickoffLockIfBallCleared(state);
 
-  if (state.overtimeRemainingSeconds !== null) {
-    state.overtimeRemainingSeconds = Math.max(0, state.overtimeRemainingSeconds - dt);
-    if (state.overtimeRemainingSeconds === 0 && state.score.home === state.score.away) {
-      state.phase = 'finished';
-      return [{ type: 'matchDraw', score: { ...state.score } }];
-    }
-  } else {
-    state.remainingSeconds = Math.max(0, state.remainingSeconds - dt);
-    if (state.remainingSeconds === 0) {
-      if (state.score.home === state.score.away) {
-        state.overtimeRemainingSeconds = GOLDEN_GOAL_SECONDS;
-        if (state.phase === 'playing') state.phase = 'overtime';
-        events.push({ type: 'overtime' });
-      } else {
-        return finishMatch(state);
+  if (state.hasMatchClockStarted) {
+    if (state.overtimeRemainingSeconds !== null) {
+      state.overtimeRemainingSeconds = Math.max(0, state.overtimeRemainingSeconds - dt);
+      if (state.overtimeRemainingSeconds === 0 && state.score.home === state.score.away) {
+        state.phase = 'finished';
+        return [{ type: 'matchDraw', score: { ...state.score } }];
+      }
+    } else {
+      state.remainingSeconds = Math.max(0, state.remainingSeconds - dt);
+      if (state.remainingSeconds === 0) {
+        if (state.score.home === state.score.away) {
+          state.overtimeRemainingSeconds = GOLDEN_GOAL_SECONDS;
+          if (state.phase === 'playing') state.phase = 'overtime';
+          events.push({ type: 'overtime' });
+        } else {
+          return finishMatch(state);
+        }
       }
     }
   }
