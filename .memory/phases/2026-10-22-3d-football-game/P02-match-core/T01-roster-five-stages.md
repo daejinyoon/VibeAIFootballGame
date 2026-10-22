@@ -66,4 +66,4 @@ Task: T01-roster-five-stages
 ## Progress
 - [x] 구현 완료
 - [x] 검증 통과
-- commit: pending
+- commit: 5f3c2cb
