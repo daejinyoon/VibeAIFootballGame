@@ -102,7 +102,7 @@ export default function App() {
 
     const score = endEvent.score ?? matchState?.score ?? { home: 0, away: 0 };
     const outcome = endEvent.type === 'matchDraw' ? 'draw' : endEvent.type === 'matchLost' ? 'loss' : 'win';
-    const nextCampaign = outcome === 'win' ? finishStage(campaign, score) : campaign;
+    const nextCampaign = outcome === 'win' ? finishStage(campaign, { score }) : campaign;
     setCampaign(nextCampaign);
     setPendingAssignmentSkill(null);
     const goalDifference = nextCampaign.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0);

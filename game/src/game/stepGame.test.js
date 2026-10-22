@@ -669,7 +669,7 @@ test('a missing last-touch team uses the home-team restart fallback', () => {
 test('a golden-goal score immediately finishes the stage', () => {
   const state = createInitialGameState();
   state.phase = 'overtime';
-  Object.assign(state.ball, { ownerId: null, x: FIELD.width - 1, y: 270, vx: 100, vy: 0, flightKind: 'shot', lastTouchTeam: 'home' });
+  Object.assign(state.ball, { ownerId: null, x: FIELD.width + 8, y: 270, vx: 100, vy: 0, flightKind: 'shot', lastTouchTeam: 'home' });
 
   const events = stepGame(state, frame(), 0.05);
 
@@ -693,6 +693,14 @@ test('a tied regulation timer enters golden-goal overtime; a leader wins on time
   const result = stepGame(leading, frame(), 0.2);
   assert.equal(leading.phase, 'finished');
   assert.ok(result.some((event) => event.type === 'matchWon'));
+
+  const trailing = createInitialGameState();
+  trailing.remainingSeconds = 0.02;
+  trailing.score.away = 1;
+  const loss = stepGame(trailing, frame(), 0.2);
+  assert.equal(trailing.phase, 'finished');
+  assert.ok(loss.some((event) => event.type === 'matchLost'
+    && event.score.home === 0 && event.score.away === 1));
 });
 
 test('the active match clock runs during kickoff, goal-kick and set-piece delays', () => {

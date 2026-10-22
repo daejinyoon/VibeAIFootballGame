@@ -64,6 +64,19 @@ test('stage wins advance through stage five and create three unique card choices
   assert.equal(campaign.clearedStageResults.length, 5);
 });
 
+test('a match-win event score envelope advances the campaign stage', () => {
+  const campaign = createCampaign({ rng: () => 0.2 });
+  const terminalEvent = { type: 'matchWon', score: { home: 2, away: 1 } };
+
+  const advanced = finishStage(campaign, { score: terminalEvent.score }, () => 0.3);
+
+  assert.equal(advanced.currentStage, 2);
+  assert.deepEqual(advanced.clearedStageResults[0], {
+    stage: 1, homeGoals: 2, awayGoals: 1, goalDifference: 1,
+  });
+  assert.equal(advanced.pendingSkillOffer.length, 3);
+});
+
 test('a tied stage result leaves campaign progression and rewards unchanged', () => {
   const campaign = createCampaign({ rng: () => 0.1 });
   const drawn = finishStage(campaign, { homeGoals: 1, awayGoals: 1 });
