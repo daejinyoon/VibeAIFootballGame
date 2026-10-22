@@ -4,10 +4,10 @@
 [Arcade Match Results, Skills, and Stage Replay](./plans/2026-10-22-arcade-match-results-skills-and-replay.md)
 
 ## Active Phase
-[P03 Skill Arcade Visuals](./phases/2026-10-22-arcade-match-results-skills-and-replay/P03-skill-arcade-visuals/phase.md)
+None — P01, P02, and P03 are complete.
 
 ## Active Task
-[T02 Skill Use Effects](./phases/2026-10-22-arcade-match-results-skills-and-replay/P03-skill-arcade-visuals/T02-skill-use-effects.md)
+None — all tasks in the active plan are complete.
 
 ## Status
 - Arcade Match Results, Skills, and Stage Replay plan is implemented and validated.
