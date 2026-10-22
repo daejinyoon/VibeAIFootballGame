@@ -6,6 +6,8 @@ import { createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBe
 import GameScreen from './components/GameScreen.jsx';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
 import ResultsScreen from './components/ResultsScreen.jsx';
+import LoadoutScreen from './components/LoadoutScreen.jsx';
+import SkillRewardScreen from './components/SkillRewardScreen.jsx';
 import StartScreen from './components/StartScreen.jsx';
 
 function makeMatchState(campaign) {
@@ -94,9 +96,7 @@ export default function App() {
     const nextCampaign = finishStage(campaign, endEvent.score);
     setCampaign(nextCampaign);
     setPendingAssignmentSkill(null);
-    const outcome = endEvent.type === 'matchLost'
-      ? 'loss'
-      : nextCampaign.status === 'complete' ? 'campaignComplete' : 'win';
+    const outcome = endEvent.type === 'matchLost' ? 'loss' : 'win';
     const goalDifference = nextCampaign.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0);
     setResult({
       stage: campaign.currentStage,
@@ -126,11 +126,34 @@ export default function App() {
     persistCampaign(awarded.campaign);
   };
 
+  const keepSkill = () => {
+    if (!campaign || !pendingAssignmentSkill) return;
+    const nextCampaign = { ...campaign, pendingSkillAssignment: null };
+    setCampaign(nextCampaign);
+    setPendingAssignmentSkill(null);
+    persistCampaign(nextCampaign);
+    if (nextCampaign.status === 'complete') {
+      setResult((current) => current ? { ...current, outcome: 'campaignComplete' } : current);
+      setScreen('results');
+    } else setScreen('loadout');
+  };
+
   const assignSkill = (playerId) => {
     const assigned = assignSkillCard(campaign, playerId, pendingAssignmentSkill);
     if (!assigned.ok) return;
     setCampaign(assigned.campaign);
     setPendingAssignmentSkill(null);
+    persistCampaign(assigned.campaign);
+    if (assigned.campaign.status === 'complete') {
+      setResult((current) => current ? { ...current, outcome: 'campaignComplete' } : current);
+      setScreen('results');
+    } else setScreen('loadout');
+  };
+
+  const assignInventorySkill = (playerId, skillId) => {
+    const assigned = assignSkillCard(campaign, playerId, skillId);
+    if (!assigned.ok) return;
+    setCampaign(assigned.campaign);
     persistCampaign(assigned.campaign);
   };
 
@@ -168,7 +191,7 @@ export default function App() {
           stageReached: lastResult.stage,
           goalDifference: resumed.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0),
         });
-        setScreen('results');
+        setScreen(resumed.pendingSkillOffer || resumed.pendingSkillAssignment ? 'skillReward' : 'results');
       }
     } else {
       startStage(resumed);
@@ -196,7 +219,7 @@ export default function App() {
         <a className="brand" href="#home" onClick={(event) => { event.preventDefault(); home(); }}>
           <span className="brand-mark" aria-hidden="true">D</span><span>DEX ARCADE</span>
         </a>
-        <span className="local-badge"><span /> LOCAL PLAY</span>
+        <span className="local-badge"><span /> 로컬 캠페인</span>
       </header>
 
       {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} />}
@@ -214,16 +237,9 @@ export default function App() {
         result={result}
         leaderboardPlace={records.length ? 1 : null}
         errorMessage={profileError}
-        skillOffer={campaign?.pendingSkillOffer}
-        pendingAssignmentSkill={pendingAssignmentSkill}
-        playerRows={playerRows}
-        skills={SKILLS}
-        inventory={campaign?.skillInventory}
-        onChooseSkill={chooseSkill}
-        onAssignSkill={assignSkill}
         onRetry={() => startStage(campaign)}
         onContinue={() => {
-          if (result.outcome === 'win') startStage(campaign);
+          if (result.outcome === 'win') setScreen('skillReward');
           else if (result.outcome === 'campaignComplete') {
             const nextProfile = { ...profile, campaignSave: null };
             setProfile(nextProfile);
@@ -234,9 +250,31 @@ export default function App() {
         }}
         onHome={home}
       />}
+      {screen === 'skillReward' && campaign && <SkillRewardScreen
+        offer={campaign.pendingSkillOffer}
+        inventory={campaign.skillInventory}
+        playerSkillStacks={campaign.playerSkillStacks}
+        playerRows={playerRows}
+        skills={SKILLS}
+        selectedSkill={pendingAssignmentSkill}
+        onChoose={chooseSkill}
+        onAssign={assignSkill}
+        onKeep={keepSkill}
+        onHome={home}
+      />}
+      {screen === 'loadout' && campaign && <LoadoutScreen
+        stage={campaign.currentStage}
+        playerRows={playerRows}
+        playerSkillStacks={campaign.playerSkillStacks}
+        inventory={campaign.skillInventory}
+        skills={SKILLS}
+        onAssign={assignInventorySkill}
+        onConfirm={() => startStage(campaign)}
+        onBack={home}
+      />}
       {screen === 'leaderboard' && <LeaderboardScreen records={records} onBack={() => setScreen('start')} />}
 
-      <footer className="footer"><span>DEX FOOTBALL PROJECT</span><span>ARROWS · A/S/D · F SKILL</span></footer>
+      <footer className="footer"><span>DEX FOOTBALL ARCADE</span><span>방향키 이동 · A/S/D 액션 · F 스킬 · SPACE 점프</span></footer>
     </main>
   );
 }

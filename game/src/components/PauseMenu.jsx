@@ -5,7 +5,7 @@ export default function PauseMenu({ onResume, onSaveAndExit, errorMessage }) {
         <p>현재 경기 상태는 그대로 유지됩니다.</p>
         {errorMessage && <p className="profile-error" role="alert">{errorMessage}</p>}
         <button className="primary-button" onClick={onResume}>경기 계속하기 <span aria-hidden="true">→</span></button>
-        <button className="secondary-button" onClick={onSaveAndExit}>메인으로 나가기</button>
+        <button className="secondary-button" onClick={onSaveAndExit}>임시 저장 후 메인으로</button>
       </div>
     </div>
   );
