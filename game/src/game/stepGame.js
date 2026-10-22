@@ -1,6 +1,7 @@
 import {
   BALL_GRAVITY,
   FIELD,
+  getAiTuning,
   HEADER_HEIGHT_MAX,
   HEADER_HEIGHT_MIN,
   HEADER_RADIUS,
@@ -696,11 +697,12 @@ function updateAwayDefense(state, deltaSeconds, events) {
   const homeCarrier = state.players.find((player) => player.team === 'home' && !player.dismissed && player.id === state.ball.ownerId);
   if (!homeCarrier) return;
   const defenders = activePlayers(state, 'away').filter((player) => player.role !== 'goalkeeper');
+  const pressingDistance = getAiTuning(state.stage).pressingDistance;
   for (const defender of defenders) {
     defender.aiTackleCooldownSeconds = Math.max(0, (defender.aiTackleCooldownSeconds ?? 0) - deltaSeconds);
   }
   const closest = nearestPlayer(defenders, homeCarrier);
-  if (!closest || distance(closest, homeCarrier) > 115) return;
+  if (!closest || distance(closest, homeCarrier) > pressingDistance) return;
   const approachDistance = distance(closest, homeCarrier);
   if (approachDistance > 34) moveToward(closest, homeCarrier, SLIDE_SPEED, deltaSeconds);
   if (approachDistance >= 18 && approachDistance <= 34 && closest.aiTackleCooldownSeconds <= 0) {
@@ -710,7 +712,7 @@ function updateAwayDefense(state, deltaSeconds, events) {
   }
 }
 
-function targetForRole(player, possessionTeam, ball, ballCarrier) {
+function targetForRole(state, player, possessionTeam, ball, ballCarrier) {
   if (player.role === 'goalkeeper') {
     const x = player.team === 'home' ? 48 : FIELD.width - 48;
     return { x, y: clamp(ball.y, FIELD.height / 2 - 72, FIELD.height / 2 + 72) };
@@ -726,7 +728,12 @@ function targetForRole(player, possessionTeam, ball, ballCarrier) {
   const mirrored = player.team === 'home' ? base : { x: FIELD.width - base.x, y: base.y };
   if (possessionTeam === player.team && ballCarrier && player.role !== 'defender') {
     const towardGoal = player.team === 'home' ? 60 : -60;
-    return { x: clamp(ballCarrier.x + towardGoal, 30, FIELD.width - 30), y: ballCarrier.y + (player.id.endsWith('2') ? 65 : -65) };
+    const supportRadius = getAiTuning(state.stage).teammateSupportRadius;
+    const supportLane = player.id.endsWith('2') ? 0.42 : -0.42;
+    return {
+      x: clamp(ballCarrier.x + towardGoal, 30, FIELD.width - 30),
+      y: clamp(ballCarrier.y + supportRadius * supportLane, 0, FIELD.height),
+    };
   }
 
   return mirrored;
@@ -769,10 +776,10 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
       const range = distance(player, goal);
       if (player.team === 'away' && range <= 180 && (state.aiShotCooldownSeconds ?? 0) <= 0) {
         events.push(...releaseShot(state, player, 0.72));
-        state.aiShotCooldownSeconds = 0.8;
+        state.aiShotCooldownSeconds = getAiTuning(state.stage).thinkIntervalSeconds;
       } else if (player.team === 'home' && range <= 180 && player.id !== state.controlledPlayerId && (state.aiShotCooldownSeconds ?? 0) <= 0) {
         events.push(...releaseShot(state, player, 0.72));
-        state.aiShotCooldownSeconds = 0.8;
+        state.aiShotCooldownSeconds = getAiTuning(state.stage).thinkIntervalSeconds;
       } else {
         moveToward(player, goal, AI_SPEED, deltaSeconds);
       }
@@ -784,7 +791,7 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
       continue;
     }
 
-    const target = targetForRole(player, state.possessionTeam, state.ball, ballCarrier);
+    const target = targetForRole(state, player, state.possessionTeam, state.ball, ballCarrier);
     moveToward(player, target, player.role === 'goalkeeper' ? KEEPER_SPEED : AI_SPEED, deltaSeconds);
   }
 

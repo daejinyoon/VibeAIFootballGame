@@ -36,6 +36,21 @@ test('a lost stage retains stacks and inventory and can be retried', () => {
   assert.equal(lost.pendingSkillOffer, null);
 });
 
+test('losing the final boss stage keeps the campaign on stage five for a retry', () => {
+  const campaign = {
+    ...createCampaign({ rng: () => 0.4 }),
+    currentStage: 5,
+    clearedStageResults: [1, 2, 3, 4].map((stage) => ({ stage, homeGoals: 1, awayGoals: 0, goalDifference: 1 })),
+  };
+
+  const lost = finishStage(campaign, { homeGoals: 0, awayGoals: 1 });
+
+  assert.equal(lost.currentStage, 5);
+  assert.equal(lost.status, 'active');
+  assert.equal(lost.clearedStageResults.length, 4);
+  assert.deepEqual(lost.pendingSkillOffer, null);
+});
+
 test('stage wins advance through stage five and create three unique card choices', () => {
   let campaign = createCampaign({ rng: () => 0.2 });
   for (let stage = 1; stage <= 5; stage += 1) {

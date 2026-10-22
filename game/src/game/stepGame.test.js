@@ -609,6 +609,81 @@ test('the away AI advances toward the home goal and takes a shot in range', () =
   assert.ok(events.some((event) => event.type === 'shot' && event.team === 'away'));
 });
 
+test('the stage-five boss presses from farther away than a regular opponent', () => {
+  const makeState = (stage) => {
+    const state = createInitialGameState({ stage });
+    const homeCarrier = state.players.find((player) => player.id === 'home-fw');
+    const closestDefender = state.players.find((player) => player.id === 'away-fw');
+    Object.assign(homeCarrier, { x: 400, y: 270 });
+    Object.assign(closestDefender, { x: 550, y: 270 });
+    for (const player of state.players.filter((candidate) => candidate.team === 'away' && candidate.id !== closestDefender.id)) {
+      Object.assign(player, { x: 900, y: 30 });
+    }
+    state.ball.ownerId = homeCarrier.id;
+    state.possessionTeam = 'home';
+    return { state, closestDefender };
+  };
+  const regular = makeState(1);
+  const boss = makeState(5);
+  const regularStart = regular.closestDefender.x;
+  const bossStart = boss.closestDefender.x;
+
+  stepGame(regular.state, frame(), 0.05);
+  stepGame(boss.state, frame(), 0.05);
+
+  assert.equal(regular.closestDefender.x, regularStart);
+  assert.ok(boss.closestDefender.x < bossStart);
+});
+
+test('the stage-five boss sends attacking support farther around its ball carrier', () => {
+  const makeState = (stage) => {
+    const state = createInitialGameState({ stage });
+    const carrier = state.players.find((player) => player.id === 'away-fw');
+    const supporter = state.players.find((player) => player.id === 'away-mid-1');
+    Object.assign(carrier, { x: 500, y: 270 });
+    Object.assign(supporter, { x: 500, y: 270 });
+    state.ball.ownerId = carrier.id;
+    state.possessionTeam = 'away';
+    return { state, supporter };
+  };
+  const regular = makeState(1);
+  const boss = makeState(5);
+
+  stepGame(regular.state, frame(), 0.05);
+  stepGame(boss.state, frame(), 0.05);
+
+  assert.ok(Math.abs(boss.supporter.y - 270) > Math.abs(regular.supporter.y - 270));
+});
+
+test('the stage-five boss makes attack decisions sooner than a regular opponent', () => {
+  const makeState = (stage) => {
+    const state = createInitialGameState({ stage });
+    const striker = state.players.find((player) => player.id === 'away-fw');
+    Object.assign(striker, { x: 100, y: 400 });
+    state.ball.ownerId = striker.id;
+    state.ball.x = striker.x;
+    state.ball.y = striker.y;
+    state.possessionTeam = 'away';
+    return { state, striker };
+  };
+  const regular = makeState(1);
+  const boss = makeState(5);
+  stepGame(regular.state, frame(), 0.05);
+  stepGame(boss.state, frame(), 0.05);
+
+  let regularShotDuringWindow = false;
+  let bossShotDuringWindow = false;
+  for (let index = 0; index < 10; index += 1) {
+    regular.state.ball.ownerId = regular.striker.id;
+    boss.state.ball.ownerId = boss.striker.id;
+    regularShotDuringWindow ||= stepGame(regular.state, frame(), 0.05).some((event) => event.type === 'shot');
+    bossShotDuringWindow ||= stepGame(boss.state, frame(), 0.05).some((event) => event.type === 'shot');
+  }
+
+  assert.equal(regularShotDuringWindow, false);
+  assert.equal(bossShotDuringWindow, true);
+});
+
 test('clamps frame time and ignores a finished game', () => {
   const state = createInitialGameState();
   const player = state.players.find((candidate) => candidate.id === 'home-fw');
