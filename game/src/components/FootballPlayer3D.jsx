@@ -14,7 +14,7 @@ function Limb({ position, length, color, rotation = [0, 0, 0], radius = 0.045 })
   );
 }
 
-export function FootballPlayer3D({ player, selected = false }) {
+export function FootballPlayer3D({ player, selected = false, actorsRef }) {
   if (!player || player.dismissed) return null;
 
   const kit = KITS[player.team === 'away' ? 'away' : 'home'];
@@ -24,18 +24,27 @@ export function FootballPlayer3D({ player, selected = false }) {
   const facing = player.team === 'away' ? -Math.PI / 2 : Math.PI / 2;
   const x = (Number(player.x) || 0) / 80 - FIELD.width / 160;
   const z = ((Number(player.y) || FIELD.height / 2) - FIELD.height / 2) / 80;
+  const registerActor = (actor) => {
+    const players = actorsRef?.current?.players;
+    if (!players) return;
+    if (actor) players.set(player.id, actor);
+    else players.delete(player.id);
+  };
+  const registerSelectedMarker = (marker) => {
+    const markers = actorsRef?.current?.selectedMarkers;
+    if (!markers) return;
+    if (marker) markers.set(player.id, marker);
+    else markers.delete(player.id);
+  };
 
   return (
-    <group position={[x, 0, z]} rotation={[0, facing, 0]}>
-      {selected && (
-        <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+    <group ref={registerActor} position={[x, jumpHeight, z]} rotation={[0, facing, 0]}>
+      <mesh ref={registerSelectedMarker} visible={selected} position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.21, 0.28, 32]} />
           <meshStandardMaterial color="#dfff75" emissive="#b9ef4d" emissiveIntensity={0.8} />
-        </mesh>
-      )}
+      </mesh>
 
-      <group position={[0, jumpHeight, 0]}>
-        <group scale={1.3}>
+      <group scale={1.3}>
         <mesh position={[0, 0.33, 0]} castShadow>
           <capsuleGeometry args={[0.125, 0.15, 4, 10]} />
           <meshStandardMaterial color={jersey} roughness={0.58} />
@@ -81,7 +90,6 @@ export function FootballPlayer3D({ player, selected = false }) {
             <meshBasicMaterial color="#273440" />
           </mesh>
         ))}
-        </group>
       </group>
     </group>
   );

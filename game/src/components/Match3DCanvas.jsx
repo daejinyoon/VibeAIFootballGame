@@ -24,15 +24,25 @@ export default function Match3DCanvas({
   players = DEMO_PLAYERS,
   ball = DEMO_BALL,
   selectedPlayerId = 'home-fw',
+  actorsRef,
+  gameStateRef,
+  containerRef,
+  onFocusCapture,
+  onBlurCapture,
+  onClick,
 }) {
   const classes = ['match-3d-canvas', className].filter(Boolean).join(' ');
 
   return (
     <div
       className={classes}
+      ref={containerRef}
       role="img"
       aria-label="3D 축구 경기 장면"
       tabIndex={0}
+      onFocusCapture={onFocusCapture}
+      onBlurCapture={onBlurCapture}
+      onClick={onClick}
     >
       <Canvas
         camera={{ position: [0, 12, 18], fov: 42, near: 0.1, far: 100 }}
@@ -46,11 +56,11 @@ export default function Match3DCanvas({
         <directionalLight position={[-8, 16, 7]} color="#fff6d8" intensity={1.55} castShadow />
         <StadiumBackdrop3D />
         <FootballPitch3D />
-        <TrackingCamera3D ball={ball} />
+        <TrackingCamera3D ball={ball} gameStateRef={gameStateRef} />
         {players.map((player) => (
-          <FootballPlayer3D key={player.id} player={player} selected={player.id === selectedPlayerId} />
+          <FootballPlayer3D key={player.id} player={player} selected={player.id === selectedPlayerId} actorsRef={actorsRef} />
         ))}
-        <FootballBall3D ball={ball} />
+        <FootballBall3D ball={ball} actorsRef={actorsRef} />
         {children}
       </Canvas>
     </div>

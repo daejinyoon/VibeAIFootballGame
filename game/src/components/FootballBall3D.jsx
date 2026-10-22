@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { FIELD } from '../game/constants.js';
 
-export function FootballBall3D({ ball }) {
+export function FootballBall3D({ ball, actorsRef }) {
   const ballRef = useRef(null);
   if (!ball) return null;
 
@@ -16,14 +16,21 @@ export function FootballBall3D({ ball }) {
     if (ballRef.current) ballRef.current.rotation.x += delta * (inFlight ? 5.5 : 1.2);
   });
 
+  const registerActor = (actor) => {
+    if (actorsRef?.current) actorsRef.current.ball = actor;
+  };
+  const registerBallBody = (actor) => {
+    if (actorsRef?.current) actorsRef.current.ballBody = actor;
+  };
+
   return (
-    <group position={[x, 0, z]}>
+    <group ref={registerActor} position={[x, 0, z]}>
       <mesh position={[0, 0.033, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[1 + height * 0.15, 1, 1 + height * 0.15]}>
         <circleGeometry args={[0.14, 24]} />
         <meshBasicMaterial color="#275341" transparent opacity={Math.max(0.16, 0.34 - height * 0.025)} depthWrite={false} />
       </mesh>
 
-      <group ref={ballRef} position={[0, ballY, 0]}>
+      <group ref={(actor) => { ballRef.current = actor; registerBallBody(actor); }} position={[0, ballY, 0]}>
         <mesh castShadow>
           <sphereGeometry args={[0.145, 18, 14]} />
           <meshStandardMaterial
