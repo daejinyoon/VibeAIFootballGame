@@ -10,8 +10,10 @@
     "test": "node --test"
   },
   "dependencies": {
+    "@react-three/fiber": "^9.8.2",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
