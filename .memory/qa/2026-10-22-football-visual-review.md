@@ -25,6 +25,14 @@
 2. 수정 전 모바일 경기 Canvas는 298×360px로 고정되어 경기장 주변 빈 바닥이 지나치게 길었다. 수정 후 같은 폭에서 약 298×250px가 되었고 경기장이 화면 안에서 더 균형 있게 보인다.
 3. 모든 확인한 모바일 화면에서 `document.documentElement.scrollWidth`와 `window.innerWidth`가 390px로 같았다. 가로 페이지 넘침은 없었다.
 
+## 초기 로딩 최적화 결과
+
+- 지연 로딩 전 초기 JavaScript entry: 1,228.87kB (gzip 343.08kB)
+- 지연 로딩 후 초기 JavaScript entry: 259.80kB (gzip 81.26kB), 약 78.9% 감소
+- 분리된 `GameScreen` chunk: 966.99kB (gzip 261.39kB)
+- Chrome Network에서 첫 화면에 GameScreen/R3F 요청이 없고 경기 시작 뒤 요청되는 것을 확인했다. 지연 중 `경기장을 준비하고 있어요…` 안내가 표시되고 경기 화면으로 정상 전환됐다.
+- 빌드는 성공했다. Three/R3F 경기 chunk가 500kB를 넘어 Vite의 chunk 크기 경고는 남아 있다. 이 코드는 사용자가 경기에 들어간 뒤에만 내려받는다.
+
 ## 화면 캡처
 
 - 시작 [desktop](./football-visual-review/start-desktop.png) · [mobile](./football-visual-review/start-mobile.png)

@@ -1,6 +1,6 @@
 # Task: T02 3D 경기 화면 지연 로드
 
-## Status: pending
+## Status: done
 
 ## Goal
 React 앱 초기 진입 번들에서 R3F/Three.js 게임 코드를 분리하고, 사용자가 새 경기나 이어 하기로 경기 화면에 들어갈 때만 `GameScreen` 모듈을 내려받게 한다.
@@ -32,10 +32,10 @@ React 앱 초기 진입 번들에서 R3F/Three.js 게임 코드를 분리하고,
   - 기대: 초기 entry JS 300KB 미만(압축 전), 3D 코드가 별도 지연 chunk로 출력. Three.js chunk 자체의 500KB 초과 Vite 경고가 남으면 정확한 크기를 보고서에 기록한다.
 
 ## Acceptance Criteria
-- [ ] 초기 화면 HTML/JS 로드에서 R3F/Three.js 모듈이 평가되지 않는다.
-- [ ] 경기 진입 시 지연 chunk가 로드되고 Canvas 장면·입력·일시정지 기능이 유지된다.
-- [ ] 초기 entry JS가 압축 전 300KB 미만이다.
-- [ ] `npm test`와 `npm run build`가 통과한다.
+- [x] 초기 화면 HTML/JS 로드에서 R3F/Three.js 모듈이 평가되지 않는다.
+- [x] 경기 진입 시 지연 chunk가 로드되고 Canvas 장면·입력·일시정지 기능이 유지된다.
+- [x] 초기 entry JS가 압축 전 300KB 미만이다.
+- [x] `npm test`와 `npm run build`가 통과한다.
 
 ## Validation
 - `npm test` — 기존 게임과 저장 테스트 통과
@@ -55,6 +55,6 @@ Task: T02-lazy-load-game
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
+- [x] 구현 완료
+- [x] 검증 통과
 - commit: pending

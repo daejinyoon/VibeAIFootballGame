@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { assignOpponentSkills, createCampaign, finishStage } from './game/campaign.js';
 import { createInitialGameState } from './game/createInitialGameState.js';
 import { FIELD_PLAYER_IDS, SKILLS, assignSkillCard, awardSkillCard } from './game/skills.js';
 import { createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
-import GameScreen from './components/GameScreen.jsx';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
 import ResultsScreen from './components/ResultsScreen.jsx';
 import LoadoutScreen from './components/LoadoutScreen.jsx';
 import SkillRewardScreen from './components/SkillRewardScreen.jsx';
 import StartScreen from './components/StartScreen.jsx';
+
+const GameScreen = lazy(() => import('./components/GameScreen.jsx'));
 
 function makeMatchState(campaign) {
   const assigned = assignOpponentSkills(
@@ -225,16 +226,18 @@ export default function App() {
       </header>
 
       {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} />}
-      {(screen === 'match' || screen === 'pause') && matchState && <GameScreen
-        key={campaign?.currentStage ?? 1}
-        gameState={matchState}
-        paused={screen === 'pause'}
-        errorMessage={profileError}
-        onPause={() => setScreen('pause')}
-        onResume={() => setScreen('match')}
-        onSaveAndExit={saveAndExit}
-        onGameEvents={handleGameEvents}
-      />}
+      {(screen === 'match' || screen === 'pause') && matchState && <Suspense fallback={<div className="game-screen-loading" role="status">경기장을 준비하고 있어요…</div>}>
+        <GameScreen
+          key={campaign?.currentStage ?? 1}
+          gameState={matchState}
+          paused={screen === 'pause'}
+          errorMessage={profileError}
+          onPause={() => setScreen('pause')}
+          onResume={() => setScreen('match')}
+          onSaveAndExit={saveAndExit}
+          onGameEvents={handleGameEvents}
+        />
+      </Suspense>}
       {screen === 'results' && result && <ResultsScreen
         result={result}
         leaderboardPlace={records.length ? 1 : null}
