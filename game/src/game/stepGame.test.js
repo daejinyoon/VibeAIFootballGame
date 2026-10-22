@@ -118,12 +118,12 @@ test('moves the selected player at the intended speed and normalizes diagonals',
 test('Space makes a field player jump and goalkeepers stay grounded', () => {
   const state = createInitialGameState();
   const player = state.players.find((candidate) => candidate.id === 'home-fw');
-  const keeper = state.players.find((candidate) => candidate.id === 'home-gk');
 
   stepGame(state, frame({ pressed: ['Space'] }), 0.05);
   assert.ok(player.jumpHeight > 0);
   assert.ok(player.jumpHeight <= 70);
-  assert.equal(keeper.jumpHeight, 0);
+  assert.ok(state.players.filter((candidate) => candidate.id !== player.id)
+    .every((candidate) => candidate.jumpHeight === 0 && candidate.jumpVelocity === 0));
 
   for (let index = 0; index < 30; index += 1) stepGame(state, frame(), 0.05);
   assert.equal(player.jumpHeight, 0);
@@ -196,10 +196,9 @@ test('stunned home support players do not move toward their targets', () => {
   assert.equal(teammate.stunnedSeconds, 0.95);
 });
 
-test('an arrow direction selects the intended teammate for a charged lob pass', () => {
+test('A sends a lob pass immediately without making any player jump', () => {
   const state = createInitialGameState();
-  stepGame(state, frame({ moveY: -1, down: ['a'], pressed: ['a'] }), 0.05);
-  const events = stepGame(state, frame({ moveY: -1, released: ['a'] }), 0.05);
+  const events = stepGame(state, frame({ moveY: -1, pressed: ['a'] }), 0.05);
 
   assert.equal(state.controlledPlayerId, 'home-def-1');
   assert.equal(state.ball.ownerId, null);
@@ -208,6 +207,18 @@ test('an arrow direction selects the intended teammate for a charged lob pass', 
   assert.ok(state.ball.verticalVelocity > 0);
   assert.ok(state.ball.vx < 0);
   assert.ok(events.some((event) => event.type === 'pass' && event.action === 'lobPass'));
+  assert.ok(state.players.every((player) => player.jumpVelocity === 0 && player.jumpHeight === 0));
+});
+
+test('A without possession does not trigger a jump', () => {
+  const state = createInitialGameState();
+  state.possessionTeam = 'away';
+  state.ball.ownerId = 'away-fw';
+  state.controlledPlayerId = 'home-fw';
+
+  stepGame(state, frame({ pressed: ['a'] }), 0.05);
+
+  assert.ok(state.players.every((player) => player.jumpVelocity === 0 && player.jumpHeight === 0));
 });
 
 test('a forward lob from a wide lane is classified as a cross', () => {
@@ -994,6 +1005,25 @@ test('AI waits for high balls and never auto-jumps goalkeepers', () => {
   state.ball.verticalVelocity = -20;
   stepGame(state, frame(), 0.01);
   assert.equal(nearest.jumpVelocity, 0);
+});
+
+test('AI does not jump for a descending ball outside every field player reach radius', () => {
+  const state = createInitialGameState();
+  for (const player of state.players) {
+    Object.assign(player, {
+      x: player.team === 'home' ? 30 : FIELD.width - 30,
+      y: player.role === 'goalkeeper' ? FIELD.height / 2 : player.team === 'home' ? 25 : FIELD.height - 25,
+      jumpCooldownSeconds: 0,
+    });
+  }
+  Object.assign(state.ball, {
+    ownerId: null, x: FIELD.width / 2, y: FIELD.height / 2,
+    vx: 0, vy: 0, height: 50, verticalVelocity: -50, flightKind: 'lob',
+  });
+
+  stepGame(state, frame(), 0.01);
+
+  assert.ok(state.players.every((player) => player.jumpVelocity === 0 && player.jumpHeight === 0));
 });
 
 test('the nearest noncontrolled defender presses while teammates cover separate passing lanes', () => {
