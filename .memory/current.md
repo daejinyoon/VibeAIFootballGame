@@ -7,7 +7,7 @@
 [P01 시각 검수와 초기 로딩](./phases/2026-10-22-football-visual-optimization/P01-visual-and-startup/phase.md)
 
 ## Active Task
-[T01 반응형 시각 검수와 보정](./phases/2026-10-22-football-visual-optimization/P01-visual-and-startup/T01-responsive-visual-qa.md)
+[T02 3D 경기 화면 지연 로드](./phases/2026-10-22-football-visual-optimization/P01-visual-and-startup/T02-lazy-load-game.md)
 
 ## Status
 - P01 실제 3D 장면 완료: T01 commit 08befaf, T02 commit eff1ed6, T03 commit 408c57c
@@ -17,7 +17,7 @@
 - P02-T04 완료: 5단계 AI 밸런스·경기 규칙 회귀 검증, 커밋 00162c7
 - P03-T01 완료: R3F 경기 루프·입력·HUD·정지/재개 연결, 검증·커밋 cdf501f
 - P03-T02 완료: 밝은 캠페인 UI·보상 카드·편성 흐름, 검증·커밋 ce2f3c7
-- 2026-10-22 시각 검수에서 모바일 버튼 줄바꿈·경기 Canvas 높이 및 초기 3D 번들 개선을 결정
+- P01-T01 완료: 데스크톱·모바일 Chrome 시각 검수, 모바일 레이아웃 수정 및 캡처 기록, 커밋 1fe686c
 
 ## Next Step (IMPORTANT)
-Continue with P01-T01 반응형 시각 검수와 보정 in the active plan.
+Continue with P01-T02 3D 경기 화면 지연 로드 in the active phase.
