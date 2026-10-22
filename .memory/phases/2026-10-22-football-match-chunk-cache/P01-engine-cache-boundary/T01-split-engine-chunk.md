@@ -81,4 +81,4 @@ Task: T01-split-engine-chunk
 ## Progress
 - [x] 구현 완료
 - [x] 검증 통과
-- commit: pending
+- commit: e5b9d3b
