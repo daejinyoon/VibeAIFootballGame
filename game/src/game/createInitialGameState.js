@@ -139,6 +139,7 @@ export function createInitialGameState({
       flightKind: 'ground',
       flightSeconds: 0,
       lastTouchTeam: 'home',
+      passReceiverId: null,
       passTarget: null,
       passProtectionSeconds: 0,
     },

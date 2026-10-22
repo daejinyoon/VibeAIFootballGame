@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { FIELD, KICKOFF_CIRCLE_RADIUS, getAiTuning } from './constants.js';
+import { FIELD, KICKOFF_CIRCLE_RADIUS, SHOT_ASSIST_DISTANCE, SHOT_ASSIST_MAX, getAiTuning } from './constants.js';
 import { createInitialGameState as createGameState } from './createInitialGameState.js';
 import { stepGame } from './stepGame.js';
 
@@ -264,16 +264,19 @@ test('a jumping field player heads a reachable airborne ball', () => {
 
 test('S releases a ground pass and transfers control to the receiver', () => {
   const state = createInitialGameState();
-  stepGame(state, frame({ moveY: 1, down: ['s'], pressed: ['s'] }), 0.05);
-  const events = stepGame(state, frame({ moveY: 1, released: ['s'] }), 0.05);
+  const events = stepGame(state, frame({ moveY: 1, pressed: ['s'] }), 0.05);
 
   assert.equal(state.controlledPlayerId, 'home-mid-1');
   assert.equal(state.ball.flightKind, 'ground');
   const receiver = state.players.find((player) => player.id === state.controlledPlayerId);
-  assert.deepEqual(state.ball.passTarget, { x: receiver.x, y: receiver.y });
+  assert.equal(state.ball.passReceiverId, receiver.id);
   assert.equal(state.ball.passProtectionSeconds, 0);
   assert.ok(state.ball.passTarget);
   assert.ok(events.some((event) => event.type === 'pass' && event.action === 'groundPass'));
+
+  stepGame(state, frame({ moveY: 1 }), 0.05);
+  assert.ok(state.ball.passTarget.y > receiver.y);
+  assert.ok(Math.hypot(state.ball.passTarget.x - receiver.x, state.ball.passTarget.y - receiver.y) <= 10.001);
 });
 
 test('a charged shot follows the selected player facing direction', () => {
@@ -288,7 +291,7 @@ test('a charged shot follows the selected player facing direction', () => {
   assert.ok(events.some((event) => event.type === 'shot' && event.team === 'home'));
 });
 
-test('shots use all eight facing directions without aiming correction', () => {
+test('shots retain all eight facing directions while correcting only toward the goal mouth', () => {
   const directions = [
     [1, 0], [1, -1], [0, -1], [-1, -1],
     [-1, 0], [-1, 1], [0, 1], [1, 1],
@@ -305,6 +308,53 @@ test('shots use all eight facing directions without aiming correction', () => {
     assert.equal(Math.sign(state.ball.vx), Math.sign(facingX));
     assert.equal(Math.sign(state.ball.vy), Math.sign(facingY));
   }
+});
+
+test('close shots receive stronger goal-mouth correction than long shots', () => {
+  const shoot = (x) => {
+    const state = createInitialGameState();
+    const shooter = state.players.find((player) => player.id === 'home-fw');
+    Object.assign(shooter, { x, y: 183, facingX: 1, facingY: 1 });
+    const events = stepGame(state, frame({ pressed: ['d'] }), 0.01);
+    return { events, state };
+  };
+
+  const closeShot = shoot(900);
+  const longShot = shoot(700);
+
+  assert.equal(SHOT_ASSIST_DISTANCE, 520);
+  assert.equal(SHOT_ASSIST_MAX, 0.88);
+  assert.ok(closeShot.events.some((event) => event.type === 'shotOnTarget'));
+  assert.ok(!longShot.events.some((event) => event.type === 'shotOnTarget'));
+});
+
+test('a shot facing away from the attacking goal receives no correction', () => {
+  const state = createInitialGameState();
+  const shooter = state.players.find((player) => player.id === 'home-fw');
+  shooter.facingX = -1;
+  shooter.facingY = 0;
+
+  stepGame(state, frame({ pressed: ['d'] }), 0.01);
+
+  assert.ok(state.ball.vx < 0);
+  assert.equal(state.ball.vy, 0);
+});
+
+test('a defender can still block a close-range corrected shot', () => {
+  const state = createInitialGameState();
+  const shooter = state.players.find((player) => player.id === 'home-fw');
+  const blocker = state.players.find((player) => player.id === 'away-def-1');
+  Object.assign(shooter, { x: 820, y: 180, facingX: 1, facingY: 1 });
+  Object.assign(blocker, { x: 862, y: 208, stunnedSeconds: 5 });
+  for (const player of state.players) {
+    if (![shooter.id, blocker.id, 'away-gk'].includes(player.id)) player.dismissed = true;
+  }
+
+  const events = stepGame(state, frame({ pressed: ['d'] }), 0.05);
+
+  assert.equal(state.ball.ownerId, blocker.id);
+  assert.equal(state.possessionTeam, 'away');
+  assert.ok(events.some((event) => event.type === 'possessionChange' && event.playerId === blocker.id));
 });
 
 test('shot power ranges from 55 percent on a quick release to 100 percent after one second', () => {
@@ -385,6 +435,73 @@ test('ground passes do not intercept players outside the swept lane', () => {
 
   assert.equal(state.ball.ownerId, null);
   assert.ok(!events.some((event) => event.type === 'passIntercepted'));
+});
+
+test('ground pass target follows a moving receiver and gives them a reliable first touch', () => {
+  const state = createInitialGameState();
+  const receiver = state.players.find((player) => player.id === 'home-mid-1');
+  for (const player of state.players) {
+    if (player.id !== receiver.id) player.dismissed = true;
+  }
+  Object.assign(receiver, { x: 500, y: 270 });
+  state.controlledPlayerId = receiver.id;
+  state.possessionTeam = 'home';
+  Object.assign(state.ball, {
+    ownerId: null, x: 450, y: 270, vx: 330, vy: 0,
+    flightKind: 'ground', flightSeconds: 0, passTeam: 'home',
+    passReceiverId: receiver.id, passTarget: { x: receiver.x, y: receiver.y },
+  });
+
+  stepGame(state, frame({ moveY: 1 }), 0.05);
+  assert.ok(state.ball.passTarget.y > receiver.y);
+
+  let events = [];
+  for (let index = 0; index < 20 && state.ball.ownerId !== receiver.id; index += 1) {
+    events = stepGame(state, frame(), 0.05);
+  }
+
+  assert.equal(state.ball.ownerId, receiver.id);
+  assert.equal(state.ball.passReceiverId, undefined);
+  assert.ok(events.some((event) => event.type === 'pass' && event.completed && event.receiverId === receiver.id));
+});
+
+test('a defender can intercept a tracked ground pass along its actual path', () => {
+  const state = createInitialGameState();
+  const receiver = state.players.find((player) => player.id === 'home-mid-1');
+  const interceptor = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(receiver, { x: 600, y: 270, aiTarget: { x: 600, y: 270 }, aiRetargetSeconds: 10 });
+  Object.assign(interceptor, { x: 408, y: 270, stunnedSeconds: 5 });
+  for (const player of state.players) {
+    if (player.team === 'away' && player.id !== interceptor.id && player.role !== 'goalkeeper') player.dismissed = true;
+  }
+  Object.assign(state.ball, {
+    ownerId: null, x: 400, y: 270, vx: 330, vy: 0,
+    flightKind: 'ground', flightSeconds: 0, passTeam: 'home',
+    passReceiverId: receiver.id, passTarget: { x: receiver.x, y: receiver.y },
+  });
+
+  const events = stepGame(state, frame(), 0.05);
+
+  assert.equal(state.ball.ownerId, interceptor.id);
+  assert.equal(state.ball.passReceiverId, undefined);
+  assert.ok(events.some((event) => event.type === 'passIntercepted' && event.fromTeam === 'home'));
+});
+
+test('a missing ground-pass receiver falls back to ordinary loose-ball movement', () => {
+  const state = createInitialGameState();
+  const receiver = state.players.find((player) => player.id === 'home-mid-1');
+  receiver.dismissed = true;
+  Object.assign(state.ball, {
+    ownerId: null, x: 400, y: 270, vx: 100, vy: 0,
+    flightKind: 'ground', passTeam: 'home', passReceiverId: receiver.id,
+    passTarget: { x: 700, y: 270 },
+  });
+
+  stepGame(state, frame(), 0.05);
+
+  assert.equal(state.ball.passReceiverId, undefined);
+  assert.equal(state.ball.passTarget, undefined);
+  assert.ok(state.ball.x > 400 && state.ball.x < 410);
 });
 
 test('an opponent can collect a ground pass at its endpoint without pass immunity', () => {

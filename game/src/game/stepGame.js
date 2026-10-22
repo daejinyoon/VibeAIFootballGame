@@ -15,6 +15,7 @@ import {
   LOB_CLEARANCE_DISTANCE,
   LOB_VERTICAL_VELOCITY,
   SHOT_ASSIST_DISTANCE,
+  SHOT_ASSIST_MAX,
   KICKOFF_CIRCLE_RADIUS,
 } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
@@ -166,6 +167,7 @@ function setBallOwner(state, player) {
   delete state.ball.flightDurationSeconds;
   delete state.ball.skillId;
   delete state.ball.passTeam;
+  delete state.ball.passReceiverId;
   delete state.ball.passTarget;
   delete state.ball.flightTarget;
   state.ball.passProtectionSeconds = 0;
@@ -246,6 +248,7 @@ function releasePass(state, player, kind, receiverOverride = null) {
   delete state.ball.lastHeaderPlayerId;
   delete state.ball.skillId;
   state.ball.passTeam = player.team;
+  state.ball.passReceiverId = kind === 'groundPass' && receiver ? receiver.id : null;
   state.ball.flightTarget = flightKind === 'ground' ? null : target;
   if (kind === 'groundPass') {
     state.ball.passTarget = target;
@@ -281,7 +284,7 @@ function releaseShot(state, player) {
     if (Number.isFinite(distanceToGoal) && distanceToGoal > 0) {
       const rawTargetY = start.y + facing.y * distanceToGoal;
       const distanceToGoalMouth = Math.hypot(goalX - start.x, rawTargetY - start.y);
-      const assist = clamp(1 - distanceToGoalMouth / SHOT_ASSIST_DISTANCE, 0, 0.7);
+      const assist = clamp(1 - distanceToGoalMouth / SHOT_ASSIST_DISTANCE, 0, SHOT_ASSIST_MAX);
       const nearestGoalY = clamp(rawTargetY, FIELD.goalTop + 10, FIELD.goalBottom - 10);
       const assistedTargetY = rawTargetY + (nearestGoalY - rawTargetY) * assist;
       direction = unit(goalX - start.x, assistedTargetY - start.y);
@@ -298,6 +301,7 @@ function releaseShot(state, player) {
   delete state.ball.flightDurationSeconds;
   delete state.ball.skillId;
   delete state.ball.passTeam;
+  delete state.ball.passReceiverId;
   delete state.ball.passTarget;
   delete state.ball.flightTarget;
   state.ball.passProtectionSeconds = 0;
@@ -589,6 +593,7 @@ function stopBallAtFieldEdge(state) {
   state.ball.flightKind = 'ground';
   state.ball.passProtectionSeconds = 0;
   delete state.ball.passTarget;
+  delete state.ball.passReceiverId;
   delete state.ball.passTeam;
   delete state.ball.flightTarget;
 }
@@ -760,6 +765,28 @@ function findGroundPassInterceptor(state, passerTeam, start, end) {
     .sort((left, right) => left.progress - right.progress || left.gap - right.gap || left.index - right.index)[0] ?? null;
 }
 
+function updateGroundPassReceiverTarget(state) {
+  const { ball } = state;
+  if (ball.flightKind !== 'ground' || !ball.passReceiverId) return;
+  const receiver = byId(state, ball.passReceiverId);
+  if (!receiver || receiver.dismissed || receiver.team !== ball.passTeam || receiver.role === 'goalkeeper') {
+    delete ball.passReceiverId;
+    delete ball.passTarget;
+    return;
+  }
+
+  const velocityX = Number.isFinite(receiver.vx) ? receiver.vx : 0;
+  const velocityY = Number.isFinite(receiver.vy) ? receiver.vy : 0;
+  const speed = Math.hypot(velocityX, velocityY);
+  const leadDistance = Math.min(10, speed * 0.1);
+  const leadX = speed > 0 ? velocityX / speed * leadDistance : 0;
+  const leadY = speed > 0 ? velocityY / speed * leadDistance : 0;
+  ball.passTarget = {
+    x: clamp(receiver.x + leadX, 0, FIELD.width),
+    y: clamp(receiver.y + leadY, 0, FIELD.height),
+  };
+}
+
 function integrateLooseBall(state, deltaSeconds) {
   const { ball } = state;
   if (ball.flightKind === 'skill-shot' && ball.skillId === 'tornadoShot') {
@@ -773,6 +800,7 @@ function integrateLooseBall(state, deltaSeconds) {
       ball.vy += awayFromDefender * 420 * (1 - distance(defender, ball) / 100) * deltaSeconds;
     }
   }
+  updateGroundPassReceiverTarget(state);
   const previousPosition = { x: ball.x, y: ball.y };
   const passTeam = ball.flightKind === 'ground' ? ball.passTeam : null;
   const hasGroundPassTarget = ball.flightKind === 'ground' && passTeam && ball.passTarget
@@ -935,6 +963,7 @@ function resolveAerialHeader(state) {
   ball.lastHeaderPlayerId = jumper.id;
   ball.lastTouchTeam = jumper.team;
   delete ball.passTarget;
+  delete ball.passReceiverId;
   ball.passProtectionSeconds = 0;
   delete ball.passTeam;
   state.possessionTeam = jumper.team;
@@ -958,7 +987,15 @@ function collectLooseBall(state) {
     .map((player) => ({ player, distance: distance(player, ball) }))
     .filter(({ distance: playerDistance }) => playerDistance <= 18)
     .sort((a, b) => a.distance - b.distance);
-  const pickedUp = candidates[0]?.player;
+  const intendedReceiver = ball.flightKind === 'ground' && ball.passReceiverId
+    ? byId(state, ball.passReceiverId)
+    : null;
+  const pickedUp = intendedReceiver && !intendedReceiver.dismissed
+    && intendedReceiver.knockdownSeconds <= 0
+    && intendedReceiver.motionAction !== 'recover'
+    && distance(intendedReceiver, ball) <= 18
+    ? intendedReceiver
+    : candidates[0]?.player;
   if (!pickedUp) return [];
 
   const previousTeam = state.possessionTeam;
@@ -1438,6 +1475,7 @@ function releaseRestart(state, restart, action) {
   state.ball.height = 0;
   state.ball.verticalVelocity = isAerial ? LOB_VERTICAL_VELOCITY : 0;
   state.ball.passTeam = restart.team;
+  state.ball.passReceiverId = null;
   state.ball.lastTouchTeam = restart.team;
   state.ball.passProtectionSeconds = 0;
   delete state.ball.skillId;
