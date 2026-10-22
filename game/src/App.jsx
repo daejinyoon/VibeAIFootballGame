@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import { assignOpponentSkills, createCampaign, finishStage } from './game/campaign.js';
 import { createInitialGameState } from './game/createInitialGameState.js';
 import { FIELD_PLAYER_IDS, SKILLS, assignSkillCard, awardSkillCard } from './game/skills.js';
@@ -34,6 +34,8 @@ export default function App() {
   const [profile, setProfile] = useState(() => readProfile());
   const [profileError, setProfileError] = useState('');
   const [pendingAssignmentSkill, setPendingAssignmentSkill] = useState(null);
+  const activeMatchInstanceRef = useRef(0);
+  const handledTerminalMatchRef = useRef(null);
 
   const playerRows = useMemo(() => {
     const labels = { 'home-def-1': '수비수', 'home-mid-1': '미드필더', 'home-fw': '공격수' };
@@ -46,6 +48,7 @@ export default function App() {
 
   const startStage = (activeCampaign = campaign) => {
     if (!activeCampaign) return;
+    activeMatchInstanceRef.current += 1;
     setMatchState(makeMatchState(activeCampaign));
     setScreen('match');
   };
@@ -93,16 +96,20 @@ export default function App() {
   const handleGameEvents = (events) => {
     const endEvent = events.find((event) => ['matchWon', 'matchLost', 'matchDraw'].includes(event.type));
     if (!endEvent || !campaign) return;
+    const matchKey = `${campaign.id}:${campaign.currentStage}:${activeMatchInstanceRef.current}`;
+    if (handledTerminalMatchRef.current === matchKey) return;
+    handledTerminalMatchRef.current = matchKey;
 
-    const nextCampaign = finishStage(campaign, endEvent.score);
+    const score = endEvent.score ?? matchState?.score ?? { home: 0, away: 0 };
+    const outcome = endEvent.type === 'matchDraw' ? 'draw' : endEvent.type === 'matchLost' ? 'loss' : 'win';
+    const nextCampaign = outcome === 'win' ? finishStage(campaign, score) : campaign;
     setCampaign(nextCampaign);
     setPendingAssignmentSkill(null);
-    const outcome = endEvent.type === 'matchDraw' ? 'draw' : endEvent.type === 'matchLost' ? 'loss' : 'win';
     const goalDifference = nextCampaign.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0);
     setResult({
       stage: campaign.currentStage,
-      homeGoals: endEvent.score.home,
-      awayGoals: endEvent.score.away,
+      homeGoals: score.home,
+      awayGoals: score.away,
       outcome,
       stageReached: campaign.currentStage,
       goalDifference,
@@ -214,6 +221,18 @@ export default function App() {
     }
   };
 
+  const leaveCompletedCampaign = () => {
+    const nextProfile = { ...profile, campaignSave: null };
+    setProfile(nextProfile);
+    try {
+      writeProfile(nextProfile);
+      setProfileError('');
+    } catch (error) {
+      setProfileError(error.message || '캠페인 완료 기록을 정리하지 못했습니다.');
+    }
+    home();
+  };
+
   const records = sortLeaderboard(profile.bestRecord ? [profile.bestRecord] : []);
 
   return (
@@ -245,15 +264,9 @@ export default function App() {
         onRetry={() => startStage(campaign)}
         onContinue={() => {
           if (result.outcome === 'win') setScreen('skillReward');
-          else if (result.outcome === 'campaignComplete') {
-            const nextProfile = { ...profile, campaignSave: null };
-            setProfile(nextProfile);
-            try { writeProfile(nextProfile); } catch { /* the result remains visible if storage is unavailable */ }
-            home();
-          }
-          else startNewCampaign();
+          else if (result.outcome === 'campaignComplete') leaveCompletedCampaign();
         }}
-        onHome={home}
+        onHome={() => result.outcome === 'campaignComplete' ? leaveCompletedCampaign() : home()}
       />}
       {screen === 'skillReward' && campaign && <SkillRewardScreen
         offer={campaign.pendingSkillOffer}
