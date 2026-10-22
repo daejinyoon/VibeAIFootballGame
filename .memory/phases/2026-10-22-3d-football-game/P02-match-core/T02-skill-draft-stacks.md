@@ -77,4 +77,4 @@ Task: T02-skill-draft-stacks
 ## Progress
 - [x] 구현 완료
 - [x] 검증 통과
-- commit: pending
+- commit: 48305ba
