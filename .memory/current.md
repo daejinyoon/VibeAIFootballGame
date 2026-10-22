@@ -1,13 +1,13 @@
 # Current Context
 
 ## Active Plan
-[덱스 3D 아케이드 축구 게임](./plans/2026-10-22-3d-football-game.md)
+[축구 게임 시각 검수와 초기 로딩 최적화](./plans/2026-10-22-football-visual-optimization.md)
 
 ## Active Phase
-[P03 로컬 웹앱 연결](./phases/2026-10-22-3d-football-game/P03-local-experience/phase.md) — 완료
+[P01 시각 검수와 초기 로딩](./phases/2026-10-22-football-visual-optimization/P01-visual-and-startup/phase.md)
 
 ## Active Task
-없음 — 2026-10-22 3D 축구 게임 계획의 모든 태스크를 완료했습니다.
+[T01 반응형 시각 검수와 보정](./phases/2026-10-22-football-visual-optimization/P01-visual-and-startup/T01-responsive-visual-qa.md)
 
 ## Status
 - P01 실제 3D 장면 완료: T01 commit 08befaf, T02 commit eff1ed6, T03 commit 408c57c
@@ -17,7 +17,7 @@
 - P02-T04 완료: 5단계 AI 밸런스·경기 규칙 회귀 검증, 커밋 00162c7
 - P03-T01 완료: R3F 경기 루프·입력·HUD·정지/재개 연결, 검증·커밋 cdf501f
 - P03-T02 완료: 밝은 캠페인 UI·보상 카드·편성 흐름, 검증·커밋 ce2f3c7
-- P03-T03 완료: 프로필 v2 마이그레이션·저장 복구·5단계 랭킹, 검증·커밋 4cb1632
+- 2026-10-22 시각 검수에서 모바일 버튼 줄바꿈·경기 Canvas 높이 및 초기 3D 번들 개선을 결정
 
 ## Next Step (IMPORTANT)
-The active 3D football game plan is complete. Start a new interview and plan for deferred work such as Entra ID/Azure integration or online multiplayer.
+Continue with P01-T01 반응형 시각 검수와 보정 in the active plan.
