@@ -1,18 +1,17 @@
 # Current Context
 
 ## Active Plan
-[통합 3D 아케이드 축구](./plans/2026-10-22-unified-3d-arcade-football.md)
+[규칙 기반 3D 아케이드 축구 조작 및 재개 개편](./plans/2026-10-22-law-based-3d-football-rework.md)
 
 ## Active Phase
-[P02 3D 경기 감각](./phases/2026-10-22-unified-3d-arcade-football/P02-3d-game-feel/phase.md)
+[P01 경기 규칙과 화면 구성](./phases/2026-10-22-law-based-3d-football-rework/P01-match-rules-and-presentation/phase.md)
 
 ## Active Task
-[T01 3D 선수 방향·달리기·접촉 모션](./phases/2026-10-22-unified-3d-arcade-football/P02-3d-game-feel/T01-player-3d-motions.md)
+[T02 공 경계 판정과 직접 조작하는 경기 재개](./phases/2026-10-22-law-based-3d-football-rework/P01-match-rules-and-presentation/T02-boundaries-and-manual-restarts.md)
 
 ## Status
-- P01-T01 완료: 정규·골든골 타이머, 무승부 이벤트 및 캠페인 무보상 처리 구현·검증 완료
-- P01-T02 완료: 역할 기반 공격·수비 AI, 양 팀 패스 경로 차단, 단일 AI 공중 점프 구현·검증 완료
-- P01-T03 완료: 태클·파울·용룡타 충돌의 1초 넘어짐·회복, AI/입력 차단 및 골키퍼 예외 구현·검증 완료
+- T01 완료: 충전 게이지 제거, 즉시 방향 기준 패스/슛과 UI 조작 안내 변경. production build 통과.
+- P01 진행률 1/4 (active: T02)
 
 ## Next Step (IMPORTANT)
-T01 청사진을 읽고 `game/src/components/GameLoop3D.jsx`와 `game/src/components/FootballPlayer3D.jsx`에 시뮬레이션 상태 기반 선수 포즈를 연결합니다.
+T02 청사진을 읽고 `game/src/game/stepGame.js`에서 공 전체 경계 판정과 직접 조작하는 스로인·코너·골킥을 구현합니다. 작업 디렉터리는 `game/`이며 빌드 검증 명령은 `npm run build`입니다.

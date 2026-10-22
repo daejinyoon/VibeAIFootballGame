@@ -9,11 +9,9 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
   const stage = gameState.stage;
   const timeLabel = viewState.phase === 'overtime' ? 'GOLDEN GOAL' : String(Math.ceil(viewState.remainingSeconds));
   const possession = viewState.possessionTeam === 'home' ? '우리 팀 공격' : viewState.possessionTeam === 'away' ? '상대 공격' : '공 경합 중';
-  const chargePercent = Math.min(100, Math.max(0, Math.round((viewState.charge?.elapsedSeconds ?? 0) * 100)));
   const activeHome = viewState.players.filter((player) => player.team === 'home' && !player.dismissed).length;
   const activeAway = viewState.players.filter((player) => player.team === 'away' && !player.dismissed).length;
   const foulLabel = viewState.lastFoul?.restart === 'penaltyKick' ? 'PENALTY KICK' : 'FREE KICK';
-  const chargeLabels = { lobPass: 'A 로빙 패스', groundPass: 'S 땅볼 패스', shot: 'D 슛' };
   const controlledPlayer = viewState.players.find((player) => player.id === viewState.controlledPlayerId);
   const awaySkillUses = viewState.players
     .filter((player) => player.team === 'away' && player.skillId && player.skillUsesRemaining > 0)
@@ -34,13 +32,9 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
         }
       }} /></div>
       <div className="game-bottomline">
-        {viewState.charge?.action && <div className="charge-gauge" role="progressbar" aria-label={`${chargeLabels[viewState.charge.action]} 힘`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={chargePercent}>
-          <div className="charge-gauge-label"><span>{chargeLabels[viewState.charge.action]}</span><b>{chargePercent}%</b></div>
-          <div className="charge-gauge-track"><i style={{ width: `${chargePercent}%` }} /></div>
-        </div>}
         <div className="skill-stock"><span>조작 선수 스킬</span><b>{controlledPlayer?.skillId ? SKILLS[controlledPlayer.skillId]?.name : '장착된 스킬 없음'}</b><small>{controlledPlayer?.skillId === 'rainbowReflect' ? '자동 발동' : `F · 남은 사용 ${controlledPlayer?.skillUsesRemaining ?? 0}회`}</small></div>
         <div className="skill-stock away-skill-stock"><span>상대 팀 스킬</span><b>남은 사용 횟수</b><small>{awaySkillUses}회</small></div>
-        <p>방향키 이동 · Space 점프·헤딩 · A/S/D 공격·수비 · F 스킬</p>
+        <p>방향키 이동 · Space 점프·헤딩 · A 로빙 패스·걷어내기 · S 땅볼 패스(수비 시 선수 전환) · D 슛 · F 스킬</p>
       </div>
       {errorMessage && <p className="profile-error" role="alert">{errorMessage}</p>}
       {paused && <PauseMenu onResume={onResume} onSaveAndExit={onSaveAndExit} errorMessage={errorMessage} />}

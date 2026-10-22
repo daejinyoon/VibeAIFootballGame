@@ -1,6 +1,7 @@
 import {
   BALL_GRAVITY,
   FIELD,
+  GROUND_CLEARANCE_DISTANCE,
   GOLDEN_GOAL_SECONDS,
   getAiTuning,
   HEADER_HEIGHT_MAX,
@@ -10,7 +11,9 @@ import {
   JUMP_GRAVITY,
   JUMP_INITIAL_VELOCITY,
   JUMP_MAX_HEIGHT,
+  LOB_CLEARANCE_DISTANCE,
   LOB_VERTICAL_VELOCITY,
+  SHOT_ASSIST_DISTANCE,
 } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
 import { applyAutomaticRainbowReflect, applySkill, SKILL_IDS } from './skills.js';
@@ -21,7 +24,6 @@ const KEEPER_SPEED = 95;
 const PRESSURE_SPEED = 190;
 const SLIDE_SPEED = 160;
 const MAX_DELTA = 0.05;
-const CHARGE_SECONDS = 1;
 const INTERCEPTION_RADIUS = 16;
 const AI_JUMP_REACH_RADIUS = 88;
 const AI_MIN_PASS_DISTANCE = 48;
@@ -104,6 +106,7 @@ function setBallOwner(state, player) {
   delete state.ball.skillId;
   delete state.ball.passTeam;
   delete state.ball.passTarget;
+  delete state.ball.flightTarget;
   state.ball.passProtectionSeconds = 0;
   delete state.ball.lastHeaderPlayerId;
   state.ball.lastTouchTeam = player.team;
@@ -121,48 +124,67 @@ function getTeammates(state, player) {
     && !candidate.dismissed);
 }
 
-function chooseReceiver(state, passer, moveX, moveY) {
-  const intent = unit(moveX, moveY);
-  const facing = intent.x !== 0 || intent.y !== 0
-    ? intent
-    : { x: passer.facingX || (passer.team === 'home' ? 1 : -1), y: passer.facingY };
-
-  return getTeammates(state, passer)
-    .map((candidate) => {
-      const direction = unit(candidate.x - passer.x, candidate.y - passer.y);
-      const forwardScore = direction.x * facing.x + direction.y * facing.y;
-      return { candidate, score: forwardScore * 2 - distance(candidate, passer) / FIELD.width };
-    })
-    .sort((a, b) => b.score - a.score)[0]?.candidate ?? null;
+function facingFor(player) {
+  const facing = unit(player.facingX, player.facingY);
+  return facing.x !== 0 || facing.y !== 0
+    ? facing
+    : { x: player.team === 'home' ? 1 : -1, y: 0 };
 }
 
-function releasePass(state, player, kind, chargeRatio, moveX, moveY, receiverOverride = null) {
-  const receiver = receiverOverride ?? chooseReceiver(state, player, moveX, moveY);
-  if (!receiver) return [];
+function chooseReceiver(state, passer, kind) {
+  const facing = facingFor(passer);
+  const candidates = getTeammates(state, passer)
+    .filter((candidate) => candidate.role !== 'goalkeeper')
+    .map((candidate) => {
+      const dx = candidate.x - passer.x;
+      const dy = candidate.y - passer.y;
+      const forwardDistance = dx * facing.x + dy * facing.y;
+      return { candidate, forwardDistance, distance: Math.hypot(dx, dy) };
+    })
+    .filter((entry) => entry.forwardDistance > 0)
+    .sort((left, right) => kind === 'lobPass'
+      ? right.forwardDistance - left.forwardDistance || right.distance - left.distance
+      : left.distance - right.distance || right.forwardDistance - left.forwardDistance);
 
+  return candidates[0]?.candidate ?? null;
+}
+
+function releasePass(state, player, kind, receiverOverride = null) {
+  const receiver = receiverOverride ?? chooseReceiver(state, player, kind);
+  const facing = facingFor(player);
   putBallAtPlayer(state, player);
-  const direction = unit(receiver.x - state.ball.x, receiver.y - state.ball.y);
-  const speed = (kind === 'lobPass' ? 300 : 330) * (0.55 + 0.45 * chargeRatio);
+  const clearDistance = kind === 'lobPass' ? LOB_CLEARANCE_DISTANCE : GROUND_CLEARANCE_DISTANCE;
+  const target = receiver
+    ? { x: receiver.x, y: receiver.y }
+    : {
+      x: clamp(state.ball.x + facing.x * clearDistance, 0, FIELD.width),
+      y: clamp(state.ball.y + facing.y * clearDistance, 0, FIELD.height),
+    };
+  const direction = unit(target.x - state.ball.x, target.y - state.ball.y);
+  if (direction.x === 0 && direction.y === 0) return [];
+  const speed = kind === 'lobPass' ? 300 : 330;
   state.ball.ownerId = null;
   state.ball.vx = direction.x * speed;
   state.ball.vy = direction.y * speed;
   const attackDirection = player.team === 'home' ? 1 : -1;
   const isForward = direction.x * attackDirection > 0.2;
-  const receiverIsWide = receiver.y < FIELD.height * 0.22 || receiver.y > FIELD.height * 0.78;
+  const receiverIsWide = target.y < FIELD.height * 0.22 || target.y > FIELD.height * 0.78;
   const isWide = receiverIsWide || player.y < FIELD.height * 0.22 || player.y > FIELD.height * 0.78;
   const flightKind = kind === 'lobPass'
     ? (isWide && isForward ? 'cross' : 'lob')
     : 'ground';
   state.ball.flightKind = flightKind;
   state.ball.flightSeconds = 0;
-  state.ball.flightDurationSeconds = Math.max(0.35, distance(receiver, player) / speed);
+  const targetDistance = distance(target, state.ball);
+  state.ball.flightDurationSeconds = Math.max(0.35, targetDistance / speed);
   state.ball.height = 0;
   state.ball.verticalVelocity = flightKind === 'ground' ? 0 : LOB_VERTICAL_VELOCITY;
   delete state.ball.lastHeaderPlayerId;
   delete state.ball.skillId;
   state.ball.passTeam = player.team;
+  state.ball.flightTarget = flightKind === 'ground' ? null : target;
   if (kind === 'groundPass') {
-    state.ball.passTarget = { x: receiver.x, y: receiver.y };
+    state.ball.passTarget = target;
     state.ball.passProtectionSeconds = 0;
   } else {
     delete state.ball.passTarget;
@@ -170,22 +192,35 @@ function releasePass(state, player, kind, chargeRatio, moveX, moveY, receiverOve
   }
   state.ball.lastTouchTeam = player.team;
   state.possessionTeam = player.team;
-  if (player.team === 'home') state.controlledPlayerId = receiver.id;
+  if (player.team === 'home' && receiver) state.controlledPlayerId = receiver.id;
 
-  return [{ type: 'pass', team: player.team, action: kind, receiverId: receiver.id, completed: false }];
+  return [{
+    type: 'pass', team: player.team,
+    action: kind === 'lobPass' && !receiver ? 'clearance' : kind,
+    receiverId: receiver?.id ?? null, completed: false,
+  }];
 }
 
-function releaseShot(state, player, chargeRatio) {
+function releaseShot(state, player) {
   const attackDirection = player.team === 'home' ? 1 : -1;
-  const power = 0.55 + 0.45 * chargeRatio;
-  const facing = player.facingX === 0 && player.facingY === 0
-    ? { x: attackDirection, y: 0 }
-    : { x: player.facingX, y: player.facingY };
-  const direction = unit(facing.x, facing.y);
-  const speed = (player.team === 'home' ? 500 : 430) * power;
+  const facing = facingFor(player);
 
   putBallAtPlayer(state, player);
   const start = { x: state.ball.x, y: state.ball.y };
+  const goalX = attackDirection > 0 ? FIELD.width : 0;
+  let direction = facing;
+  if (facing.x * attackDirection > 0) {
+    const distanceToGoal = (goalX - start.x) / facing.x;
+    if (Number.isFinite(distanceToGoal) && distanceToGoal > 0) {
+      const rawTargetY = start.y + facing.y * distanceToGoal;
+      const distanceToGoalMouth = Math.hypot(goalX - start.x, rawTargetY - start.y);
+      const assist = clamp(1 - distanceToGoalMouth / SHOT_ASSIST_DISTANCE, 0, 0.7);
+      const nearestGoalY = clamp(rawTargetY, FIELD.goalTop + 10, FIELD.goalBottom - 10);
+      const assistedTargetY = rawTargetY + (nearestGoalY - rawTargetY) * assist;
+      direction = unit(goalX - start.x, assistedTargetY - start.y);
+    }
+  }
+  const speed = player.team === 'home' ? 500 : 430;
   state.ball.ownerId = null;
   state.ball.vx = direction.x * speed;
   state.ball.vy = direction.y * speed;
@@ -197,11 +232,11 @@ function releaseShot(state, player, chargeRatio) {
   delete state.ball.skillId;
   delete state.ball.passTeam;
   delete state.ball.passTarget;
+  delete state.ball.flightTarget;
   state.ball.passProtectionSeconds = 0;
   state.ball.lastTouchTeam = player.team;
   state.possessionTeam = player.team;
 
-  const goalX = attackDirection > 0 ? FIELD.width : 0;
   const distanceToGoal = (goalX - start.x) / direction.x;
   const targetY = start.y + direction.y * distanceToGoal;
   const onTarget = distanceToGoal > 0
@@ -436,6 +471,7 @@ function stopBallAtFieldEdge(state) {
   state.ball.passProtectionSeconds = 0;
   delete state.ball.passTarget;
   delete state.ball.passTeam;
+  delete state.ball.flightTarget;
 }
 
 function launchAutomaticRestart(state, player) {
@@ -620,8 +656,30 @@ function integrateLooseBall(state, deltaSeconds) {
     }
     ball.flightSeconds = (ball.flightSeconds ?? 0) + deltaSeconds;
   } else {
-    ball.x += ball.vx * deltaSeconds;
-    ball.y += ball.vy * deltaSeconds;
+    const flightTarget = ball.flightTarget;
+    if (flightTarget && Number.isFinite(flightTarget.x) && Number.isFinite(flightTarget.y)) {
+      const dx = flightTarget.x - ball.x;
+      const dy = flightTarget.y - ball.y;
+      const remaining = Math.hypot(dx, dy);
+      const speed = Math.hypot(ball.vx, ball.vy);
+      const travel = Math.min(remaining, speed * deltaSeconds);
+      if (remaining <= travel || remaining <= 0.001) {
+        ball.x = flightTarget.x;
+        ball.y = flightTarget.y;
+        ball.vx = 0;
+        ball.vy = 0;
+        delete ball.flightTarget;
+        delete ball.flightDurationSeconds;
+      } else if (speed > 0) {
+        ball.x += dx / remaining * travel;
+        ball.y += dy / remaining * travel;
+        ball.vx = dx / remaining * speed;
+        ball.vy = dy / remaining * speed;
+      }
+    } else {
+      ball.x += ball.vx * deltaSeconds;
+      ball.y += ball.vy * deltaSeconds;
+    }
     ball.flightSeconds = (ball.flightSeconds ?? 0) + deltaSeconds;
     if (['lob', 'cross', 'header'].includes(ball.flightKind)) {
       ball.verticalVelocity = (ball.verticalVelocity ?? 0) - BALL_GRAVITY * deltaSeconds;
@@ -631,7 +689,7 @@ function integrateLooseBall(state, deltaSeconds) {
         ball.height = 0;
         ball.flightKind = 'ground';
       }
-    } else if (ball.flightKind === 'ground' && !hasGroundPassTarget) {
+    } else if (ball.flightKind === 'ground' && !hasGroundPassTarget && !ball.flightTarget) {
       const friction = Math.exp(-2.4 * deltaSeconds);
       ball.vx *= friction;
       ball.vy *= friction;
@@ -771,49 +829,21 @@ function collectLooseBall(state) {
   ];
 }
 
-function handleHomeAttack(state, controlled, input, deltaSeconds) {
-  const actionKeys = [
-    ['a', 'lobPass'],
-    ['s', 'groundPass'],
-    ['d', 'shot'],
-  ];
-  const started = actionKeys.find(([key]) => input.pressed.has(key));
-  if (started && !state.charge.action) {
-    state.charge.action = started[1];
-    state.charge.elapsedSeconds = 0;
-  }
-
-  const current = actionKeys.find(([, action]) => action === state.charge.action);
-  if (!current) return [];
-  const [key] = current;
-  if (input.down.has(key)) {
-    state.charge.elapsedSeconds = clamp(state.charge.elapsedSeconds + deltaSeconds, 0, CHARGE_SECONDS);
-  }
-
-  const released = input.released.has(key) || (!input.down.has(key) && !input.pressed.has(key));
-  if (!released) return [];
-
-  const action = state.charge.action;
-  const ratio = clamp(state.charge.elapsedSeconds / CHARGE_SECONDS, 0, 1);
-  state.charge = { action: null, elapsedSeconds: 0 };
+function handleHomeAttack(state, controlled, input) {
   if (state.ball.ownerId !== controlled.id) return [];
-  if (action === 'lobPass') return releasePass(state, controlled, 'lobPass', ratio, input.moveX, input.moveY);
-  if (action === 'groundPass') return releasePass(state, controlled, 'groundPass', ratio, input.moveX, input.moveY);
-  if (action === 'shot') return releaseShot(state, controlled, ratio);
+  if (input.pressed.has('a')) return releasePass(state, controlled, 'lobPass');
+  if (input.pressed.has('s')) return releasePass(state, controlled, 'groundPass');
+  if (input.pressed.has('d')) return releaseShot(state, controlled);
   return [];
 }
 
-function controlBallAction(state, controlled, input, deltaSeconds) {
+function controlBallAction(state, controlled, input) {
   if (controlled.knockdownSeconds > 0 || controlled.motionAction === 'recover') {
-    state.charge = { action: null, elapsedSeconds: 0 };
     return [];
   }
-  if (state.possessionTeam !== 'home') {
-    state.charge = { action: null, elapsedSeconds: 0 };
-    return [];
-  }
+  if (state.possessionTeam !== 'home') return [];
 
-  return handleHomeAttack(state, controlled, input, deltaSeconds);
+  return handleHomeAttack(state, controlled, input);
 }
 
 function updateSupportPlayer(state, player, deltaSeconds) {
@@ -1003,13 +1033,13 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
       const goal = { x: direction > 0 ? FIELD.width : 0, y: FIELD.height / 2 };
       const range = distance(player, goal);
       if (range <= 180 && shotCanReachGoal(player) && (state.aiShotCooldownSeconds ?? 0) <= 0) {
-        events.push(...releaseShot(state, player, 0.72));
+        events.push(...releaseShot(state, player));
         state.aiShotCooldownSeconds = getAiTuning(state.stage).thinkIntervalSeconds;
       } else {
         const pass = (state.aiShotCooldownSeconds ?? 0) <= 0 ? chooseAiPass(state, player) : null;
         if (pass) {
           const action = pass.kind === 'groundPass' ? 'groundPass' : 'lobPass';
-          events.push(...releasePass(state, player, action, 0.72, 0, 0, pass.receiver));
+          events.push(...releasePass(state, player, action, pass.receiver));
           state.aiShotCooldownSeconds = getAiTuning(state.stage).thinkIntervalSeconds;
         } else {
           moveToward(player, goal, AI_SPEED, deltaSeconds);
@@ -1208,7 +1238,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   if (state.possessionTeam === 'home') {
     if (controlled && state.rainbowReflection?.playerId !== controlled.id) {
       moveByInput(controlled, input.moveX, input.moveY, PLAYER_SPEED, dt);
-      events.push(...controlBallAction(state, controlled, input, dt));
+      events.push(...controlBallAction(state, controlled, input));
     }
     updateHomeSupportAi(state, byId(state, state.controlledPlayerId), dt);
       updateAwayDefense(state, dt, events, 'away', null);
