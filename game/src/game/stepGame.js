@@ -1,6 +1,6 @@
-import { FIELD, MAX_SKILL_GAUGE } from './constants.js';
+import { FIELD } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
-import { addSkillGauge, applyAutomaticRainbowReflect, applySkill, SKILL_IDS } from './skills.js';
+import { applyAutomaticRainbowReflect, applySkill, SKILL_IDS } from './skills.js';
 
 const PLAYER_SPEED = 160;
 const AI_SPEED = 125;
@@ -162,18 +162,20 @@ function releaseShot(state, player, chargeRatio) {
 }
 
 function resetForKickoff(state, kickoffTeam) {
-  const loadout = Object.fromEntries(
-    state.players.filter((player) => player.team === 'home' && player.skillId)
-      .map((player) => [player.id, player.skillId]),
-  );
+  const playerSkillStacks = Object.fromEntries(state.players
+    .filter((player) => player.team === 'home' && player.skillId)
+    .map((player) => [player.id, { skillId: player.skillId, copies: player.skillCopies }]));
+  const opponentSkillStacks = Object.fromEntries(state.players
+    .filter((player) => player.team === 'away' && player.skillId)
+    .map((player) => [player.id, { skillId: player.skillId, copies: player.skillCopies }]));
   const fresh = createInitialGameState({
     stage: state.stage,
-    loadout,
-    opponentSkillIds: state.opponentSkillIds,
+    playerSkillStacks,
+    opponentSkillStacks,
   });
   const score = { ...state.score };
   const remainingSeconds = state.remainingSeconds;
-  const skillGauge = { ...state.skillGauge };
+  const remainingUses = new Map(state.players.map((player) => [player.id, player.skillUsesRemaining]));
   const controlledPlayerId = state.controlledPlayerId;
   const controlledPlayer = byId(state, controlledPlayerId);
   const controlledPosition = controlledPlayer ? { x: controlledPlayer.x, y: controlledPlayer.y } : { x: FIELD.width / 2, y: FIELD.height / 2 };
@@ -183,8 +185,11 @@ function resetForKickoff(state, kickoffTeam) {
     dismissed: Boolean(player.dismissed),
   }]));
 
-  Object.assign(state, fresh, { score, remainingSeconds, skillGauge });
-  for (const player of state.players) Object.assign(player, discipline.get(player.id));
+  Object.assign(state, fresh, { score, remainingSeconds });
+  for (const player of state.players) {
+    Object.assign(player, discipline.get(player.id));
+    player.skillUsesRemaining = remainingUses.get(player.id) ?? player.skillUsesRemaining;
+  }
   state.possessionTeam = kickoffTeam;
   state.ball.ownerId = `${kickoffTeam}-fw`;
   state.ball.lastTouchTeam = kickoffTeam;
@@ -717,9 +722,9 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
 }
 
 function maybeUseAiSkill(state, team, events) {
-  if ((state.skillGauge?.[team] ?? 0) < MAX_SKILL_GAUGE) return;
   const opponentCarrier = state.players.find((player) => player.team !== team && !player.dismissed && player.id === state.ball.ownerId);
-  const candidates = state.players.filter((player) => player.team === team && !player.dismissed && SKILL_IDS.includes(player.skillId));
+  const candidates = state.players.filter((player) => player.team === team && player.role !== 'goalkeeper' && !player.dismissed
+    && SKILL_IDS.includes(player.skillId) && player.skillUsesRemaining > 0);
 
   for (const player of candidates) {
     if (player.skillId === 'rainbowReflect') continue;
@@ -768,15 +773,6 @@ function advanceVacuum(state, deltaSeconds) {
     return [{ type: 'vacuumComplete', team: player.team, playerId: player.id }];
   }
   return [];
-}
-
-function awardSkillGauge(state, events) {
-  for (const event of events) {
-    if (event.type === 'pass' && event.completed) addSkillGauge(state, 'pass', event.team);
-    if (event.type === 'tackle') addSkillGauge(state, 'tackle', event.team);
-    if (event.type === 'shotOnTarget') addSkillGauge(state, 'shotOnTarget', event.team);
-    if (event.type === 'keeperCatch') addSkillGauge(state, 'keeperCatch', event.team);
-  }
 }
 
 function updateOwnedBall(state) {
@@ -852,11 +848,6 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   if (state.phase === 'goalKick') return beginGoalKick(state, dt);
   if (state.phase === 'freeKick' || state.phase === 'penaltyKick') return beginSetPiece(state, dt);
 
-  if (state.phase === 'playing' || state.phase === 'overtime') {
-    addSkillGauge(state, 'time', 'home', dt);
-    addSkillGauge(state, 'time', 'away', dt);
-  }
-
   if (state.phase === 'playing') {
     state.remainingSeconds = Math.max(0, state.remainingSeconds - dt);
     if (state.remainingSeconds === 0) {
@@ -917,7 +908,6 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
     }
   }
 
-  awardSkillGauge(state, events);
   return events;
 }
 

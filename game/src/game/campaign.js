@@ -1,5 +1,5 @@
 import { STAGE_COUNT } from './constants.js';
-import { HOME_PLAYER_IDS, SKILL_IDS, validateLoadout } from './skills.js';
+import { HOME_PLAYER_IDS, SKILL_IDS, createSkillCardOffer } from './skills.js';
 
 export { HOME_PLAYER_IDS };
 
@@ -26,23 +26,21 @@ export function createOpponentSkillSets(rng = Math.random) {
   };
 }
 
-export function createCampaign({ rng = Math.random, homeLoadout } = {}) {
-  const validation = validateLoadout(homeLoadout, HOME_PLAYER_IDS);
-  if (!validation.valid) {
-    throw new Error('캠페인을 시작하려면 여섯 선수에게 서로 다른 스킬을 하나씩 배정해야 합니다.');
-  }
-
+export function createCampaign({ rng = Math.random } = {}) {
   return {
     id: `campaign-${Date.now()}-${++campaignCounter}`,
     currentStage: 1,
     clearedStageResults: [],
-    homeLoadout: { ...homeLoadout },
+    playerSkillStacks: Object.fromEntries(HOME_PLAYER_IDS.map((playerId) => [playerId, null])),
+    skillInventory: Object.fromEntries(SKILL_IDS.map((skillId) => [skillId, 0])),
+    pendingSkillOffer: null,
+    pendingSkillAssignment: null,
     opponentSkillSets: createOpponentSkillSets(rng),
     status: 'active',
   };
 }
 
-export function finishStage(campaign, result) {
+export function finishStage(campaign, result, rng = Math.random) {
   if (!campaign || campaign.status !== 'active') throw new Error('진행 중인 캠페인이 없습니다.');
   const homeGoals = Number(result?.homeGoals ?? result?.score?.home);
   const awayGoals = Number(result?.awayGoals ?? result?.score?.away);
@@ -51,7 +49,7 @@ export function finishStage(campaign, result) {
   }
   if (homeGoals === awayGoals) throw new Error('골든골로 승패가 결정된 뒤 다음 단계로 진행할 수 있습니다.');
 
-  if (homeGoals < awayGoals) return { ...campaign, homeLoadout: { ...campaign.homeLoadout } };
+  if (homeGoals < awayGoals) return { ...campaign };
 
   const clearedStageResults = [
     ...campaign.clearedStageResults,
@@ -62,7 +60,7 @@ export function finishStage(campaign, result) {
     ...campaign,
     clearedStageResults,
     currentStage: isFinal ? STAGE_COUNT : campaign.currentStage + 1,
-    homeLoadout: { ...campaign.homeLoadout },
+    pendingSkillOffer: createSkillCardOffer(rng),
     status: isFinal ? 'complete' : 'active',
   };
 }

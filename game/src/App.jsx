@@ -1,97 +1,90 @@
 import { useMemo, useState } from 'react';
 import { assignOpponentSkills, createCampaign, finishStage } from './game/campaign.js';
 import { createInitialGameState } from './game/createInitialGameState.js';
-import { HOME_PLAYER_IDS, SKILLS, SKILL_IDS, validateLoadout } from './game/skills.js';
+import { FIELD_PLAYER_IDS, SKILLS, assignSkillCard, awardSkillCard } from './game/skills.js';
 import { createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
 import GameScreen from './components/GameScreen.jsx';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
-import LoadoutScreen from './components/LoadoutScreen.jsx';
 import ResultsScreen from './components/ResultsScreen.jsx';
 import StartScreen from './components/StartScreen.jsx';
 
 function makeMatchState(campaign) {
   const assigned = assignOpponentSkills(
     createInitialGameState().players,
-    campaign.opponentSkillSets[campaign.currentStage],
+    campaign.opponentSkillSets[campaign.currentStage] ?? [],
   );
+  const opponentSkillStacks = Object.fromEntries(assigned
+    .filter((player) => player.team === 'away' && player.skillId)
+    .map((player) => [player.id, { skillId: player.skillId, copies: player.skillCopies }]));
   return createInitialGameState({
     stage: campaign.currentStage,
-    loadout: campaign.homeLoadout,
-    opponentSkillIds: assigned.filter((player) => player.team === 'away').map((player) => player.skillId).filter(Boolean),
+    playerSkillStacks: campaign.playerSkillStacks,
+    opponentSkillStacks,
   });
 }
 
 export default function App() {
   const [screen, setScreen] = useState('start');
-  const [loadout, setLoadout] = useState({});
   const [campaign, setCampaign] = useState(null);
   const [matchState, setMatchState] = useState(null);
   const [result, setResult] = useState(null);
   const [profile, setProfile] = useState(() => readProfile());
   const [profileError, setProfileError] = useState('');
-  const [overwriteApproved, setOverwriteApproved] = useState(false);
+  const [pendingAssignmentSkill, setPendingAssignmentSkill] = useState(null);
 
   const playerRows = useMemo(() => {
-    const state = createInitialGameState();
-    const labels = { goalkeeper: '골키퍼', defender: '수비수', midfielder: '미드필더', forward: '공격수' };
-    return state.players.filter((player) => player.team === 'home').map((player) => ({
-      playerId: player.id,
-      role: labels[player.role],
-      displayName: player.id === 'home-gk' ? '수문장' : `${labels[player.role]} ${player.id.slice(-1)}`,
-      skillId: loadout[player.id] ?? '',
+    const labels = { 'home-def-1': '수비수', 'home-mid-1': '미드필더', 'home-fw': '공격수' };
+    return FIELD_PLAYER_IDS.map((playerId) => ({
+      playerId,
+      displayName: labels[playerId],
+      stack: campaign?.playerSkillStacks?.[playerId] ?? null,
     }));
-  }, [loadout]);
+  }, [campaign]);
 
-  const startNewCampaign = () => {
-    if (profile.campaignSave && !window.confirm('저장된 캠페인이 새 캠페인으로 바뀝니다. 새 캠페인을 시작할까요?')) return;
-    setOverwriteApproved(true);
-    setResult(null);
-    setLoadout({});
-    setScreen('loadout');
+  const startStage = (activeCampaign = campaign) => {
+    if (!activeCampaign) return;
+    setMatchState(makeMatchState(activeCampaign));
+    setScreen('match');
   };
 
-  const handleNicknameSave = (nickname) => {
+  const persistCampaign = (activeCampaign) => {
+    const nextProfile = { ...profile, campaignSave: createCampaignSave(activeCampaign) };
     try {
-      const nextProfile = setNickname(profile, nickname);
-      setProfile(nextProfile);
       const written = writeProfile(nextProfile);
       setProfile(written);
       setProfileError('');
     } catch (error) {
-      setProfileError(error.message || '별명을 저장하지 못했습니다. 다시 시도해 주세요.');
+      setProfileError(error.message || '캠페인 저장에 실패했습니다.');
     }
   };
 
-  const beginCampaign = () => {
-    const validation = validateLoadout(loadout, HOME_PLAYER_IDS);
-    if (!validation.valid) return;
-    if (campaign && result?.outcome === 'win') {
-      const nextCampaign = { ...campaign, homeLoadout: { ...loadout } };
-      setCampaign(nextCampaign);
-      setResult(null);
-      startStage(nextCampaign);
-      return;
-    }
-    const nextCampaign = createCampaign({ homeLoadout: loadout });
+  const startNewCampaign = () => {
+    if (profile.campaignSave && !window.confirm('저장된 캠페인을 지우고 새 캠페인을 시작할까요?')) return;
+    const nextCampaign = createCampaign();
     setCampaign(nextCampaign);
-    setMatchState(makeMatchState(nextCampaign));
-    setScreen('match');
-    if (overwriteApproved) {
+    setResult(null);
+    setPendingAssignmentSkill(null);
+    startStage(nextCampaign);
+    if (profile.campaignSave) {
       const nextProfile = { ...profile, campaignSave: null };
       setProfile(nextProfile);
       try {
         writeProfile(nextProfile);
         setProfileError('');
       } catch (error) {
-        setProfileError(error.message || '기존 저장 데이터를 지우지 못했습니다.');
+        setProfileError(error.message || '저장된 캠페인을 지우지 못했습니다.');
       }
     }
-    setOverwriteApproved(false);
   };
 
-  const startStage = (activeCampaign = campaign) => {
-    setMatchState(makeMatchState(activeCampaign));
-    setScreen('match');
+  const handleNicknameSave = (nickname) => {
+    try {
+      const nextProfile = setNickname(profile, nickname);
+      setProfile(writeProfile(nextProfile));
+      setProfileError('');
+    } catch (error) {
+      setProfileError(error.message || '별명을 저장하지 못했습니다.');
+    }
   };
 
   const handleGameEvents = (events) => {
@@ -100,24 +93,21 @@ export default function App() {
 
     const nextCampaign = finishStage(campaign, endEvent.score);
     setCampaign(nextCampaign);
+    setPendingAssignmentSkill(null);
     const outcome = endEvent.type === 'matchLost'
       ? 'loss'
       : nextCampaign.status === 'complete' ? 'campaignComplete' : 'win';
+    const goalDifference = nextCampaign.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0);
     setResult({
       stage: campaign.currentStage,
       homeGoals: endEvent.score.home,
       awayGoals: endEvent.score.away,
       outcome,
-      stageReached: nextCampaign.currentStage,
-      goalDifference: nextCampaign.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0),
-    });
-    const bestProfile = updateBestRecord(profile, {
       stageReached: campaign.currentStage,
-      goalDifference: nextCampaign.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0),
+      goalDifference,
     });
-    const savedProfile = nextCampaign.status === 'complete'
-      ? { ...bestProfile, campaignSave: null }
-      : bestProfile;
+    const bestProfile = updateBestRecord(profile, { stageReached: campaign.currentStage, goalDifference });
+    const savedProfile = { ...bestProfile, campaignSave: createCampaignSave(nextCampaign) };
     setProfile(savedProfile);
     try {
       writeProfile(savedProfile);
@@ -128,14 +118,27 @@ export default function App() {
     setScreen('results');
   };
 
-  const assignSkill = (playerId, skillId) => {
-    setLoadout((current) => ({ ...current, [playerId]: skillId }));
+  const chooseSkill = (skillId) => {
+    const awarded = awardSkillCard(campaign, skillId);
+    if (!awarded.ok) return;
+    setCampaign(awarded.campaign);
+    setPendingAssignmentSkill(skillId);
+    persistCampaign(awarded.campaign);
+  };
+
+  const assignSkill = (playerId) => {
+    const assigned = assignSkillCard(campaign, playerId, pendingAssignmentSkill);
+    if (!assigned.ok) return;
+    setCampaign(assigned.campaign);
+    setPendingAssignmentSkill(null);
+    persistCampaign(assigned.campaign);
   };
 
   const home = () => {
     setScreen('start');
     setCampaign(null);
     setMatchState(null);
+    setPendingAssignmentSkill(null);
   };
 
   const continueSavedCampaign = () => {
@@ -145,13 +148,31 @@ export default function App() {
       id: `resume-${Date.now()}`,
       currentStage: saved.currentStage,
       clearedStageResults: saved.clearedStageResults,
-      homeLoadout: saved.homeLoadout,
+      playerSkillStacks: saved.playerSkillStacks,
+      skillInventory: saved.skillInventory,
+      pendingSkillOffer: saved.pendingSkillOffer ?? null,
+      pendingSkillAssignment: saved.pendingSkillAssignment ?? null,
       opponentSkillSets: saved.opponentSkillSets,
-      status: 'active',
+      status: saved.status === 'complete' ? 'complete' : 'active',
     };
     setCampaign(resumed);
-    setLoadout({ ...saved.homeLoadout });
-    startStage(resumed);
+    setPendingAssignmentSkill(resumed.pendingSkillAssignment ?? null);
+    if (resumed.pendingSkillOffer || resumed.pendingSkillAssignment || resumed.status === 'complete') {
+      const lastResult = resumed.clearedStageResults.at(-1);
+      if (lastResult) {
+        setResult({
+          stage: lastResult.stage,
+          homeGoals: lastResult.homeGoals,
+          awayGoals: lastResult.awayGoals,
+          outcome: resumed.status === 'complete' ? 'campaignComplete' : 'win',
+          stageReached: lastResult.stage,
+          goalDifference: resumed.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0),
+        });
+        setScreen('results');
+      }
+    } else {
+      startStage(resumed);
+    }
   };
 
   const saveAndExit = () => {
@@ -163,7 +184,7 @@ export default function App() {
       setProfileError('');
       home();
     } catch (error) {
-      setProfileError(error.message || '저장하지 못했습니다. 저장 공간을 확인하고 다시 시도해 주세요.');
+      setProfileError(error.message || '저장 공간을 확인하고 다시 시도해 주세요.');
     }
   };
 
@@ -179,15 +200,6 @@ export default function App() {
       </header>
 
       {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} />}
-      {screen === 'loadout' && <LoadoutScreen
-        playerRows={playerRows}
-        loadout={loadout}
-        skillIds={SKILL_IDS}
-        skills={SKILLS}
-        onAssign={assignSkill}
-        onConfirm={beginCampaign}
-        onBack={() => setScreen('start')}
-      />}
       {(screen === 'match' || screen === 'pause') && matchState && <GameScreen
         key={campaign?.currentStage ?? 1}
         gameState={matchState}
@@ -202,9 +214,22 @@ export default function App() {
         result={result}
         leaderboardPlace={records.length ? 1 : null}
         errorMessage={profileError}
+        skillOffer={campaign?.pendingSkillOffer}
+        pendingAssignmentSkill={pendingAssignmentSkill}
+        playerRows={playerRows}
+        skills={SKILLS}
+        inventory={campaign?.skillInventory}
+        onChooseSkill={chooseSkill}
+        onAssignSkill={assignSkill}
         onRetry={() => startStage(campaign)}
         onContinue={() => {
-          if (result.outcome === 'win') setScreen('loadout');
+          if (result.outcome === 'win') startStage(campaign);
+          else if (result.outcome === 'campaignComplete') {
+            const nextProfile = { ...profile, campaignSave: null };
+            setProfile(nextProfile);
+            try { writeProfile(nextProfile); } catch { /* the result remains visible if storage is unavailable */ }
+            home();
+          }
           else startNewCampaign();
         }}
         onHome={home}

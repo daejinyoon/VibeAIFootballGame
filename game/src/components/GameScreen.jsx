@@ -1,6 +1,7 @@
 ﻿import { useRef, useState } from 'react';
 import PitchCanvas from './PitchCanvas.jsx';
 import PauseMenu from './PauseMenu.jsx';
+import { SKILLS } from '../game/skills.js';
 
 export default function GameScreen({ gameState, paused, errorMessage, onPause, onResume, onSaveAndExit, onGameEvents }) {
   const [viewState, setViewState] = useState(gameState);
@@ -13,6 +14,10 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
   const activeAway = viewState.players.filter((player) => player.team === 'away' && !player.dismissed).length;
   const foulLabel = viewState.lastFoul?.restart === 'penaltyKick' ? 'PENALTY KICK' : 'FREE KICK';
   const chargeLabels = { lobPass: 'A 로빙 패스', groundPass: 'S 땅볼 패스', shot: 'D 슛' };
+  const controlledPlayer = viewState.players.find((player) => player.id === viewState.controlledPlayerId);
+  const awaySkillUses = viewState.players
+    .filter((player) => player.team === 'away' && player.skillId && player.skillUsesRemaining > 0)
+    .reduce((total, player) => total + player.skillUsesRemaining, 0);
 
   return (
     <section className="game-panel" aria-label="축구 경기">
@@ -33,8 +38,8 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
           <div className="charge-gauge-label"><span>{chargeLabels[viewState.charge.action]}</span><b>{chargePercent}%</b></div>
           <div className="charge-gauge-track"><i style={{ width: `${chargePercent}%` }} /></div>
         </div>}
-        <div className="gauge"><span>우리 스킬 게이지</span><div><i style={{ width: `${viewState.skillGauge.home}%` }} /></div><b>{Math.floor(viewState.skillGauge.home)}%</b></div>
-        <div className="gauge away-gauge"><span>상대 스킬 게이지</span><div><i style={{ width: `${viewState.skillGauge.away}%` }} /></div><b>{Math.floor(viewState.skillGauge.away)}%</b></div>
+        <div className="skill-stock"><span>조작 선수 스킬</span><b>{controlledPlayer?.skillId ? SKILLS[controlledPlayer.skillId]?.name : '장착된 스킬 없음'}</b><small>{controlledPlayer?.skillId === 'rainbowReflect' ? '자동 발동' : `F · 남은 사용 ${controlledPlayer?.skillUsesRemaining ?? 0}회`}</small></div>
+        <div className="skill-stock away-skill-stock"><span>상대 팀 스킬</span><b>남은 사용 횟수</b><small>{awaySkillUses}회</small></div>
         <p>방향키 이동 · A/S/D 공격·수비 · F 스킬</p>
       </div>
       {errorMessage && <p className="profile-error" role="alert">{errorMessage}</p>}

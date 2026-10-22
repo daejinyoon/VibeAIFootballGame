@@ -112,7 +112,6 @@ export function createInitialGameState({
     },
     controlledPlayerId: 'home-fw',
     possessionTeam: 'home',
-    skillGauge: { home: 0, away: 0 },
     charge: { action: null, elapsedSeconds: 0 },
     aiRandomSeed: 0x6d2b79f5,
     foulSpot: null,

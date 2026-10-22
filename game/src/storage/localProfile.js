@@ -1,4 +1,5 @@
 import { STAGE_COUNT } from '../game/constants.js';
+import { FIELD_PLAYER_IDS, SKILL_IDS, validateSkillAssignments } from '../game/skills.js';
 
 export const STORAGE_KEY = 'dex-pixel-football:v1';
 
@@ -15,10 +16,35 @@ function getDefaultStorage() {
 }
 
 function isCampaignSave(value) {
-  return Boolean(value && Number.isInteger(value.currentStage) && value.currentStage >= 1 && value.currentStage <= STAGE_COUNT
-    && value.homeLoadout && typeof value.homeLoadout === 'object'
-    && value.opponentSkillSets && typeof value.opponentSkillSets === 'object'
-    && Array.isArray(value.clearedStageResults));
+  if (!value || !Number.isInteger(value.currentStage) || value.currentStage < 1 || value.currentStage > STAGE_COUNT
+      || !value.opponentSkillSets || typeof value.opponentSkillSets !== 'object'
+      || !Array.isArray(value.clearedStageResults)) return false;
+  if (value.playerSkillStacks && value.skillInventory) {
+    const validOffer = value.pendingSkillOffer == null
+      || (Array.isArray(value.pendingSkillOffer) && value.pendingSkillOffer.length === 3
+        && new Set(value.pendingSkillOffer).size === 3
+        && value.pendingSkillOffer.every((skillId) => SKILL_IDS.includes(skillId)));
+    return validOffer
+      && (value.pendingSkillAssignment == null || SKILL_IDS.includes(value.pendingSkillAssignment))
+      && validateSkillAssignments(value.playerSkillStacks, FIELD_PLAYER_IDS).valid
+      && SKILL_IDS.every((skillId) => Number.isInteger(value.skillInventory[skillId]) && value.skillInventory[skillId] >= 0);
+  }
+  return Boolean(value.homeLoadout && typeof value.homeLoadout === 'object');
+}
+
+function upgradeCampaignSave(value) {
+  if (value.playerSkillStacks && value.skillInventory) return value;
+  const playerSkillStacks = Object.fromEntries(FIELD_PLAYER_IDS.map((playerId) => {
+    const skillId = value.homeLoadout[playerId];
+    return [playerId, SKILL_IDS.includes(skillId) ? { skillId, copies: 1 } : null];
+  }));
+  return {
+    ...value,
+    playerSkillStacks,
+    skillInventory: Object.fromEntries(SKILL_IDS.map((skillId) => [skillId, 0])),
+    pendingSkillOffer: null,
+    pendingSkillAssignment: null,
+  };
 }
 
 function isBestRecord(value) {
@@ -37,7 +63,7 @@ export function readProfile(storage = getDefaultStorage()) {
     return {
       schemaVersion: 1,
       nickname: parsed.nickname,
-      campaignSave: isCampaignSave(parsed.campaignSave) ? parsed.campaignSave : null,
+      campaignSave: isCampaignSave(parsed.campaignSave) ? upgradeCampaignSave(parsed.campaignSave) : null,
       bestRecord: isBestRecord(parsed.bestRecord) ? parsed.bestRecord : null,
     };
   } catch {
@@ -76,7 +102,11 @@ export function createCampaignSave(campaign) {
     savedAt: new Date().toISOString(),
     currentStage: campaign.currentStage,
     clearedStageResults: campaign.clearedStageResults.map((item) => ({ ...item })),
-    homeLoadout: { ...campaign.homeLoadout },
+    playerSkillStacks: Object.fromEntries(FIELD_PLAYER_IDS.map((playerId) => [playerId, campaign.playerSkillStacks?.[playerId] ? { ...campaign.playerSkillStacks[playerId] } : null])),
+    skillInventory: Object.fromEntries(SKILL_IDS.map((skillId) => [skillId, campaign.skillInventory?.[skillId] ?? 0])),
+    pendingSkillOffer: Array.isArray(campaign.pendingSkillOffer) ? [...campaign.pendingSkillOffer] : null,
+    pendingSkillAssignment: campaign.pendingSkillAssignment ?? null,
+    status: campaign.status === 'complete' ? 'complete' : 'active',
     opponentSkillSets: Object.fromEntries(Object.entries(campaign.opponentSkillSets).map(([stage, skills]) => [stage, [...skills]])),
   };
 }

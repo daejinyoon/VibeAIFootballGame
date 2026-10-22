@@ -1,4 +1,4 @@
-import { FIELD, MAX_SKILL_GAUGE, SKILL_GAUGE_REWARDS } from './constants.js';
+import { FIELD } from './constants.js';
 
 export const SKILL_IDS = Object.freeze([
   'eagleShot',
@@ -14,13 +14,13 @@ export const SKILLS = Object.freeze({
   tornadoShot: Object.freeze({ name: '회오리슛', type: 'attack', description: '수비수를 휘어 지나가는 슛' }),
   powerTackle: Object.freeze({ name: '파워 태클', type: 'defense', description: '4초 동안 태클 범위가 넓어짐' }),
   eulryongta: Object.freeze({ name: '을룡타', type: 'defense', description: '앞에 있는 상대 한 명을 2초 기절시킴' }),
-  vacuumCleaner: Object.freeze({ name: '진공청소기', type: 'keeper', description: '주변 공을 사용자에게 끌어옴' }),
-  rainbowReflect: Object.freeze({ name: '무지개반사', type: 'keeper', description: '상대 필살기를 상대 골문 쪽으로 되돌림' }),
+  vacuumCleaner: Object.freeze({ name: '진공청소기', type: 'utility', description: '주변 공을 사용자에게 끌어옴' }),
+  rainbowReflect: Object.freeze({ name: '무지개반사', type: 'utility', description: '상대 필살기를 상대 골문 쪽으로 되돌림' }),
 });
 
-export const HOME_PLAYER_IDS = Object.freeze([
-  'home-gk', 'home-def-1', 'home-def-2', 'home-mid-1', 'home-mid-2', 'home-fw',
-]);
+export const MAX_SKILL_COPIES = 3;
+export const FIELD_PLAYER_IDS = Object.freeze(['home-def-1', 'home-mid-1', 'home-fw']);
+export const HOME_PLAYER_IDS = FIELD_PLAYER_IDS;
 
 const distance = (left, right) => Math.hypot(left.x - right.x, left.y - right.y);
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -29,39 +29,79 @@ function result(ok, skillId, team, reason = null, events = []) {
   return { ok, skillId, team, reason, events };
 }
 
-export function validateLoadout(loadout, playerIds = HOME_PLAYER_IDS) {
-  const roster = Array.isArray(playerIds) ? playerIds : [];
-  const assignments = loadout && typeof loadout === 'object' ? loadout : {};
-  const missingPlayerIds = roster.filter((playerId) => !assignments[playerId]);
-  const invalidSkillIds = roster
-    .map((playerId) => assignments[playerId])
-    .filter((skillId) => skillId && !SKILL_IDS.includes(skillId));
-  const skillCounts = new Map();
-  for (const playerId of roster) {
-    const skillId = assignments[playerId];
-    if (SKILL_IDS.includes(skillId)) skillCounts.set(skillId, (skillCounts.get(skillId) ?? 0) + 1);
+function shuffledSkills(rng) {
+  const items = [...SKILL_IDS];
+  for (let index = items.length - 1; index > 0; index -= 1) {
+    const value = Number(rng());
+    const safeValue = Number.isFinite(value) ? Math.min(0.999999, Math.max(0, value)) : 0;
+    const swapIndex = Math.floor(safeValue * (index + 1));
+    [items[index], items[swapIndex]] = [items[swapIndex], items[index]];
   }
-  const duplicateSkillIds = [...skillCounts]
-    .filter(([, count]) => count > 1)
-    .map(([skillId]) => skillId);
-  const assignedCount = roster.filter((playerId) => SKILL_IDS.includes(assignments[playerId])).length;
-  const valid = roster.length === SKILL_IDS.length
-    && missingPlayerIds.length === 0
-    && invalidSkillIds.length === 0
-    && duplicateSkillIds.length === 0
-    && assignedCount === SKILL_IDS.length;
-
-  return { valid, missingPlayerIds, duplicateSkillIds, invalidSkillIds };
+  return items;
 }
 
-/** Add a one-time reward for a successful play, or passive charge for elapsed play time. */
-export function addSkillGauge(state, eventType, team, amount = 1) {
-  if (!state?.skillGauge || !['home', 'away'].includes(team)) return 0;
-  const base = eventType === 'time'
-    ? (100 / 60) * Math.max(0, Number.isFinite(amount) ? amount : 0)
-    : SKILL_GAUGE_REWARDS[eventType] ?? 0;
-  state.skillGauge[team] = clamp((state.skillGauge[team] ?? 0) + base, 0, MAX_SKILL_GAUGE);
-  return state.skillGauge[team];
+export function createSkillCardOffer(rng = Math.random) {
+  return shuffledSkills(rng).slice(0, 3);
+}
+
+export function validateSkillAssignments(playerSkillStacks, fieldPlayerIds = FIELD_PLAYER_IDS) {
+  const stacks = playerSkillStacks && typeof playerSkillStacks === 'object' ? playerSkillStacks : {};
+  const roster = Array.isArray(fieldPlayerIds) ? fieldPlayerIds : [];
+  const errors = [];
+  for (const playerId of roster) {
+    const stack = stacks[playerId];
+    if (stack == null) continue;
+    if (!stack || typeof stack !== 'object' || !SKILL_IDS.includes(stack.skillId)
+        || !Number.isInteger(stack.copies) || stack.copies < 1 || stack.copies > MAX_SKILL_COPIES) {
+      errors.push({ playerId, reason: 'invalidStack' });
+    }
+  }
+  for (const playerId of Object.keys(stacks)) {
+    if (!roster.includes(playerId)) errors.push({ playerId, reason: 'notFieldPlayer' });
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+export function awardSkillCard(campaign, skillId) {
+  if (!SKILL_IDS.includes(skillId)) return { ok: false, reason: 'invalidSkill' };
+  if (campaign?.pendingSkillAssignment) return { ok: false, reason: 'assignmentPending' };
+  if (!Array.isArray(campaign?.pendingSkillOffer) || !campaign.pendingSkillOffer.includes(skillId)) {
+    return { ok: false, reason: 'notOffered' };
+  }
+  const skillInventory = { ...(campaign.skillInventory ?? {}) };
+  skillInventory[skillId] = (Number.isInteger(skillInventory[skillId]) ? skillInventory[skillId] : 0) + 1;
+  return {
+    ok: true,
+    campaign: { ...campaign, skillInventory, pendingSkillOffer: null, pendingSkillAssignment: skillId },
+  };
+}
+
+export function assignSkillCard(campaign, playerId, skillId) {
+  if (!FIELD_PLAYER_IDS.includes(playerId)) return { ok: false, reason: 'notFieldPlayer' };
+  if (!SKILL_IDS.includes(skillId)) return { ok: false, reason: 'invalidSkill' };
+  const skillInventory = { ...(campaign?.skillInventory ?? {}) };
+  if (!Number.isInteger(skillInventory[skillId]) || skillInventory[skillId] <= 0) {
+    return { ok: false, reason: 'cardUnavailable' };
+  }
+  const playerSkillStacks = Object.fromEntries(FIELD_PLAYER_IDS.map((id) => [id, campaign.playerSkillStacks?.[id] ?? null]));
+  const current = playerSkillStacks[playerId];
+  if (current?.skillId === skillId && current.copies >= MAX_SKILL_COPIES) {
+    return { ok: false, reason: 'maxCopies' };
+  }
+
+  skillInventory[skillId] -= 1;
+  if (current?.skillId === skillId) {
+    playerSkillStacks[playerId] = { skillId, copies: current.copies + 1 };
+  } else {
+    if (current?.skillId && Number.isInteger(current.copies)) {
+      skillInventory[current.skillId] = (skillInventory[current.skillId] ?? 0) + current.copies;
+    }
+    playerSkillStacks[playerId] = { skillId, copies: 1 };
+  }
+  return {
+    ok: true,
+    campaign: { ...campaign, playerSkillStacks, skillInventory, pendingSkillAssignment: null },
+  };
 }
 
 function launchSkillShot(state, player, skillId) {
@@ -101,16 +141,18 @@ function findEulryongtaTarget(state, player) {
     .sort((a, b) => a.distance - b.distance)[0]?.candidate ?? null;
 }
 
-/** Try to use the selected player's skill. Invalid attempts do not consume gauge. */
+/** Try to use a selected player's skill. Invalid attempts do not consume a copy. */
 export function applySkill(state, playerId) {
   const player = state?.players?.find((candidate) => candidate.id === playerId);
   if (!player) return result(false, null, null, 'playerNotFound');
   if (player.dismissed) return result(false, player.skillId ?? null, player.team, 'playerDismissed');
+  if (player.role === 'goalkeeper') return result(false, null, player.team, 'goalkeeperExcluded');
   const skillId = player.skillId;
   if (!SKILL_IDS.includes(skillId)) return result(false, skillId ?? null, player.team, 'noSkillEquipped');
-  if (!state.skillGauge) return result(false, skillId, player.team, 'gaugeUnavailable');
+  if (!Number.isInteger(player.skillUsesRemaining) || player.skillUsesRemaining <= 0) {
+    return result(false, skillId, player.team, 'noUsesRemaining');
+  }
   if (skillId === 'rainbowReflect') return result(false, skillId, player.team, 'automaticSkill');
-  if ((state.skillGauge?.[player.team] ?? 0) < MAX_SKILL_GAUGE) return result(false, skillId, player.team, 'gaugeNotFull');
   if (!['playing', 'overtime'].includes(state.phase)) return result(false, skillId, player.team, 'matchNotActive');
 
   const opponentCarrier = state.players.find((candidate) => candidate.team !== player.team && candidate.id === state.ball.ownerId);
@@ -138,13 +180,13 @@ export function applySkill(state, playerId) {
     events = [{ type: 'skillUsed', skillId, team: player.team }];
   }
 
-  state.skillGauge[player.team] = 0;
+  player.skillUsesRemaining -= 1;
   return result(true, skillId, player.team, null, events);
 }
 
 /** Start or advance an automatic reflection for either team. */
 export function applyAutomaticRainbowReflect(state, defendingTeam = 'home', deltaSeconds = 0) {
-  if (!state?.ball || !state.skillGauge || !['home', 'away'].includes(defendingTeam)) return null;
+  if (!state?.ball || !['home', 'away'].includes(defendingTeam)) return null;
 
   const active = state.rainbowReflection;
   if (active) {
@@ -188,14 +230,15 @@ export function applyAutomaticRainbowReflect(state, defendingTeam = 'home', delt
   if (state.ball.ownerId || state.ball.flightKind !== 'skill-shot'
       || state.ball.lastTouchTeam !== attackingTeam
       || !['eagleShot', 'tornadoShot'].includes(state.ball.skillId)
-      || (state.skillGauge[defendingTeam] ?? 0) < MAX_SKILL_GAUGE) return null;
+  ) return null;
 
   const reflector = state.players
-    .filter((player) => player.team === defendingTeam && !player.dismissed && player.skillId === 'rainbowReflect')
+    .filter((player) => player.team === defendingTeam && player.role !== 'goalkeeper' && !player.dismissed && player.skillId === 'rainbowReflect'
+      && player.skillUsesRemaining > 0)
     .sort((a, b) => distance(a, state.ball) - distance(b, state.ball))[0];
   if (!reflector) return null;
 
-  state.skillGauge[defendingTeam] = 0;
+  reflector.skillUsesRemaining -= 1;
   state.ball.vx *= 0.25;
   state.ball.vy *= 0.25;
   state.rainbowReflection = { team: defendingTeam, playerId: reflector.id, remainingSeconds: 2.5 };

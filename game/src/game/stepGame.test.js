@@ -230,6 +230,21 @@ test('a goal restarts from the center for the conceding team', () => {
   assert.deepEqual(state.score, { home: 1, away: 0 });
 });
 
+test('a goal kickoff preserves the remaining uses for this match', () => {
+  const state = createInitialGameState({ playerSkillStacks: { 'home-fw': { skillId: 'eagleShot', copies: 3 } } });
+  const forward = state.players.find((player) => player.id === 'home-fw');
+  forward.skillUsesRemaining = 1;
+  state.phase = 'goalPause';
+  state.phaseSeconds = 0.01;
+  state.pendingKickoffTeam = 'away';
+
+  stepGame(state, frame(), 0.05);
+
+  const resetForward = state.players.find((player) => player.id === 'home-fw');
+  assert.equal(resetForward.skillCopies, 3);
+  assert.equal(resetForward.skillUsesRemaining, 1);
+});
+
 test('touchline exits restart with an automatic throw-in for the team that did not touch last', () => {
   const cases = [
     { y: -1, lastTouchTeam: 'home', restartTeam: 'away', restartY: 0 },

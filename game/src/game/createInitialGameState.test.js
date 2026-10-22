@@ -16,7 +16,7 @@ test('creates eight unique players with three field players and a goalkeeper per
   }
 });
 
-test('starts stage one at a home kickoff with a clean score and gauges', () => {
+test('starts stage one at a home kickoff with a clean score and no skill gauges', () => {
   const state = createInitialGameState();
   assert.equal(state.stage, 1);
   assert.equal(state.phase, 'playing');
@@ -25,7 +25,7 @@ test('starts stage one at a home kickoff with a clean score and gauges', () => {
   assert.equal(state.ball.ownerId, 'home-fw');
   assert.equal(state.controlledPlayerId, 'home-fw');
   assert.equal(state.possessionTeam, 'home');
-  assert.deepEqual(state.skillGauge, { home: 0, away: 0 });
+  assert.equal('skillGauge' in state, false);
   assert.equal(state.aiRandomSeed, 0x6d2b79f5);
   assert.ok(state.players.filter((player) => player.team === 'home')
     .every((player) => player.aiTarget === null && player.aiRetargetSeconds >= 1.2 && player.aiRetargetSeconds <= 1.8));

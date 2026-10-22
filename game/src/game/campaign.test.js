@@ -1,12 +1,21 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createInitialGameState } from './createInitialGameState.js';
-import { assignOpponentSkills, createCampaign, createOpponentSkillSets, finishStage, HOME_PLAYER_IDS } from './campaign.js';
-import { SKILL_IDS } from './skills.js';
+import { assignOpponentSkills, createCampaign, createOpponentSkillSets, finishStage } from './campaign.js';
+import { SKILL_IDS, assignSkillCard, awardSkillCard } from './skills.js';
 
-const loadout = Object.fromEntries(HOME_PLAYER_IDS.map((id, index) => [id, SKILL_IDS[index]]));
+test('starts campaigns with no equipped skills and an empty inventory', () => {
+  const campaign = createCampaign({ rng: () => 0.25 });
+  assert.deepEqual(campaign.playerSkillStacks, {
+    'home-def-1': null,
+    'home-mid-1': null,
+    'home-fw': null,
+  });
+  assert.ok(SKILL_IDS.every((skillId) => campaign.skillInventory[skillId] === 0));
+  assert.equal(campaign.pendingSkillOffer, null);
+});
 
-test('creates opponent skill sets for all five stages with no goalkeeper skills', () => {
+test('creates opponent skill sets for all five stages without duplicates', () => {
   const sets = createOpponentSkillSets(() => 0.25);
   assert.deepEqual(Object.keys(sets), ['1', '2', '3', '4', '5']);
   assert.deepEqual(Object.values(sets).map((skills) => skills.length), [0, 1, 2, 3, 3]);
@@ -16,45 +25,82 @@ test('creates opponent skill sets for all five stages with no goalkeeper skills'
   }
 });
 
-test('uses injected randomness and rejects an invalid home loadout', () => {
-  const first = createCampaign({ rng: () => 0, homeLoadout: loadout });
-  const second = createCampaign({ rng: () => 0.5, homeLoadout: loadout });
-  assert.notDeepEqual(first.opponentSkillSets[2], second.opponentSkillSets[2]);
-  assert.throws(() => createCampaign({ homeLoadout: {} }));
-});
-
-test('a lost stage can be retried without clearing results or changing opponent skills', () => {
-  const campaign = createCampaign({ rng: () => 0.4, homeLoadout: loadout });
-  const lost = finishStage(campaign, { homeGoals: 1, awayGoals: 2 });
+test('a lost stage retains stacks and inventory and can be retried', () => {
+  const campaign = createCampaign({ rng: () => 0.4 });
+  const lost = finishStage(campaign, { homeGoals: 1, awayGoals: 2 }, () => 0.2);
   assert.equal(lost.currentStage, 1);
   assert.equal(lost.status, 'active');
   assert.deepEqual(lost.clearedStageResults, []);
-  assert.deepEqual(lost.opponentSkillSets, campaign.opponentSkillSets);
+  assert.deepEqual(lost.playerSkillStacks, campaign.playerSkillStacks);
+  assert.deepEqual(lost.skillInventory, campaign.skillInventory);
+  assert.equal(lost.pendingSkillOffer, null);
 });
 
-test('wins advance through stage five and the final victory completes the campaign', () => {
-  let campaign = createCampaign({ rng: () => 0.2, homeLoadout: loadout });
+test('stage wins advance through stage five and create three unique card choices', () => {
+  let campaign = createCampaign({ rng: () => 0.2 });
   for (let stage = 1; stage <= 5; stage += 1) {
-    campaign = finishStage(campaign, { homeGoals: stage + 1, awayGoals: stage });
+    campaign = finishStage(campaign, { homeGoals: stage + 1, awayGoals: stage }, () => stage / 10);
     assert.equal(campaign.clearedStageResults.at(-1).stage, stage);
     assert.equal(campaign.currentStage, Math.min(stage + 1, 5));
     assert.equal(campaign.status, stage === 5 ? 'complete' : 'active');
+    assert.equal(campaign.pendingSkillOffer.length, 3);
+    assert.equal(new Set(campaign.pendingSkillOffer).size, 3);
   }
   assert.equal(campaign.clearedStageResults.length, 5);
 });
 
 test('does not accept a tied stage result before golden goal ends it', () => {
-  const campaign = createCampaign({ rng: () => 0.1, homeLoadout: loadout });
+  const campaign = createCampaign({ rng: () => 0.1 });
   assert.throws(() => finishStage(campaign, { homeGoals: 1, awayGoals: 1 }));
 });
 
-test('assigns skills only to the three away field players and keeps the goalkeeper unskilled', () => {
-  const initial = createInitialGameState({ loadout, opponentSkillIds: [] });
+test('drafted cards enter inventory and can be stacked on one field player up to three copies', () => {
+  let campaign = createCampaign({ rng: () => 0.3 });
+  campaign = finishStage(campaign, { homeGoals: 1, awayGoals: 0 }, () => 0.4);
+  const skillId = campaign.pendingSkillOffer[0];
+  const awarded = awardSkillCard(campaign, skillId);
+  assert.equal(awarded.ok, true);
+  campaign = awarded.campaign;
+  assert.equal(campaign.skillInventory[skillId], 1);
+  assert.equal(campaign.pendingSkillOffer, null);
+
+  for (let copies = 1; copies <= 3; copies += 1) {
+    if (copies > 1) {
+      campaign.pendingSkillOffer = [skillId, ...SKILL_IDS.filter((id) => id !== skillId).slice(0, 2)];
+      campaign = awardSkillCard(campaign, skillId).campaign;
+    }
+    const assigned = assignSkillCard(campaign, 'home-fw', skillId);
+    assert.equal(assigned.ok, true);
+    campaign = assigned.campaign;
+    assert.equal(campaign.playerSkillStacks['home-fw'].copies, copies);
+    assert.equal(campaign.skillInventory[skillId], 0);
+  }
+  campaign.skillInventory[skillId] = 1;
+  const maxed = assignSkillCard(campaign, 'home-fw', skillId);
+  assert.deepEqual(maxed, { ok: false, reason: 'maxCopies' });
+  assert.equal(campaign.skillInventory[skillId], 1);
+});
+
+test('replacing a player skill returns all old copies to inventory and never allows goalkeeper assignment', () => {
+  let campaign = createCampaign({ rng: () => 0.1 });
+  const first = campaign.pendingSkillOffer = ['eagleShot', 'tornadoShot', 'powerTackle'];
+  campaign = awardSkillCard(campaign, first[0]).campaign;
+  campaign = assignSkillCard(campaign, 'home-def-1', first[0]).campaign;
+  campaign.skillInventory.eagleShot = 2;
+  campaign.pendingSkillOffer = ['tornadoShot', 'eagleShot', 'powerTackle'];
+  campaign = awardSkillCard(campaign, 'tornadoShot').campaign;
+  campaign = assignSkillCard(campaign, 'home-def-1', 'tornadoShot').campaign;
+
+  assert.deepEqual(campaign.playerSkillStacks['home-def-1'], { skillId: 'tornadoShot', copies: 1 });
+  assert.equal(campaign.skillInventory.eagleShot, 3);
+  assert.deepEqual(assignSkillCard(campaign, 'home-gk', 'tornadoShot'), { ok: false, reason: 'notFieldPlayer' });
+});
+
+test('assigns opponent skills only to the three away field players', () => {
+  const initial = createInitialGameState();
   const assigned = assignOpponentSkills(initial.players, ['eagleShot', 'tornadoShot', 'eulryongta']);
   const away = assigned.filter((player) => player.team === 'away');
-  const home = assigned.filter((player) => player.team === 'home');
   assert.deepEqual(away.filter((player) => player.role !== 'goalkeeper').map((player) => player.skillId), ['eagleShot', 'tornadoShot', 'eulryongta']);
   assert.equal(away.find((player) => player.role === 'goalkeeper').skillId, null);
-  assert.deepEqual(home.map((player) => player.skillId), [null, 'tornadoShot', 'eulryongta', 'rainbowReflect']);
   assert.throws(() => assignOpponentSkills(initial.players, ['eagleShot', 'eagleShot']));
 });

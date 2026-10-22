@@ -4,12 +4,12 @@
 | Task | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
 | T01 | `done` | 4대4 명단, 5단계 캠페인, 저장 단계 범위 구현. | [T01](./T01-roster-five-stages.md) |
-| T02 | `pending` | 승리 보상 카드, 선수별 최대 3중복, 게이지 없는 경기당 사용 횟수를 구현한다. | [T02](./T02-skill-draft-stacks.md) |
-| T03 | `pending` | Space 점프, 로빙·크로스 궤적, 공중 충돌과 자동 헤딩을 구현한다. | [T03](./T03-jump-cross-header.md) |
+| T02 | `done` | 스킬 카드 보상, 필드 선수별 최대 3회 사용, 저장 복구 구현. | [T02](./T02-skill-draft-stacks.md) |
+| T03 | `in_progress` | Space 점프, 로빙·크로스 궤적, 공중 충돌과 자동 헤딩을 구현한다. | [T03](./T03-jump-cross-header.md) |
 | T04 | `pending` | 단계별 상대 스킬 수·보스 AI를 조정하고 기존 경기 규칙과 이벤트를 4대4에 맞춘다. | [T04](./T04-ai-difficulty-rules.md) |
 
 ## Progress
-- done: 1/4 (active: T02)
+- done: 2/4 (active: T03)
 
 ## Dependencies
 - T02는 T01에서 확정한 필드 선수 ID와 캠페인 스키마를 사용한다.
