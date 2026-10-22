@@ -4,10 +4,10 @@
 [축구 게임 시각 검수와 초기 로딩 최적화](./plans/2026-10-22-football-visual-optimization.md)
 
 ## Active Phase
-[P01 시각 검수와 초기 로딩](./phases/2026-10-22-football-visual-optimization/P01-visual-and-startup/phase.md)
+[P01 시각 검수와 초기 로딩](./phases/2026-10-22-football-visual-optimization/P01-visual-and-startup/phase.md) — 완료
 
 ## Active Task
-[T02 3D 경기 화면 지연 로드](./phases/2026-10-22-football-visual-optimization/P01-visual-and-startup/T02-lazy-load-game.md)
+없음 — 시각 검수와 초기 로딩 최적화 태스크를 모두 완료했습니다.
 
 ## Status
 - P01 실제 3D 장면 완료: T01 commit 08befaf, T02 commit eff1ed6, T03 commit 408c57c
@@ -18,6 +18,7 @@
 - P03-T01 완료: R3F 경기 루프·입력·HUD·정지/재개 연결, 검증·커밋 cdf501f
 - P03-T02 완료: 밝은 캠페인 UI·보상 카드·편성 흐름, 검증·커밋 ce2f3c7
 - P01-T01 완료: 데스크톱·모바일 Chrome 시각 검수, 모바일 레이아웃 수정 및 캡처 기록, 커밋 1fe686c
+- P01-T02 완료: 경기 진입 시 GameScreen 지연 로드, 초기 JS 78.9% 감소, 검증·커밋 209cf64
 
 ## Next Step (IMPORTANT)
-Continue with P01-T02 3D 경기 화면 지연 로드 in the active phase.
+The visual QA and startup optimization plan is complete. See `.memory/qa/2026-10-22-football-visual-review.md` for screenshots and measured results.

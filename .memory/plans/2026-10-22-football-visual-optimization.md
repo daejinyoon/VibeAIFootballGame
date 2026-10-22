@@ -6,7 +6,7 @@
 ## Phases
 | Phase | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
-| P01 | `in_progress` | 반응형 화면을 검수·보정하고 3D 경기 화면을 지연 로드한다. | [P01](../phases/2026-10-22-football-visual-optimization/P01-visual-and-startup/phase.md) |
+| P01 | `done ✅` | 반응형 화면을 검수·보정하고 3D 경기 화면을 지연 로드한다. | [P01](../phases/2026-10-22-football-visual-optimization/P01-visual-and-startup/phase.md) |
 
 ## Task Order
 1. P01-T01: 데스크톱·모바일 흐름을 시각 확인하고 확인된 레이아웃 문제를 보정한다.
