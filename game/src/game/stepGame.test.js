@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { FIELD } from './constants.js';
+import { FIELD, getAiTuning } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
 import { stepGame } from './stepGame.js';
 
@@ -59,23 +59,24 @@ test('home support AI is deterministic and keeps targets inside the pitch', () =
       && player.aiTarget.y >= 0 && player.aiTarget.y <= FIELD.height));
 });
 
-test('home support players choose new ball-centered targets when their timer expires', () => {
+test('home support players retarget deterministically from their carrier role', () => {
   const state = createInitialGameState();
   const teammate = state.players.find((player) => player.id === 'home-def-1');
 
   stepGame(state, frame(), 0.05);
   const firstTarget = { ...teammate.aiTarget };
   teammate.aiRetargetSeconds = 0;
-  const previousSeed = state.aiRandomSeed;
+  state.players.find((player) => player.id === 'home-fw').x += 100;
   stepGame(state, frame(), 0.05);
 
   assert.notDeepEqual(teammate.aiTarget, firstTarget);
-  assert.notEqual(state.aiRandomSeed, previousSeed);
-  assert.ok(Math.abs(teammate.aiTarget.x - state.ball.x) <= 220);
-  assert.ok(Math.abs(teammate.aiTarget.y - state.ball.y) <= 150);
+  assert.equal(state.aiRandomSeed, 0x6d2b79f5);
+  assert.ok(teammate.aiTarget.x < state.players.find((player) => player.id === 'home-fw').x);
+  assert.ok(teammate.aiTarget.x >= 0 && teammate.aiTarget.x <= FIELD.width);
+  assert.ok(teammate.aiTarget.y >= 0 && teammate.aiTarget.y <= FIELD.height);
 });
 
-test('support movement excludes the controlled player, goalkeeper, and away players', () => {
+test('role support movement excludes the controlled player and goalkeeper while defense recovers', () => {
   const state = createInitialGameState();
   const controlled = state.players.find((player) => player.id === 'home-fw');
   const goalkeeper = state.players.find((player) => player.id === 'home-gk');
@@ -89,7 +90,7 @@ test('support movement excludes the controlled player, goalkeeper, and away play
 
   assert.equal(controlled.x, 488);
   assert.deepEqual({ x: goalkeeper.x, y: goalkeeper.y }, goalkeeperStart);
-  assert.deepEqual({ x: awayPlayer.x, y: awayPlayer.y }, awayStart);
+  assert.notDeepEqual({ x: awayPlayer.x, y: awayPlayer.y }, awayStart);
   assert.notDeepEqual({ x: teammate.x, y: teammate.y }, teammateStart);
 });
 
@@ -169,7 +170,8 @@ test('S releases a ground pass and transfers control to the receiver', () => {
   assert.equal(state.ball.flightKind, 'ground');
   const receiver = state.players.find((player) => player.id === state.controlledPlayerId);
   assert.deepEqual(state.ball.passTarget, { x: receiver.x, y: receiver.y });
-  assert.ok(state.ball.passProtectionSeconds > 0);
+  assert.equal(state.ball.passProtectionSeconds, 0);
+  assert.ok(state.ball.passTarget);
   assert.ok(events.some((event) => event.type === 'pass' && event.action === 'groundPass'));
 });
 
@@ -219,32 +221,77 @@ test('shot power ranges from 55 percent on a quick release to 100 percent after 
   assert.ok(Math.abs(Math.hypot(quick.ball.vx, quick.ball.vy) / Math.hypot(full.ball.vx, full.ball.vy) - 0.55) < 0.04);
 });
 
-test('opponents cannot intercept a ground pass before its target window ends', () => {
+test('ground passes are intercepted by the opponent crossing the swept ball path', () => {
   const state = createInitialGameState();
-  stepGame(state, frame({ moveY: -1, down: ['s'], pressed: ['s'] }), 0.05);
-  stepGame(state, frame({ moveY: -1, released: ['s'] }), 0.05);
+  state.ball.ownerId = null;
+  state.possessionTeam = 'home';
+  Object.assign(state.ball, {
+    x: 400, y: 270, vx: 330, vy: 0, flightKind: 'ground', flightSeconds: 0,
+    passTeam: 'home', passTarget: { x: 600, y: 270 }, passProtectionSeconds: 0,
+  });
+  const interceptor = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(interceptor, { x: 408, y: 270 });
+  for (const player of state.players.filter((candidate) => candidate.team === 'away' && candidate.id !== interceptor.id && candidate.role !== 'goalkeeper')) {
+    Object.assign(player, { x: 900, y: 500 });
+  }
 
-  const receiver = state.players.find((player) => player.id === state.controlledPlayerId);
-  receiver.x = 20;
-  receiver.y = 20;
-  const opponent = state.players.find((player) => player.id === 'away-fw');
-  opponent.x = state.ball.x;
-  opponent.y = state.ball.y;
+  const events = stepGame(state, frame(), 0.05);
 
-  stepGame(state, frame(), 0.01);
-
-  assert.equal(state.ball.ownerId, null);
-  assert.ok(state.ball.passProtectionSeconds > 0);
+  assert.equal(state.ball.ownerId, interceptor.id);
+  assert.equal(state.possessionTeam, 'away');
+  assert.ok(events.some((event) => event.type === 'passIntercepted' && event.fromTeam === 'home' && event.passKind === 'ground'));
+  assert.equal(state.controlledPlayerId, 'home-fw');
 });
 
-test('a ground pass can be collected by either team after its target window expires', () => {
+test('home players intercept away ground passes and become the controlled receiver', () => {
   const state = createInitialGameState();
-  stepGame(state, frame({ moveY: -1, down: ['s'], pressed: ['s'] }), 0.05);
-  stepGame(state, frame({ moveY: -1, released: ['s'] }), 0.05);
+  state.ball.ownerId = null;
+  state.possessionTeam = 'away';
+  Object.assign(state.ball, {
+    x: 400, y: 270, vx: -330, vy: 0, flightKind: 'ground', flightSeconds: 0,
+    passTeam: 'away', passTarget: { x: 200, y: 270 }, passProtectionSeconds: 0,
+  });
+  const interceptor = state.players.find((player) => player.id === 'home-def-1');
+  Object.assign(interceptor, { x: 392, y: 270 });
+  for (const player of state.players.filter((candidate) => candidate.team === 'home' && candidate.id !== interceptor.id && candidate.role !== 'goalkeeper')) {
+    Object.assign(player, { x: 20, y: 500 });
+  }
+
+  const events = stepGame(state, frame(), 0.05);
+
+  assert.equal(state.ball.ownerId, interceptor.id);
+  assert.equal(state.possessionTeam, 'home');
+  assert.equal(state.controlledPlayerId, interceptor.id);
+  assert.ok(events.some((event) => event.type === 'passIntercepted' && event.fromTeam === 'away'));
+});
+
+test('ground passes do not intercept players outside the swept lane', () => {
+  const state = createInitialGameState();
+  state.ball.ownerId = null;
+  state.possessionTeam = 'home';
+  Object.assign(state.ball, {
+    x: 400, y: 270, vx: 330, vy: 0, flightKind: 'ground', flightSeconds: 0,
+    passTeam: 'home', passTarget: { x: 600, y: 270 }, passProtectionSeconds: 0,
+  });
+  const defender = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(defender, { x: 408, y: 320 });
+
+  const events = stepGame(state, frame(), 0.05);
+
+  assert.equal(state.ball.ownerId, null);
+  assert.ok(!events.some((event) => event.type === 'passIntercepted'));
+});
+
+test('an opponent can collect a ground pass at its endpoint without pass immunity', () => {
+  const state = createInitialGameState();
+  state.ball.ownerId = null;
+  state.possessionTeam = 'home';
+  Object.assign(state.ball, {
+    x: 500, y: 270, vx: 0, vy: 0, flightKind: 'ground', flightSeconds: 1,
+    passTeam: 'home', passTarget: null, passProtectionSeconds: 0.001,
+  });
   const opponent = state.players.find((player) => player.id === 'away-fw');
-  opponent.x = state.ball.x;
-  opponent.y = state.ball.y;
-  state.ball.passProtectionSeconds = 0.001;
+  Object.assign(opponent, { x: 500, y: 270 });
 
   stepGame(state, frame(), 0.01);
 
@@ -658,6 +705,161 @@ test('the away AI advances toward the home goal and takes a shot in range', () =
   assert.ok(events.some((event) => event.type === 'shot' && event.team === 'away'));
 });
 
+test('the away AI chooses an open ground pass to a forward teammate', () => {
+  const state = createInitialGameState({ stage: 2 });
+  const carrier = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(carrier, { x: 800, y: 270, facingX: -1, facingY: 0 });
+  Object.assign(state.ball, { ownerId: carrier.id, x: carrier.x, y: carrier.y });
+  state.possessionTeam = 'away';
+  for (const player of state.players.filter((candidate) => candidate.team === 'away' && candidate.id !== carrier.id && candidate.role !== 'goalkeeper')) {
+    player.aiTarget = { x: player.x, y: player.y };
+    player.aiRetargetSeconds = 10;
+  }
+  for (const player of state.players.filter((candidate) => candidate.team === 'home' && candidate.role !== 'goalkeeper')) {
+    Object.assign(player, { x: 180, y: player.id === 'home-def-1' ? 20 : 500 });
+  }
+
+  const events = stepGame(state, frame(), 0.05);
+
+  assert.equal(state.ball.ownerId, null);
+  assert.equal(state.ball.flightKind, 'ground');
+  assert.ok(state.ball.passTarget);
+  assert.ok(events.some((event) => event.type === 'pass' && event.team === 'away' && event.action === 'groundPass'));
+});
+
+test('the away AI chooses a cross when a defender closes its only ground lane', () => {
+  const state = createInitialGameState({ stage: 2 });
+  const carrier = state.players.find((player) => player.id === 'away-fw');
+  const receiver = state.players.find((player) => player.id === 'away-mid-1');
+  Object.assign(carrier, { x: 800, y: 270, facingX: -1, facingY: 0 });
+  Object.assign(receiver, { x: 650, y: 100 });
+  receiver.aiTarget = { x: receiver.x, y: receiver.y };
+  receiver.aiRetargetSeconds = 10;
+  state.players.find((player) => player.id === 'away-def-1').dismissed = true;
+  Object.assign(state.ball, { ownerId: carrier.id, x: carrier.x, y: carrier.y });
+  state.possessionTeam = 'away';
+  const blocker = state.players.find((player) => player.id === 'home-fw');
+  Object.assign(blocker, { x: 730, y: 210 });
+  for (const player of state.players.filter((candidate) => candidate.team === 'home' && candidate.id !== blocker.id && candidate.role !== 'goalkeeper')) {
+    Object.assign(player, { x: 180, y: player.id === 'home-def-1' ? 20 : 500 });
+  }
+
+  const events = stepGame(state, frame(), 0.05);
+
+  assert.equal(state.ball.flightKind, 'cross');
+  assert.ok(events.some((event) => event.type === 'pass' && event.team === 'away' && event.action === 'lobPass'));
+});
+
+test('the away AI dribbles toward goal when no field receiver is available', () => {
+  const state = createInitialGameState({ stage: 1 });
+  const carrier = state.players.find((player) => player.id === 'away-fw');
+  const startX = carrier.x = 800;
+  state.players.find((player) => player.id === 'away-def-1').dismissed = true;
+  state.players.find((player) => player.id === 'away-mid-1').dismissed = true;
+  Object.assign(state.ball, { ownerId: carrier.id, x: carrier.x, y: carrier.y });
+  state.possessionTeam = 'away';
+
+  const events = stepGame(state, frame(), 0.05);
+
+  assert.ok(carrier.x < startX);
+  assert.equal(state.ball.ownerId, carrier.id);
+  assert.ok(!events.some((event) => event.type === 'pass' && event.team === 'away'));
+});
+
+test('the away AI keeps dribbling instead of taking an off-target close-range shot', () => {
+  const state = createInitialGameState({ stage: 1 });
+  const carrier = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(carrier, { x: 100, y: 400, facingX: -1, facingY: 0 });
+  state.players.find((player) => player.id === 'away-def-1').dismissed = true;
+  state.players.find((player) => player.id === 'away-mid-1').dismissed = true;
+  Object.assign(state.ball, { ownerId: carrier.id, x: carrier.x, y: carrier.y });
+  state.possessionTeam = 'away';
+
+  const events = stepGame(state, frame(), 0.05);
+
+  assert.equal(state.ball.ownerId, carrier.id);
+  assert.ok(carrier.x < 100 && carrier.y < 400);
+  assert.ok(!events.some((event) => event.type === 'shot' && event.team === 'away'));
+});
+
+test('only the nearest eligible AI jumps toward a reachable descending ball', () => {
+  const state = createInitialGameState();
+  const controlled = state.players.find((player) => player.id === 'home-fw');
+  const nearest = state.players.find((player) => player.id === 'home-def-1');
+  const second = state.players.find((player) => player.id === 'home-mid-1');
+  Object.assign(controlled, { x: 100, y: 100 });
+  Object.assign(nearest, { x: 495, y: 270, jumpCooldownSeconds: 0 });
+  Object.assign(second, { x: 520, y: 270, jumpCooldownSeconds: 0 });
+  Object.assign(state.ball, {
+    ownerId: null, x: 500, y: 270, vx: 0, vy: 0, height: 50, verticalVelocity: -50,
+    flightKind: 'lob', passTeam: 'away',
+  });
+  state.possessionTeam = 'away';
+  state.players.filter((player) => player.team === 'away' && player.role !== 'goalkeeper')
+    .forEach((player) => Object.assign(player, { x: 850, y: 500, jumpCooldownSeconds: 0 }));
+
+  const events = stepGame(state, frame(), 0.01);
+
+  assert.ok(nearest.jumpVelocity > 0);
+  assert.equal(second.jumpVelocity, 0);
+  assert.ok(events.some((event) => event.type === 'header' && event.playerId === nearest.id));
+  assert.ok(events.some((event) => event.type === 'passIntercepted' && event.fromTeam === 'away' && event.passKind === 'lob'));
+});
+
+test('AI waits for high balls and never auto-jumps goalkeepers', () => {
+  const state = createInitialGameState();
+  const nearest = state.players.find((player) => player.id === 'home-def-1');
+  const keeper = state.players.find((player) => player.id === 'away-gk');
+  Object.assign(nearest, { x: 500, y: 270, jumpCooldownSeconds: 0 });
+  Object.assign(keeper, { x: 500, y: 270, jumpCooldownSeconds: 0 });
+  Object.assign(state.ball, { ownerId: null, x: 500, y: 270, height: 160, verticalVelocity: -100, flightKind: 'lob' });
+  state.possessionTeam = 'away';
+  state.players.filter((player) => player.team === 'away' && player.role !== 'goalkeeper')
+    .forEach((player) => Object.assign(player, { x: 900, y: 500, jumpCooldownSeconds: 0 }));
+
+  stepGame(state, frame(), 0.01);
+
+  assert.equal(nearest.jumpVelocity, 0);
+  assert.equal(keeper.jumpVelocity, 0);
+
+  state.ball.height = 5;
+  state.ball.verticalVelocity = -20;
+  stepGame(state, frame(), 0.01);
+  assert.equal(nearest.jumpVelocity, 0);
+});
+
+test('the nearest noncontrolled defender presses while teammates cover separate passing lanes', () => {
+  const state = createInitialGameState();
+  const carrier = state.players.find((player) => player.id === 'away-fw');
+  const presser = state.players.find((player) => player.id === 'home-def-1');
+  const coverer = state.players.find((player) => player.id === 'home-mid-1');
+  const controlled = state.players.find((player) => player.id === 'home-fw');
+  Object.assign(carrier, { x: 700, y: 270 });
+  Object.assign(presser, { x: 650, y: 270 });
+  Object.assign(coverer, { x: 350, y: 350 });
+  Object.assign(controlled, { x: 500, y: 300 });
+  state.players.find((player) => player.id === 'away-def-1').dismissed = true;
+  state.players.find((player) => player.id === 'away-mid-1').dismissed = true;
+  Object.assign(state.ball, { ownerId: carrier.id, x: carrier.x, y: carrier.y });
+  state.possessionTeam = 'away';
+  state.controlledPlayerId = controlled.id;
+
+  stepGame(state, frame({ moveY: 1 }), 0.05);
+
+  assert.ok(presser.x > 650);
+  assert.equal(controlled.y, 308);
+  assert.ok(coverer.aiTarget);
+  assert.notDeepEqual(coverer.aiTarget, { x: carrier.x, y: carrier.y });
+});
+
+test('AI difficulty tuning rises steadily from stage one through the boss', () => {
+  const tuning = [1, 2, 3, 4, 5].map((stage) => getAiTuning(stage));
+  assert.ok(tuning.every((entry, index) => index === 0
+    || (entry.teammateSupportRadius > tuning[index - 1].teammateSupportRadius
+      && entry.pressingDistance > tuning[index - 1].pressingDistance
+      && entry.thinkIntervalSeconds < tuning[index - 1].thinkIntervalSeconds)));
+});
+
 test('the stage-five boss presses from farther away than a regular opponent', () => {
   const makeState = (stage) => {
     const state = createInitialGameState({ stage });
@@ -704,11 +906,36 @@ test('the stage-five boss sends attacking support farther around its ball carrie
   assert.ok(Math.abs(boss.supporter.y - 270) > Math.abs(regular.supporter.y - 270));
 });
 
+test('the nearest away defender presses while remaining defenders cover separate receivers', () => {
+  const state = createInitialGameState({ stage: 3 });
+  const carrier = state.players.find((player) => player.id === 'home-fw');
+  const presser = state.players.find((player) => player.id === 'away-fw');
+  const coverOne = state.players.find((player) => player.id === 'away-def-1');
+  const coverTwo = state.players.find((player) => player.id === 'away-mid-1');
+  Object.assign(carrier, { x: 400, y: 270 });
+  Object.assign(presser, { x: 470, y: 270 });
+  Object.assign(coverOne, { x: 850, y: 100 });
+  Object.assign(coverTwo, { x: 850, y: 440 });
+  Object.assign(state.ball, { ownerId: carrier.id, x: carrier.x, y: carrier.y });
+  state.possessionTeam = 'home';
+
+  stepGame(state, frame(), 0.05);
+
+  assert.ok(presser.x < 470);
+  assert.ok(coverOne.aiTarget && coverTwo.aiTarget);
+  assert.notDeepEqual(coverOne.aiTarget, coverTwo.aiTarget);
+  assert.ok([coverOne.aiTarget, coverTwo.aiTarget].every((target) => target.x >= 0 && target.x <= FIELD.width
+    && target.y >= 0 && target.y <= FIELD.height));
+});
+
 test('the stage-five boss makes attack decisions sooner than a regular opponent', () => {
   const makeState = (stage) => {
     const state = createInitialGameState({ stage });
     const striker = state.players.find((player) => player.id === 'away-fw');
-    Object.assign(striker, { x: 100, y: 400 });
+    Object.assign(striker, { x: 100, y: 270 });
+    state.players.find((player) => player.id === 'away-def-1').dismissed = true;
+    state.players.find((player) => player.id === 'away-mid-1').dismissed = true;
+    state.aiShotCooldownSeconds = getAiTuning(stage).thinkIntervalSeconds;
     state.ball.ownerId = striker.id;
     state.ball.x = striker.x;
     state.ball.y = striker.y;
@@ -717,8 +944,6 @@ test('the stage-five boss makes attack decisions sooner than a regular opponent'
   };
   const regular = makeState(1);
   const boss = makeState(5);
-  stepGame(regular.state, frame(), 0.05);
-  stepGame(boss.state, frame(), 0.05);
 
   let regularShotDuringWindow = false;
   let bossShotDuringWindow = false;

@@ -1,6 +1,6 @@
 # Task: T02 전술 AI와 양 팀 패스 경로 판정
 
-## Status: pending
+## Status: done
 
 ## Goal
 양 팀의 비조작 선수들이 역할과 소유권에 따라 지원·압박·커버하도록 만들고, 상대 AI가 열려 있는 패스 경로를 선택하며, 땅볼 패스와 공중 패스를 실제 공 궤적에서 양 팀 모두 차단할 수 있게 한다.
@@ -91,6 +91,6 @@ Task: T02-tactical-ai-and-pass-interception
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
-- commit: pending
+- [x] 구현 완료
+- [x] 검증 통과
+- commit: see repository history for Task T02 commit

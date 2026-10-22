@@ -27,18 +27,15 @@ export const HEADER_RADIUS = 24;
 export const HEADER_HEIGHT_MIN = 20;
 export const HEADER_HEIGHT_MAX = 72;
 
-const STANDARD_AI_TUNING = Object.freeze({
-  thinkIntervalSeconds: 0.8,
-  teammateSupportRadius: 160,
-  pressingDistance: 130,
-});
-
-const BOSS_AI_TUNING = Object.freeze({
-  thinkIntervalSeconds: 0.45,
-  teammateSupportRadius: 210,
-  pressingDistance: 170,
-});
+const AI_TUNING = Object.freeze([
+  Object.freeze({ thinkIntervalSeconds: 1, teammateSupportRadius: 125, pressingDistance: 95 }),
+  Object.freeze({ thinkIntervalSeconds: 0.88, teammateSupportRadius: 145, pressingDistance: 112 }),
+  Object.freeze({ thinkIntervalSeconds: 0.76, teammateSupportRadius: 165, pressingDistance: 132 }),
+  Object.freeze({ thinkIntervalSeconds: 0.62, teammateSupportRadius: 188, pressingDistance: 152 }),
+  Object.freeze({ thinkIntervalSeconds: 0.45, teammateSupportRadius: 210, pressingDistance: 170 }),
+]);
 
 export function getAiTuning(stage) {
-  return stage === 5 ? BOSS_AI_TUNING : STANDARD_AI_TUNING;
+  const safeStage = Number.isInteger(stage) ? Math.min(5, Math.max(1, stage)) : 1;
+  return AI_TUNING[safeStage - 1];
 }
