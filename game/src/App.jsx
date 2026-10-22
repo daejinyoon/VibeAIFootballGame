@@ -91,13 +91,13 @@ export default function App() {
   };
 
   const handleGameEvents = (events) => {
-    const endEvent = events.find((event) => event.type === 'matchWon' || event.type === 'matchLost');
+    const endEvent = events.find((event) => ['matchWon', 'matchLost', 'matchDraw'].includes(event.type));
     if (!endEvent || !campaign) return;
 
     const nextCampaign = finishStage(campaign, endEvent.score);
     setCampaign(nextCampaign);
     setPendingAssignmentSkill(null);
-    const outcome = endEvent.type === 'matchLost' ? 'loss' : 'win';
+    const outcome = endEvent.type === 'matchDraw' ? 'draw' : endEvent.type === 'matchLost' ? 'loss' : 'win';
     const goalDifference = nextCampaign.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0);
     setResult({
       stage: campaign.currentStage,

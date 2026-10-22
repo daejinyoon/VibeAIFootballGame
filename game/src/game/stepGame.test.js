@@ -413,6 +413,7 @@ test('a tied regulation timer enters golden-goal overtime; a leader wins on time
   const overtimeEvents = stepGame(tied, frame(), 0.2);
   assert.equal(tied.phase, 'overtime');
   assert.equal(tied.remainingSeconds, 0);
+  assert.equal(tied.overtimeRemainingSeconds, 30);
   assert.ok(overtimeEvents.some((event) => event.type === 'overtime'));
 
   const leading = createInitialGameState();
@@ -421,6 +422,54 @@ test('a tied regulation timer enters golden-goal overtime; a leader wins on time
   const result = stepGame(leading, frame(), 0.2);
   assert.equal(leading.phase, 'finished');
   assert.ok(result.some((event) => event.type === 'matchWon'));
+});
+
+test('the active match clock runs during kickoff, goal-kick and set-piece delays', () => {
+  for (const phase of ['goalPause', 'goalKick', 'freeKick', 'penaltyKick']) {
+    const state = createInitialGameState();
+    state.phase = phase;
+    state.phaseSeconds = 1;
+    state.remainingSeconds = 10;
+
+    stepGame(state, frame(), 0.05);
+
+    assert.equal(state.remainingSeconds, 9.95, `${phase} should consume regulation time`);
+  }
+
+  const overtime = createInitialGameState();
+  overtime.phase = 'freeKick';
+  overtime.phaseSeconds = 1;
+  overtime.overtimeRemainingSeconds = 10;
+  stepGame(overtime, frame(), 0.05);
+  assert.equal(overtime.remainingSeconds, 60);
+  assert.equal(overtime.overtimeRemainingSeconds, 9.95);
+});
+
+test('regulation expiry during a restart starts overtime without consuming it twice', () => {
+  const state = createInitialGameState();
+  state.phase = 'goalPause';
+  state.phaseSeconds = 0.5;
+  state.remainingSeconds = 0.01;
+
+  const events = stepGame(state, frame(), 0.05);
+
+  assert.ok(events.some((event) => event.type === 'overtime'));
+  assert.equal(state.phase, 'goalPause');
+  assert.equal(state.overtimeRemainingSeconds, 30);
+  assert.equal(state.phaseSeconds, 0.45);
+});
+
+test('a tied golden-goal expiry emits one draw event and finishes the match', () => {
+  const state = createInitialGameState();
+  state.phase = 'overtime';
+  state.remainingSeconds = 0;
+  state.overtimeRemainingSeconds = 0.02;
+
+  const events = stepGame(state, frame(), 0.02);
+
+  assert.equal(state.phase, 'finished');
+  assert.equal(state.overtimeRemainingSeconds, 0);
+  assert.deepEqual(events, [{ type: 'matchDraw', score: { home: 0, away: 0 } }]);
 });
 
 test('the defensive A action can win possession with a short slide tackle', () => {

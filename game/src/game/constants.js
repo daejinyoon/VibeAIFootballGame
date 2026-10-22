@@ -15,6 +15,7 @@ export const ROLES = Object.freeze({
 });
 
 export const REGULATION_SECONDS = 60;
+export const GOLDEN_GOAL_SECONDS = 30;
 export const STAGE_COUNT = 5;
 export const JUMP_INITIAL_VELOCITY = 360;
 export const JUMP_GRAVITY = 920;

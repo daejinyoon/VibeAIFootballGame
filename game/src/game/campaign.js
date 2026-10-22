@@ -47,7 +47,7 @@ export function finishStage(campaign, result, rng = Math.random) {
   if (!Number.isFinite(homeGoals) || !Number.isFinite(awayGoals) || homeGoals < 0 || awayGoals < 0) {
     throw new Error('경기 결과에 유효한 양 팀 점수가 필요합니다.');
   }
-  if (homeGoals === awayGoals) throw new Error('골든골로 승패가 결정된 뒤 다음 단계로 진행할 수 있습니다.');
+  if (homeGoals === awayGoals) return { ...campaign };
 
   if (homeGoals < awayGoals) return { ...campaign };
 

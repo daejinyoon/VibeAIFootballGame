@@ -1,6 +1,7 @@
 import {
   BALL_GRAVITY,
   FIELD,
+  GOLDEN_GOAL_SECONDS,
   getAiTuning,
   HEADER_HEIGHT_MAX,
   HEADER_HEIGHT_MIN,
@@ -198,6 +199,7 @@ function resetForKickoff(state, kickoffTeam) {
   });
   const score = { ...state.score };
   const remainingSeconds = state.remainingSeconds;
+  const overtimeRemainingSeconds = state.overtimeRemainingSeconds;
   const remainingUses = new Map(state.players.map((player) => [player.id, player.skillUsesRemaining]));
   const controlledPlayerId = state.controlledPlayerId;
   const controlledPlayer = byId(state, controlledPlayerId);
@@ -208,7 +210,7 @@ function resetForKickoff(state, kickoffTeam) {
     dismissed: Boolean(player.dismissed),
   }]));
 
-  Object.assign(state, fresh, { score, remainingSeconds });
+  Object.assign(state, fresh, { score, remainingSeconds, overtimeRemainingSeconds });
   for (const player of state.players) {
     Object.assign(player, discipline.get(player.id));
     player.skillUsesRemaining = remainingUses.get(player.id) ?? player.skillUsesRemaining;
@@ -230,6 +232,9 @@ function resetForKickoff(state, kickoffTeam) {
 
 function finishMatch(state) {
   state.phase = 'finished';
+  if (state.score.home === state.score.away) {
+    return [{ type: 'matchDraw', score: { ...state.score } }];
+  }
   const won = state.score.home > state.score.away;
   return [{
     type: won ? 'matchWon' : 'matchLost',
@@ -241,7 +246,7 @@ function scoreGoal(state, scoringTeam) {
   state.score[scoringTeam] += 1;
   const event = { type: 'goal', team: scoringTeam, score: { ...state.score } };
 
-  if (state.phase === 'overtime') {
+  if (state.overtimeRemainingSeconds !== null) {
     return [event, ...finishMatch(state)];
   }
 
@@ -872,7 +877,7 @@ function beginGoalKick(state, deltaSeconds) {
   if (state.phaseSeconds > 0) return [];
 
   const keeper = carrier(state);
-  state.phase = 'playing';
+  state.phase = state.overtimeRemainingSeconds === null ? 'playing' : 'overtime';
   delete state.phaseSeconds;
   if (keeper) {
     const direction = keeper.team === 'home' ? 1 : -1;
@@ -890,7 +895,7 @@ function beginGoalKick(state, deltaSeconds) {
 function beginSetPiece(state, deltaSeconds) {
   state.phaseSeconds -= deltaSeconds;
   if (state.phaseSeconds > 0) return [];
-  state.phase = 'playing';
+  state.phase = state.overtimeRemainingSeconds === null ? 'playing' : 'overtime';
   delete state.phaseSeconds;
   return [{ type: 'setPieceStart', team: state.possessionTeam }];
 }
@@ -902,6 +907,7 @@ function beginKickoff(state, deltaSeconds) {
   delete state.pendingKickoffTeam;
   delete state.phaseSeconds;
   resetForKickoff(state, team);
+  if (state.overtimeRemainingSeconds !== null) state.phase = 'overtime';
   return [{ type: 'kickoff', team }];
 }
 
@@ -922,6 +928,9 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   const events = [];
 
   if (state.phase === 'finished' || dt === 0) return events;
+  if (state.phase === 'overtime' && state.overtimeRemainingSeconds == null) {
+    state.overtimeRemainingSeconds = GOLDEN_GOAL_SECONDS;
+  }
   state.aiShotCooldownSeconds = Math.max(0, (state.aiShotCooldownSeconds ?? 0) - dt);
   for (const player of state.players) {
     player.stunnedSeconds = Math.max(0, (player.stunnedSeconds ?? 0) - dt);
@@ -930,21 +939,28 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   }
   state.foulNoticeSeconds = Math.max(0, (state.foulNoticeSeconds ?? 0) - dt);
 
-  if (state.phase === 'goalPause') return beginKickoff(state, dt);
-  if (state.phase === 'goalKick') return beginGoalKick(state, dt);
-  if (state.phase === 'freeKick' || state.phase === 'penaltyKick') return beginSetPiece(state, dt);
-
-  if (state.phase === 'playing') {
+  if (state.overtimeRemainingSeconds !== null) {
+    state.overtimeRemainingSeconds = Math.max(0, state.overtimeRemainingSeconds - dt);
+    if (state.overtimeRemainingSeconds === 0 && state.score.home === state.score.away) {
+      state.phase = 'finished';
+      return [{ type: 'matchDraw', score: { ...state.score } }];
+    }
+  } else {
     state.remainingSeconds = Math.max(0, state.remainingSeconds - dt);
     if (state.remainingSeconds === 0) {
       if (state.score.home === state.score.away) {
-        state.phase = 'overtime';
+        state.overtimeRemainingSeconds = GOLDEN_GOAL_SECONDS;
+        if (state.phase === 'playing') state.phase = 'overtime';
         events.push({ type: 'overtime' });
       } else {
         return finishMatch(state);
       }
     }
   }
+
+  if (state.phase === 'goalPause') return [...events, ...beginKickoff(state, dt)];
+  if (state.phase === 'goalKick') return [...events, ...beginGoalKick(state, dt)];
+  if (state.phase === 'freeKick' || state.phase === 'penaltyKick') return [...events, ...beginSetPiece(state, dt)];
 
   let controlled = byId(state, state.controlledPlayerId);
   if (!controlled || controlled.dismissed) {

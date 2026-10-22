@@ -64,9 +64,11 @@ test('stage wins advance through stage five and create three unique card choices
   assert.equal(campaign.clearedStageResults.length, 5);
 });
 
-test('does not accept a tied stage result before golden goal ends it', () => {
+test('a tied stage result leaves campaign progression and rewards unchanged', () => {
   const campaign = createCampaign({ rng: () => 0.1 });
-  assert.throws(() => finishStage(campaign, { homeGoals: 1, awayGoals: 1 }));
+  const drawn = finishStage(campaign, { homeGoals: 1, awayGoals: 1 });
+  assert.notEqual(drawn, campaign);
+  assert.deepEqual(drawn, campaign);
 });
 
 test('drafted cards enter inventory and can be stacked on one field player up to three copies', () => {

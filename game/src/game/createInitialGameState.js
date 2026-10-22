@@ -96,6 +96,7 @@ export function createInitialGameState({
     stage: safeStage,
     phase: 'playing',
     remainingSeconds: REGULATION_SECONDS,
+    overtimeRemainingSeconds: null,
     score: { home: 0, away: 0 },
     players: [...homePlayers, ...awayPlayers],
     ball: {
