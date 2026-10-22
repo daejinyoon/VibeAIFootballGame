@@ -66,11 +66,11 @@ test('F activates the controlled player skill and charges the shared gauge on su
 });
 
 test('Eagle Shot ignores the ordinary goalkeeper catch', () => {
-  const state = createInitialGameState({ opponentSkillIds: ['eagleShot'] });
+  const state = createInitialGameState({ opponentSkillStacks: { 'away-fw': { skillId: 'eagleShot', copies: 1 } } });
   state.skillGauge.away = 100;
-  state.ball.ownerId = 'away-gk';
+  state.ball.ownerId = 'away-fw';
   state.possessionTeam = 'away';
-  const shot = applySkill(state, 'away-gk');
+  const shot = applySkill(state, 'away-fw');
   assert.equal(shot.ok, true);
   assert.equal(state.ball.skillId, 'eagleShot');
 
@@ -84,7 +84,7 @@ test('Eagle Shot ignores the ordinary goalkeeper catch', () => {
 test('the opponent AI spends its full shared gauge on an equipped attack skill', () => {
   const state = createInitialGameState({ opponentSkillIds: ['eagleShot'] });
   state.skillGauge.away = 100;
-  state.ball.ownerId = 'away-gk';
+  state.ball.ownerId = 'away-def-1';
   state.possessionTeam = 'away';
 
   const events = stepGame(state, {}, 0.01);
@@ -151,25 +151,22 @@ test('Vacuum Cleaner pulls a nearby loose ball to a field player', () => {
   assert.equal(state.possessionTeam, 'home');
 });
 
-test('Vacuum Cleaner used by a goalkeeper ends in a goal-kick state', () => {
+test('goalkeepers cannot equip field-player skills', () => {
   const state = createInitialGameState({ loadout: { 'home-gk': 'vacuumCleaner' } });
   state.skillGauge.home = 100;
   state.ball.ownerId = null;
   state.ball.x = 70;
   state.ball.y = 270;
 
-  assert.equal(applySkill(state, 'home-gk').ok, true);
-  for (let i = 0; i < 12 && state.vacuumEffect; i += 1) stepGame(state, {}, 0.05);
-
-  assert.equal(state.ball.ownerId, 'home-gk');
-  assert.equal(state.phase, 'goalKick');
+  assert.equal(applySkill(state, 'home-gk').reason, 'noSkillEquipped');
+  assert.equal(state.ball.ownerId, null);
 });
 
 test('a completed pass charges the passing team once and charging fills each team gauge', () => {
   const state = createInitialGameState();
   state.ball.ownerId = null;
-  state.ball.x = 345;
-  state.ball.y = 175;
+  state.ball.x = 370;
+  state.ball.y = 350;
   state.ball.passTeam = 'home';
   state.possessionTeam = 'home';
 
@@ -182,7 +179,7 @@ test('a completed pass charges the passing team once and charging fills each tea
 });
 
 test('Rainbow Reflection runs to an incoming opponent skill shot and sends it back', () => {
-  const state = createInitialGameState({ loadout: { 'home-gk': 'rainbowReflect' } });
+  const state = createInitialGameState({ loadout: { 'home-def-1': 'rainbowReflect' } });
   state.skillGauge.home = 100;
   Object.assign(state.ball, {
     ownerId: null,

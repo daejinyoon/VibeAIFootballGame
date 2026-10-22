@@ -1,3 +1,5 @@
+import { STAGE_COUNT } from '../game/constants.js';
+
 export const STORAGE_KEY = 'dex-pixel-football:v1';
 
 export function createEmptyProfile() {
@@ -13,7 +15,7 @@ function getDefaultStorage() {
 }
 
 function isCampaignSave(value) {
-  return Boolean(value && [1, 2, 3].includes(value.currentStage)
+  return Boolean(value && Number.isInteger(value.currentStage) && value.currentStage >= 1 && value.currentStage <= STAGE_COUNT
     && value.homeLoadout && typeof value.homeLoadout === 'object'
     && value.opponentSkillSets && typeof value.opponentSkillSets === 'object'
     && Array.isArray(value.clearedStageResults));
@@ -21,7 +23,7 @@ function isCampaignSave(value) {
 
 function isBestRecord(value) {
   return Boolean(value && typeof value.nickname === 'string'
-    && [1, 2, 3].includes(value.stageReached)
+    && Number.isInteger(value.stageReached) && value.stageReached >= 1 && value.stageReached <= STAGE_COUNT
     && Number.isFinite(value.goalDifference));
 }
 
@@ -67,7 +69,7 @@ export function setNickname(profile, nickname) {
 }
 
 export function createCampaignSave(campaign) {
-  if (!campaign || ![1, 2, 3].includes(campaign.currentStage)) {
+  if (!campaign || !Number.isInteger(campaign.currentStage) || campaign.currentStage < 1 || campaign.currentStage > STAGE_COUNT) {
     throw new TypeError('저장할 캠페인 정보가 올바르지 않습니다.');
   }
   return {

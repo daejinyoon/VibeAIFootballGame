@@ -15,6 +15,7 @@ export const ROLES = Object.freeze({
 });
 
 export const REGULATION_SECONDS = 60;
+export const STAGE_COUNT = 5;
 
 export const MAX_SKILL_GAUGE = 100;
 export const SKILL_GAUGE_REWARDS = Object.freeze({

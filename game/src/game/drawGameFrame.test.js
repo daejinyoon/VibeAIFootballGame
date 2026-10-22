@@ -76,7 +76,7 @@ test('projects distant players smaller than nearby players and skips dismissed p
   const state = createInitialGameState();
   state.controlledPlayerId = null;
   const near = state.players.find((player) => player.id === 'home-def-1');
-  const far = state.players.find((player) => player.id === 'home-def-2');
+  const far = state.players.find((player) => player.id === 'home-mid-1');
   near.x = 300;
   near.y = 490;
   far.x = 600;

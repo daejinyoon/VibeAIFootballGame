@@ -1,3 +1,4 @@
+import { STAGE_COUNT } from './constants.js';
 import { HOME_PLAYER_IDS, SKILL_IDS, validateLoadout } from './skills.js';
 
 export { HOME_PLAYER_IDS };
@@ -17,9 +18,11 @@ function shuffledSkills(rng) {
 
 export function createOpponentSkillSets(rng = Math.random) {
   return {
-    1: shuffledSkills(rng).slice(0, 3),
-    2: shuffledSkills(rng).slice(0, 4),
-    3: [...SKILL_IDS],
+    1: [],
+    2: shuffledSkills(rng).slice(0, 1),
+    3: shuffledSkills(rng).slice(0, 2),
+    4: shuffledSkills(rng).slice(0, 3),
+    5: shuffledSkills(rng).slice(0, 3),
   };
 }
 
@@ -52,18 +55,13 @@ export function finishStage(campaign, result) {
 
   const clearedStageResults = [
     ...campaign.clearedStageResults,
-    {
-      stage: campaign.currentStage,
-      homeGoals,
-      awayGoals,
-      goalDifference: homeGoals - awayGoals,
-    },
+    { stage: campaign.currentStage, homeGoals, awayGoals, goalDifference: homeGoals - awayGoals },
   ];
-  const isFinal = campaign.currentStage === 3;
+  const isFinal = campaign.currentStage === STAGE_COUNT;
   return {
     ...campaign,
     clearedStageResults,
-    currentStage: isFinal ? 3 : campaign.currentStage + 1,
+    currentStage: isFinal ? STAGE_COUNT : campaign.currentStage + 1,
     homeLoadout: { ...campaign.homeLoadout },
     status: isFinal ? 'complete' : 'active',
   };
@@ -73,19 +71,19 @@ export function assignOpponentSkills(players, skillIds) {
   if (!Array.isArray(players) || !Array.isArray(skillIds)) {
     throw new TypeError('선수 목록과 상대 스킬 목록은 배열이어야 합니다.');
   }
-  if (skillIds.length > 6 || skillIds.some((skillId) => !SKILL_IDS.includes(skillId))
+  if (skillIds.length > 3 || skillIds.some((skillId) => !SKILL_IDS.includes(skillId))
       || new Set(skillIds).size !== skillIds.length) {
-    throw new Error('상대 스킬은 여섯 종 이내에서 중복 없이 선택해야 합니다.');
+    throw new Error('상대 스킬은 세 종 이내에서 중복 없이 선택해야 합니다.');
   }
-  if (players.filter((player) => player.team === 'away').length !== 6) {
-    throw new Error('상대 스킬을 배정하려면 상대 선수가 여섯 명이어야 합니다.');
+  const awayPlayers = players.filter((player) => player.team === 'away');
+  if (awayPlayers.length !== 4 || awayPlayers.filter((player) => player.role !== 'goalkeeper').length !== 3) {
+    throw new Error('Opponent roster must contain three field players and one goalkeeper.');
   }
 
   let index = 0;
   return players.map((player) => {
     if (player.team !== 'away') return { ...player };
-    const skillId = skillIds[index] ?? null;
-    index += 1;
-    return { ...player, skillId };
+    const skillId = player.role === 'goalkeeper' ? null : skillIds[index++] ?? null;
+    return { ...player, skillId, skillCopies: skillId ? 1 : 0, skillUsesRemaining: skillId ? 1 : 0 };
   });
 }

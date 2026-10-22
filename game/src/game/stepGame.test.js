@@ -95,11 +95,10 @@ test('an arrow direction selects the intended teammate for a charged lob pass', 
   stepGame(state, frame({ moveY: -1, down: ['a'], pressed: ['a'] }), 0.05);
   const events = stepGame(state, frame({ moveY: -1, released: ['a'] }), 0.05);
 
-  assert.equal(state.controlledPlayerId, 'home-mid-1');
+  assert.equal(state.controlledPlayerId, 'home-def-1');
   assert.equal(state.ball.ownerId, null);
   assert.equal(state.ball.flightKind, 'lob');
   assert.ok(state.ball.vx < 0);
-  assert.ok(state.ball.vy < 0);
   assert.ok(events.some((event) => event.type === 'pass' && event.action === 'lobPass'));
 });
 
@@ -108,7 +107,7 @@ test('S releases a ground pass and transfers control to the receiver', () => {
   stepGame(state, frame({ moveY: 1, down: ['s'], pressed: ['s'] }), 0.05);
   const events = stepGame(state, frame({ moveY: 1, released: ['s'] }), 0.05);
 
-  assert.equal(state.controlledPlayerId, 'home-mid-2');
+  assert.equal(state.controlledPlayerId, 'home-mid-1');
   assert.equal(state.ball.flightKind, 'ground');
   const receiver = state.players.find((player) => player.id === state.controlledPlayerId);
   assert.deepEqual(state.ball.passTarget, { x: receiver.x, y: receiver.y });
@@ -409,7 +408,7 @@ test('a rear slide tackle gives a yellow, then a red card and switches control a
   assert.equal(tackler.foulCount, 2);
   assert.equal(tackler.dismissed, true);
   assert.notEqual(state.controlledPlayerId, tackler.id);
-  assert.equal(state.players.filter((player) => player.team === 'home' && !player.dismissed).length, 5);
+  assert.equal(state.players.filter((player) => player.team === 'home' && !player.dismissed).length, 3);
 });
 
 test('a foul in the defending penalty area awards a penalty and power tackle is protected', () => {
@@ -494,7 +493,7 @@ test('away defenders receive the same foul rules and dismissed keepers cannot ca
   assert.equal(keeperState.players.filter((player) => player.team === 'home' && !player.dismissed).length, 1);
 });
 
-test('defensive S switches through the six home players, including the goalkeeper', () => {
+test('defensive S switches through the four home players, including the goalkeeper', () => {
   const state = createInitialGameState();
   state.possessionTeam = 'away';
   state.ball.ownerId = 'away-fw';

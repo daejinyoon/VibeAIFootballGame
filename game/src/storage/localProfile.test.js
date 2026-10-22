@@ -51,6 +51,8 @@ test('writes and reads a campaign checkpoint without match coordinates', () => {
   assert.deepEqual(loaded.campaignSave.homeLoadout, campaign.homeLoadout);
   assert.equal('ball' in loaded.campaignSave, false);
   assert.ok(profile.campaignSave.savedAt);
+  const finalStageSave = createCampaignSave({ ...campaign, currentStage: 5 });
+  assert.equal(finalStageSave.currentStage, 5);
 });
 
 test('keeps exactly one campaign checkpoint and replaces it with a later save', () => {
