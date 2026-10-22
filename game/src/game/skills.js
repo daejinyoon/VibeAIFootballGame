@@ -29,6 +29,15 @@ function result(ok, skillId, team, reason = null, events = []) {
   return { ok, skillId, team, reason, events };
 }
 
+export function addSkillEffect(state, { skillId, team, sourcePlayerId, targetPlayerId = null, durationSeconds }) {
+  if (!Array.isArray(state.skillEffects)) state.skillEffects = [];
+  const id = Number.isInteger(state.nextSkillEffectId) ? state.nextSkillEffectId : 1;
+  state.nextSkillEffectId = id + 1;
+  const effect = { id, skillId, team, sourcePlayerId, targetPlayerId, elapsedSeconds: 0, durationSeconds };
+  state.skillEffects.push(effect);
+  return effect;
+}
+
 function shuffledSkills(rng) {
   const items = [...SKILL_IDS];
   for (let index = items.length - 1; index > 0; index -= 1) {
@@ -198,6 +207,16 @@ export function applySkill(state, playerId) {
   }
 
   player.skillUsesRemaining -= 1;
+  const targetId = events.find((event) => event.type === 'skillUsed')?.targetId ?? null;
+  addSkillEffect(state, {
+    skillId,
+    team: player.team,
+    sourcePlayerId: player.id,
+    targetPlayerId: targetId,
+    durationSeconds: skillId === 'powerTackle' ? 4
+      : skillId === 'eulryongta' ? 1
+        : skillId === 'vacuumCleaner' ? 0.5 : 2.4,
+  });
   return result(true, skillId, player.team, null, events);
 }
 
@@ -236,6 +255,12 @@ export function applyAutomaticRainbowReflect(state, defendingTeam = 'home', delt
       state.ball.skillId = 'rainbowReflect';
       state.ball.lastTouchTeam = defendingTeam;
       state.possessionTeam = defendingTeam;
+      addSkillEffect(state, {
+        skillId: 'rainbowReflect',
+        team: defendingTeam,
+        sourcePlayerId: player.id,
+        durationSeconds: 1.6,
+      });
       delete state.rainbowReflection;
       return { type: 'skillUsed', skillId: 'rainbowReflect', team: defendingTeam, playerId: player.id, automatic: true };
     }
@@ -261,5 +286,11 @@ export function applyAutomaticRainbowReflect(state, defendingTeam = 'home', delt
   state.ball.vx *= 0.25;
   state.ball.vy *= 0.25;
   state.rainbowReflection = { team: defendingTeam, playerId: reflector.id, remainingSeconds: 2.5 };
+  addSkillEffect(state, {
+    skillId: 'rainbowReflect',
+    team: defendingTeam,
+    sourcePlayerId: reflector.id,
+    durationSeconds: 2.5,
+  });
   return { type: 'rainbowStarted', skillId: 'rainbowReflect', team: defendingTeam, playerId: reflector.id, automatic: true };
 }

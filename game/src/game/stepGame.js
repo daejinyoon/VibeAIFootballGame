@@ -19,7 +19,7 @@ import {
   KICKOFF_CIRCLE_RADIUS,
 } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
-import { applyAutomaticRainbowReflect, applySkill, SKILL_IDS } from './skills.js';
+import { addSkillEffect, applyAutomaticRainbowReflect, applySkill, SKILL_IDS } from './skills.js';
 
 const PLAYER_SPEED = 160;
 const AI_SPEED = 125;
@@ -564,19 +564,28 @@ function resolveTackle(state, tackler, ballCarrier, powerTackleActive = false) {
   const ballDistance = distance(tackler, state.ball);
   const playerDistance = distance(tackler, ballCarrier);
   const behind = isBehindTackler(tackler, ballCarrier);
+  const powered = powerTackleActive || (tackler.powerTackleSeconds ?? 0) > 0;
   if (playerDistance <= 22 && (behind || ballDistance > playerDistance)) {
+    if (powered) addSkillEffect(state, {
+      skillId: 'powerTackle', team: tackler.team, sourcePlayerId: tackler.id,
+      targetPlayerId: ballCarrier.id, durationSeconds: 0.48,
+    });
     const approach = unit(ballCarrier.x - tackler.x, ballCarrier.y - tackler.y);
     const rawApproachSpeed = tackler.vx * approach.x + tackler.vy * approach.y;
     const severity = classifyFoulSeverity({
       behind,
       approachSpeed: Number.isFinite(rawApproachSpeed) ? Math.max(0, rawApproachSpeed) : 0,
       sliding: (tackler.slideSeconds ?? 0) > 0 || tackler.motionAction === 'tackle',
-      powerTackle: powerTackleActive || (tackler.powerTackleSeconds ?? 0) > 0,
+      powerTackle: powered,
     });
     return awardFoul(state, tackler, ballCarrier, state.ball, severity);
   }
 
   tackler.motionAction = 'tackle';
+  if (powered) addSkillEffect(state, {
+    skillId: 'powerTackle', team: tackler.team, sourcePlayerId: tackler.id,
+    targetPlayerId: ballCarrier.id, durationSeconds: 0.48,
+  });
   setBallOwner(state, tackler);
   const knockdownEvent = knockDownPlayer(state, ballCarrier, tackler);
   if (tackler.team === 'home') state.controlledPlayerId = tackler.id;
@@ -1396,6 +1405,7 @@ function advanceVacuum(state, deltaSeconds) {
     }
     if (player.team === 'home') state.controlledPlayerId = player.id;
     delete state.vacuumEffect;
+    state.skillEffects = (state.skillEffects ?? []).filter((cue) => !(cue.skillId === 'vacuumCleaner' && cue.sourcePlayerId === player.id));
     return [{ type: 'vacuumComplete', team: player.team, playerId: player.id }];
   }
   return [];
@@ -1569,6 +1579,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   const events = [];
 
   if (state.phase === 'finished' || dt === 0) return events;
+  advanceSkillEffects(state, dt);
   if (state.phase === 'overtime' && state.overtimeRemainingSeconds == null) {
     state.overtimeRemainingSeconds = GOLDEN_GOAL_SECONDS;
   }
@@ -1669,6 +1680,28 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   releaseKickoffLockIfBallCleared(state);
 
   return events;
+}
+
+function advanceSkillEffects(state, deltaSeconds) {
+  if (!Array.isArray(state.skillEffects)) state.skillEffects = [];
+  const playersById = new Map(state.players.map((player) => [player.id, player]));
+  state.skillEffects = state.skillEffects.filter((effect) => {
+    const source = playersById.get(effect.sourcePlayerId);
+    const target = effect.targetPlayerId ? playersById.get(effect.targetPlayerId) : null;
+    if (!source || source.dismissed || (effect.targetPlayerId && (!target || target.dismissed))) return false;
+    effect.elapsedSeconds += deltaSeconds;
+    if (effect.elapsedSeconds >= effect.durationSeconds) return false;
+    if (effect.skillId === 'vacuumCleaner'
+        && state.vacuumEffect?.playerId !== effect.sourcePlayerId) return false;
+    if (effect.skillId === 'powerTackle' && !effect.targetPlayerId
+        && (source.powerTackleSeconds ?? 0) <= 0) return false;
+    if (effect.skillId === 'rainbowReflect'
+        && state.rainbowReflection?.playerId !== effect.sourcePlayerId
+        && !(state.ball.flightKind === 'skill-shot' && state.ball.skillId === 'rainbowReflect')) return false;
+    if ((effect.skillId === 'eagleShot' || effect.skillId === 'tornadoShot')
+        && (state.ball.flightKind !== 'skill-shot' || state.ball.skillId !== effect.skillId)) return false;
+    return true;
+  });
 }
 
 export { MAX_DELTA };

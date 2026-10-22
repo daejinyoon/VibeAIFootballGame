@@ -10,8 +10,9 @@
 [T02 Skill Use Effects](./phases/2026-10-22-arcade-match-results-skills-and-replay/P03-skill-arcade-visuals/T02-skill-use-effects.md)
 
 ## Status
-- P01 match simulation tasks T01–T04 and P02 stage selection tasks T01–T02 are implemented, validated, and committed.
-- Phase progress: P01 4/4, P02 2/2, P03 1/2.
+- Arcade Match Results, Skills, and Stage Replay plan is implemented and validated.
+- Phase progress: P01 4/4, P02 2/2, P03 2/2.
+- No active task remains in this plan.
 
 ## Next Step (IMPORTANT)
-Implement T02-skill-use-effects.md: add distinct gameplay-matched 3D visual effects for each skill, validate, update its status, and commit using the blueprint message before advancing the pointer.
+This plan is complete. Start a new grill-me interview or activate another plan before implementing additional work.

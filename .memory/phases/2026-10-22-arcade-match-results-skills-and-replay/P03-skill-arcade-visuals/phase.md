@@ -4,7 +4,7 @@
 | Task | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
 | T01 | `done` | Add six name-specific arcade illustrations to reward and inventory cards. | [T01](./T01-skill-card-art.md) |
-| T02 | `in_progress` | Render distinct gameplay-matched 3D effects for every skill. | [T02](./T02-skill-use-effects.md) |
+| T02 | `done` | Render distinct gameplay-matched 3D effects for every skill. | [T02](./T02-skill-use-effects.md) |
 
 ## Progress
-- done: 1/2 (active: T02)
+- done: 2/2

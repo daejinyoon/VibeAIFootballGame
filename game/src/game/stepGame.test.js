@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { FIELD, KICKOFF_CIRCLE_RADIUS, SHOT_ASSIST_DISTANCE, SHOT_ASSIST_MAX, getAiTuning } from './constants.js';
+import { BALL_RADIUS, FIELD, KICKOFF_CIRCLE_RADIUS, SHOT_ASSIST_DISTANCE, SHOT_ASSIST_MAX, getAiTuning } from './constants.js';
 import { createInitialGameState as createGameState } from './createInitialGameState.js';
 import { stepGame } from './stepGame.js';
 
@@ -279,11 +279,10 @@ test('S releases a ground pass and transfers control to the receiver', () => {
   assert.ok(Math.hypot(state.ball.passTarget.x - receiver.x, state.ball.passTarget.y - receiver.y) <= 10.001);
 });
 
-test('a charged shot follows the selected player facing direction', () => {
+test('D shoots immediately in the selected player facing direction', () => {
   const state = createInitialGameState();
   state.players.find((player) => player.id === 'home-fw').facingX = 1;
-  stepGame(state, frame({ down: ['d'], pressed: ['d'] }), 0.05);
-  const events = stepGame(state, frame({ released: ['d'] }), 0.05);
+  const events = stepGame(state, frame({ pressed: ['d'] }), 0.01);
 
   assert.equal(state.ball.ownerId, null);
   assert.equal(state.ball.flightKind, 'shot');
@@ -357,19 +356,14 @@ test('a defender can still block a close-range corrected shot', () => {
   assert.ok(events.some((event) => event.type === 'possessionChange' && event.playerId === blocker.id));
 });
 
-test('shot power ranges from 55 percent on a quick release to 100 percent after one second', () => {
-  const quick = createInitialGameState();
-  stepGame(quick, frame({ down: ['d'], pressed: ['d'] }), 0.05);
-  stepGame(quick, frame({ released: ['d'] }), 0.01);
-
-  const full = createInitialGameState();
-  for (let index = 0; index < 20; index += 1) {
-    stepGame(full, frame({ down: ['d'], pressed: index === 0 ? ['d'] : [] }), 0.05);
-  }
-  stepGame(full, frame({ released: ['d'] }), 0.01);
-
-  assert.ok(Math.hypot(quick.ball.vx, quick.ball.vy) < Math.hypot(full.ball.vx, full.ball.vy));
-  assert.ok(Math.abs(Math.hypot(quick.ball.vx, quick.ball.vy) / Math.hypot(full.ball.vx, full.ball.vy) - 0.55) < 0.04);
+test('holding D does not charge or increase immediate shot power', () => {
+  const state = createInitialGameState();
+  const events = stepGame(state, frame({ down: ['d'], pressed: ['d'] }), 0.01);
+  const speedAtShot = Math.hypot(state.ball.vx, state.ball.vy);
+  assert.ok(events.some((event) => event.type === 'shot'));
+  const laterEvents = stepGame(state, frame({ down: ['d'] }), 0.05);
+  assert.ok(!laterEvents.some((event) => event.type === 'shot'));
+  assert.ok(speedAtShot > 0);
 });
 
 test('ground passes are intercepted by the opponent crossing the swept ball path', () => {
@@ -545,7 +539,7 @@ test('a keeper catches an ordinary shot and starts a timed goal kick', () => {
 
 test('a goal restarts from the center for the conceding team', () => {
   const state = createInitialGameState();
-  Object.assign(state.ball, { ownerId: null, x: FIELD.width - 1, y: 270, vx: 100, vy: 0, flightKind: 'shot', lastTouchTeam: 'home' });
+  Object.assign(state.ball, { ownerId: null, x: FIELD.width - 1, y: 270, vx: 500, vy: 0, flightKind: 'shot', lastTouchTeam: 'home' });
 
   const events = stepGame(state, frame(), 0.05);
 
@@ -574,10 +568,10 @@ test('a goal kickoff preserves the remaining uses for this match', () => {
   assert.equal(resetForward.skillUsesRemaining, 1);
 });
 
-test('touchline exits restart with an automatic throw-in for the team that did not touch last', () => {
+test('touchline exits stop at the correct spot for a throw-in to the team that did not touch last', () => {
   const cases = [
-    { y: -1, lastTouchTeam: 'home', restartTeam: 'away', restartY: 0 },
-    { y: FIELD.height + 1, lastTouchTeam: 'away', restartTeam: 'home', restartY: FIELD.height },
+    { y: -BALL_RADIUS - 1, lastTouchTeam: 'home', restartTeam: 'away', restartY: 8 },
+    { y: FIELD.height + BALL_RADIUS + 1, lastTouchTeam: 'away', restartTeam: 'home', restartY: FIELD.height - 8 },
   ];
 
   for (const scenario of cases) {
@@ -600,6 +594,8 @@ test('touchline exits restart with an automatic throw-in for the team that did n
     assert.equal(restart?.team, scenario.restartTeam);
     assert.ok(thrower);
     assert.equal(thrower.x, 420);
+    assert.equal(state.phase, 'throwIn');
+    assert.deepEqual(state.restart.spot, { x: 420, y: scenario.y < 0 ? 0 : FIELD.height });
     assert.equal(thrower.y, scenario.restartY);
     assert.deepEqual(state.score, { home: 2, away: 1 });
     assert.equal(state.stage, 2);
@@ -609,10 +605,10 @@ test('touchline exits restart with an automatic throw-in for the team that did n
 
 test('goal-line exits award goal kicks or corners based on the last touch', () => {
   const cases = [
-    { x: FIELD.width + 1, y: 400, lastTouchTeam: 'home', restart: 'goalKick', team: 'away', keeper: 'away-gk' },
-    { x: -1, y: 100, lastTouchTeam: 'away', restart: 'goalKick', team: 'home', keeper: 'home-gk' },
-    { x: FIELD.width + 1, y: FIELD.goalTop - 1, lastTouchTeam: 'away', restart: 'cornerKick', team: 'home' },
-    { x: -1, y: FIELD.goalBottom + 1, lastTouchTeam: 'home', restart: 'cornerKick', team: 'away' },
+    { x: FIELD.width + BALL_RADIUS + 1, y: 400, lastTouchTeam: 'home', restart: 'goalKick', team: 'away', keeper: 'away-gk' },
+    { x: -BALL_RADIUS - 1, y: 100, lastTouchTeam: 'away', restart: 'goalKick', team: 'home', keeper: 'home-gk' },
+    { x: FIELD.width + BALL_RADIUS + 1, y: FIELD.goalTop - 20, lastTouchTeam: 'away', restart: 'cornerKick', team: 'home' },
+    { x: -BALL_RADIUS - 1, y: FIELD.goalBottom + 20, lastTouchTeam: 'home', restart: 'cornerKick', team: 'away' },
   ];
 
   for (const scenario of cases) {
@@ -637,9 +633,9 @@ test('goal-line exits award goal kicks or corners based on the last touch', () =
       assert.equal(state.ball.ownerId, scenario.keeper);
       assert.equal(restart.playerId, scenario.keeper);
     } else {
-      assert.equal(state.phase, 'playing');
+      assert.equal(state.phase, 'cornerKick');
       assert.ok(restart.playerId.startsWith(`${scenario.team}-`));
-      assert.ok(restart.receiverId);
+      assert.equal(state.restart.type, 'cornerKick');
       const cornerPlayer = state.players.find((player) => player.id === restart.playerId);
       assert.equal(cornerPlayer.x, scenario.x < 0 ? 18 : FIELD.width - 18);
       assert.equal(cornerPlayer.y, scenario.y > FIELD.height / 2 ? FIELD.height - 18 : 18);
@@ -654,7 +650,7 @@ test('a missing last-touch team uses the home-team restart fallback', () => {
   const state = createInitialGameState();
   Object.assign(state.ball, {
     ownerId: null,
-    x: FIELD.width + 1,
+    x: FIELD.width + BALL_RADIUS + 1,
     y: 400,
     vx: 0,
     vy: 0,
@@ -884,7 +880,7 @@ test('a rear slide tackle gives a yellow, then a red card and switches control a
   assert.equal(state.players.filter((player) => player.team === 'home' && !player.dismissed).length, 3);
 });
 
-test('a foul in the defending penalty area awards a penalty and power tackle is protected', () => {
+test('a foul in the defending penalty area awards a penalty and excessive-force power tackles send players off', () => {
   const state = createInitialGameState();
   const tackler = state.players.find((player) => player.id === 'home-fw');
   const ballCarrier = state.players.find((player) => player.id === 'away-fw');
@@ -913,14 +909,16 @@ test('a foul in the defending penalty area awards a penalty and power tackle is 
   protectedCarrier.y = 270;
   protectedCarrier.facingX = -1;
   protectedState.possessionTeam = 'away';
+  protectedState.controlledPlayerId = protectedTackler.id;
   protectedState.ball.ownerId = protectedCarrier.id;
   protectedState.ball.x = 483;
   protectedState.ball.y = 270;
 
   const protectedEvents = stepGame(protectedState, frame({ pressed: ['a'] }), 0.01);
-  assert.ok(protectedEvents.some((event) => event.type === 'tackle'));
-  assert.ok(!protectedEvents.some((event) => event.type === 'foul'));
-  assert.equal(protectedTackler.foulCount, 0);
+  assert.ok(protectedEvents.some((event) => event.type === 'foul' && event.severity === 'excessiveForce'));
+  assert.ok(protectedEvents.some((event) => event.type === 'redCard'));
+  assert.equal(protectedTackler.foulCount, 1);
+  assert.equal(protectedTackler.dismissed, true);
 });
 
 test('away defenders receive the same foul rules and dismissed keepers cannot catch shots', () => {
@@ -943,7 +941,7 @@ test('away defenders receive the same foul rules and dismissed keepers cannot ca
 
   const foulEvents = stepGame(state, frame(), 0.01);
   assert.ok(foulEvents.some((event) => event.type === 'foul' && event.team === 'away'));
-  assert.ok(foulEvents.some((event) => event.type === 'yellowCard' && event.team === 'away'));
+  assert.ok(!foulEvents.some((event) => event.type === 'yellowCard' && event.team === 'away'));
   assert.equal(defender.foulCount, 1);
 
   const keeperState = createInitialGameState();

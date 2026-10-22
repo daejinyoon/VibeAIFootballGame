@@ -150,6 +150,8 @@ export function createInitialGameState({
     aiMarkingAssignments: {},
     aiMarkingPossessionTeam: null,
     aiObservedCarrierId: null,
+    skillEffects: [],
+    nextSkillEffectId: 1,
     restart: null,
     aiRandomSeed: 0x6d2b79f5,
     foulSpot: null,

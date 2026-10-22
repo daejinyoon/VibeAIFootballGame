@@ -51,6 +51,9 @@ test('a skill requires its gameplay condition and invalid attempts do not consum
   state.possessionTeam = 'home';
   assert.equal(applySkill(state, 'home-fw').ok, true);
   assert.equal(state.players.find((player) => player.id === 'home-fw').skillUsesRemaining, 1);
+  assert.deepEqual(state.skillEffects.map(({ id, skillId, team, sourcePlayerId, targetPlayerId }) => ({ id, skillId, team, sourcePlayerId, targetPlayerId })), [
+    { id: 1, skillId: 'eagleShot', team: 'home', sourcePlayerId: 'home-fw', targetPlayerId: null },
+  ]);
   assert.equal(state.skillGauge, undefined);
 });
 
@@ -67,6 +70,12 @@ test('a player can use a stacked skill only its remaining number of times', () =
   assert.equal(player.skillUsesRemaining, 0);
 });
 
+test('new matches start with an empty transient skill-effect list and fresh stable IDs', () => {
+  const state = createInitialGameState();
+  assert.deepEqual(state.skillEffects, []);
+  assert.equal(state.nextSkillEffectId, 1);
+});
+
 test('F activates the controlled player skill and spends one use only after success', () => {
   const state = createInitialGameState({ playerSkillStacks: { 'home-fw': { skillId: 'eagleShot', copies: 2 } } });
   const events = stepGame(state, { down: new Set(['f']), pressed: new Set(['f']), released: new Set() }, 0.01);
@@ -74,6 +83,10 @@ test('F activates the controlled player skill and spends one use only after succ
   assert.equal(state.ball.flightKind, 'skill-shot');
   assert.equal(state.players.find((player) => player.id === 'home-fw').skillUsesRemaining, 1);
   assert.ok(events.some((event) => event.type === 'skillUsed' && event.skillId === 'eagleShot'));
+  assert.equal(state.skillEffects[0].sourcePlayerId, 'home-fw');
+  state.ball.flightKind = 'ground';
+  stepGame(state, {}, 0.05);
+  assert.equal(state.skillEffects.length, 0, 'shot cue expires when the skill shot ends');
 });
 
 test('Eagle Shot ignores the ordinary goalkeeper catch', () => {
@@ -98,6 +111,7 @@ test('opponent AI uses an equipped skill once when its conditions are met', () =
   assert.equal(state.ball.skillId, 'eagleShot');
   assert.equal(state.players.find((player) => player.id === 'away-def-1').skillUsesRemaining, 0);
   assert.ok(events.some((event) => event.type === 'skillUsed' && event.team === 'away'));
+  assert.ok(state.skillEffects.some((effect) => effect.team === 'away' && effect.skillId === 'eagleShot'));
 });
 
 test('Power Tackle increases slide contact range', () => {
@@ -106,6 +120,7 @@ test('Power Tackle increases slide contact range', () => {
   state.possessionTeam = 'away';
   assert.equal(applySkill(state, 'home-fw').ok, true);
   assert.equal(state.players.find((player) => player.id === 'home-fw').powerTackleSeconds, 4);
+  assert.equal(state.skillEffects[0].durationSeconds, 4);
   const player = state.players.find((candidate) => candidate.id === 'home-fw');
   const opponent = state.players.find((candidate) => candidate.id === 'away-fw');
   player.x = 430;
@@ -115,6 +130,7 @@ test('Power Tackle increases slide contact range', () => {
   opponent.y = 270;
   stepGame(state, {}, 0.01);
   assert.equal(state.ball.ownerId, 'home-fw');
+  assert.ok(state.skillEffects.some((effect) => effect.skillId === 'powerTackle' && effect.targetPlayerId === opponent.id));
 });
 
 test('Eulryongta knocks down its actual field-player target for one second', () => {
@@ -129,6 +145,7 @@ test('Eulryongta knocks down its actual field-player target for one second', () 
   assert.equal(result.ok, true);
   assert.equal(target.knockdownSeconds, 1);
   assert.equal(target.motionAction, 'knockdown');
+  assert.equal(state.skillEffects[0].targetPlayerId, target.id);
   assert.ok(result.events.some((event) => event.type === 'playerKnockedDown' && event.playerId === target.id));
   assert.equal(behind.stunnedSeconds, 0);
 });
@@ -154,6 +171,7 @@ test('Vacuum Cleaner pulls a nearby loose ball to a field player', () => {
   for (let i = 0; i < 12 && state.vacuumEffect; i += 1) stepGame(state, {}, 0.05);
   assert.equal(state.ball.ownerId, 'home-def-1');
   assert.equal(state.possessionTeam, 'home');
+  assert.equal(state.skillEffects.length, 0, 'vacuum cue expires with its gameplay pull');
 });
 
 test('goalkeepers cannot equip field-player skills', () => {
@@ -168,10 +186,12 @@ test('rainbow reflection consumes one use when the automatic save starts', () =>
   const started = applyAutomaticRainbowReflect(state, 'home', 0.05);
   assert.equal(started.type, 'rainbowStarted');
   assert.equal(state.players.find((player) => player.id === 'home-def-1').skillUsesRemaining, 1);
+  assert.equal(state.skillEffects[0].skillId, 'rainbowReflect');
   let reflected = null;
   for (let i = 0; i < 30 && !reflected; i += 1) reflected = applyAutomaticRainbowReflect(state, 'home', 0.05);
   assert.ok(reflected);
   assert.equal(reflected.skillId, 'rainbowReflect');
   assert.ok(state.ball.vx > 0);
   assert.equal(state.ball.lastTouchTeam, 'home');
+  assert.equal(state.skillEffects.length, 2, 'reflection start and return each create a cue');
 });
