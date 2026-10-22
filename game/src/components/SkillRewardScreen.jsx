@@ -1,5 +1,3 @@
-const SKILL_ICONS = { attack: '⚡', defense: '🛡️', utility: '✦' };
-
 export default function SkillRewardScreen({ offer = [], inventory = {}, playerSkillStacks = {}, playerRows = [], skills = {}, selectedSkill, onChoose, onAssign, onKeep, onHome }) {
   const hasSelection = Boolean(selectedSkill);
   const activeOffer = Array.isArray(offer) ? offer : [];
@@ -16,7 +14,7 @@ export default function SkillRewardScreen({ offer = [], inventory = {}, playerSk
         {activeOffer.map((skillId, index) => {
           const skill = skills[skillId] ?? {};
           return <button className={`skill-card reward-card rarity-${skill.type ?? 'utility'}`} key={skillId} onClick={() => onChoose(skillId)}>
-            <span className="reward-card-icon" aria-hidden="true">{SKILL_ICONS[skill.type] ?? '✦'}</span>
+            <span className="reward-card-icon"><img src={skill.artwork} alt="" aria-hidden="true" /></span>
             <span className="reward-rarity">SKILL CARD · 0{index + 1}</span>
             <b>{skill.name ?? skillId}</b>
             <span>{skill.type === 'attack' ? '공격 스킬' : skill.type === 'defense' ? '수비 스킬' : '유틸리티 스킬'}</span>
@@ -30,7 +28,7 @@ export default function SkillRewardScreen({ offer = [], inventory = {}, playerSk
         <p className="eyebrow">CHOOSE A FIELD PLAYER</p>
         <h2 id="assignment-title">장착할 선수를 선택하세요</h2>
         <p>같은 스킬을 한 선수에게 최대 3장까지 중복 장착할 수 있습니다. 골키퍼는 장착할 수 없습니다.</p>
-        <div className="selected-reward-card" role="status"><span aria-hidden="true">{SKILL_ICONS[skills[selectedSkill]?.type] ?? '✦'}</span><div><small>선택한 승리 보상</small><b>{skills[selectedSkill]?.name ?? selectedSkill}</b></div><i>선수 선택 대기 중</i></div>
+        <div className="selected-reward-card" role="status"><span className="selected-skill-art"><img src={skills[selectedSkill]?.artwork} alt="" aria-hidden="true" /></span><div><small>선택한 승리 보상</small><b>{skills[selectedSkill]?.name ?? selectedSkill}</b></div><i>선수 선택 대기 중</i></div>
         <div className="skill-player-grid">
           {playerRows.map((player) => {
             const stack = playerSkillStacks[player.playerId];

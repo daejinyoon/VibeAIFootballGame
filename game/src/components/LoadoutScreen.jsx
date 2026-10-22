@@ -16,7 +16,7 @@ export default function LoadoutScreen({ stage = 2, playerRows = [], playerSkillS
           <div className="loadout-section-heading"><div><p className="eyebrow">SKILL INVENTORY</p><h2 id="stock-title">보유 카드</h2></div><span>{available.reduce((sum, [, count]) => sum + count, 0)}장</span></div>
           {available.length
             ? <div className="inventory-list">{available.map(([skillId, count]) => <button key={skillId} className={`inventory-card ${selectedSkill === skillId ? 'is-selected' : ''}`} aria-pressed={selectedSkill === skillId} onClick={() => setSelectedSkill(selectedSkill === skillId ? null : skillId)}>
-              <span className="inventory-gem" aria-hidden="true">✦</span><span><b>{skills[skillId]?.name ?? skillId}</b><small>{skills[skillId]?.description}</small></span><em>×{count}</em>
+              <span className="inventory-gem"><img src={skills[skillId]?.artwork} alt="" aria-hidden="true" /></span><span><b>{skills[skillId]?.name ?? skillId}</b><small>{skills[skillId]?.description}</small></span><em>×{count}</em>
             </button>)}</div>
             : <div className="inventory-empty">보유한 카드가 없습니다.<br />다음 승리 보상에서 스킬을 얻어 보세요.</div>}
           {selectedName && <p className="loadout-hint" role="status">{selectedName} 선택됨 · 장착할 선수를 누르세요.</p>}

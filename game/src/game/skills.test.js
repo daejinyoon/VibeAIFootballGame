@@ -1,15 +1,28 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import test from 'node:test';
 import { createInitialGameState } from './createInitialGameState.js';
 import {
   MAX_SKILL_COPIES,
   SKILL_IDS,
+  SKILLS,
   applyAutomaticRainbowReflect,
   applySkill,
   createSkillCardOffer,
   validateSkillAssignments,
 } from './skills.js';
 import { stepGame } from './stepGame.js';
+
+test('every named skill maps to its own existing transparent PNG artwork', () => {
+  assert.deepEqual(Object.keys(SKILLS), SKILL_IDS);
+  const artworks = SKILL_IDS.map((skillId) => SKILLS[skillId].artwork);
+  assert.equal(new Set(artworks).size, SKILL_IDS.length);
+  for (const artwork of artworks) {
+    assert.match(artwork, /^\/images\/skills\/[a-z-]+\.png$/);
+    assert.ok(existsSync(new URL(`../../public${artwork}`, import.meta.url)), `${artwork} exists`);
+  }
+  assert.ok(SKILL_IDS.every((skillId) => SKILLS[skillId].name && SKILLS[skillId].description));
+});
 
 test('draft offers contain three different known skills and respect the injected random source', () => {
   const offer = createSkillCardOffer(() => 0.25);
