@@ -24,6 +24,7 @@ export const JUMP_COOLDOWN_SECONDS = 0.15;
 export const GROUND_CLEARANCE_DISTANCE = 180;
 export const LOB_CLEARANCE_DISTANCE = 260;
 export const SHOT_ASSIST_DISTANCE = 360;
+export const BALL_RADIUS = 11.6;
 export const BALL_GRAVITY = 900;
 export const LOB_VERTICAL_VELOCITY = 360;
 export const HEADER_RADIUS = 24;

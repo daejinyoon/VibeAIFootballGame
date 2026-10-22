@@ -1,6 +1,6 @@
 # Task: T02 공 경계 판정과 직접 조작하는 경기 재개
 
-## Status: pending
+## Status: done
 
 ## Goal
 공 전체가 경기장 경계선을 넘었을 때 정확한 스로인/골킥/코너킥을 판정하고, 홈 사용자가 위치·방향·재개 액션을 선택한다. 골킥 중 골키퍼로 자동 전환하고 킥 후 직전 조작 선수로 복귀한다.
@@ -85,6 +85,6 @@ Task: T02-boundaries-and-manual-restarts
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
+- [x] 구현 완료
+- [x] 검증 통과 (`npm run build`)
 - commit: pending

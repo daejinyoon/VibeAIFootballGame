@@ -1,5 +1,6 @@
 import {
   BALL_GRAVITY,
+  BALL_RADIUS,
   FIELD,
   GROUND_CLEARANCE_DISTANCE,
   GOLDEN_GOAL_SECONDS,
@@ -310,6 +311,7 @@ function resetForKickoff(state, kickoffTeam) {
 
 function finishMatch(state) {
   state.phase = 'finished';
+  state.restart = null;
   if (state.score.home === state.score.away) {
     return [{ type: 'matchDraw', score: { ...state.score } }];
   }
@@ -322,6 +324,7 @@ function finishMatch(state) {
 
 function scoreGoal(state, scoringTeam) {
   state.score[scoringTeam] += 1;
+  state.restart = null;
   const event = { type: 'goal', team: scoringTeam, score: { ...state.score } };
 
   if (state.overtimeRemainingSeconds !== null) {
@@ -500,23 +503,60 @@ function launchAutomaticRestart(state, player) {
   return receiver;
 }
 
+function beginManualRestart(state, type, restartTeam, spot) {
+  stopBallAtFieldEdge(state);
+  const previousControlledPlayerId = type === 'goalKick' && restartTeam === 'home'
+    ? state.controlledPlayerId
+    : null;
+  const takerPool = type === 'goalKick'
+    ? activePlayers(state, restartTeam).filter((player) => player.role === 'goalkeeper')
+    : activePlayers(state, restartTeam).filter((player) => player.role !== 'goalkeeper');
+  const taker = type === 'goalKick'
+    ? takerPool[0] ?? null
+    : nearestPlayer(takerPool, spot);
+
+  if (!taker) {
+    state.ball.x = spot.x;
+    state.ball.y = spot.y;
+    state.restart = null;
+    state.phase = state.overtimeRemainingSeconds === null ? 'playing' : 'overtime';
+    return [{ type, team: restartTeam, playerId: null }];
+  }
+
+  if (type === 'goalKick') {
+    taker.x = restartTeam === 'home' ? 70 : FIELD.width - 70;
+    taker.y = FIELD.height / 2;
+    spot = { x: taker.x, y: taker.y };
+  } else {
+    taker.x = spot.x;
+    taker.y = type === 'throwIn'
+      ? clamp(spot.y <= 0 ? 8 : FIELD.height - 8, 0, FIELD.height)
+      : spot.y;
+  }
+
+  setBallOwner(state, taker);
+  state.ball.x = spot.x;
+  state.ball.y = spot.y;
+  state.restart = {
+    type,
+    team: restartTeam,
+    takerId: taker.id,
+    spot: { ...spot },
+    readySeconds: 0.35,
+    previousControlledPlayerId,
+  };
+  state.phase = type;
+  delete state.phaseSeconds;
+  if (restartTeam === 'home') state.controlledPlayerId = taker.id;
+  return [{ type, team: restartTeam, playerId: taker.id }];
+}
+
 function restartThrowIn(state, restartTeam, exitX, exitY) {
   const spot = {
     x: clamp(exitX, 0, FIELD.width),
     y: exitY <= 0 ? 0 : FIELD.height,
   };
-  const thrower = nearestPlayer(activePlayers(state, restartTeam), spot);
-  if (!thrower) {
-    state.ball.x = spot.x;
-    state.ball.y = spot.y;
-    stopBallAtFieldEdge(state);
-    return [{ type: 'throwIn', team: restartTeam, playerId: null }];
-  }
-
-  thrower.x = spot.x;
-  thrower.y = spot.y;
-  const receiver = launchAutomaticRestart(state, thrower);
-  return [{ type: 'throwIn', team: restartTeam, playerId: thrower.id, receiverId: receiver?.id ?? null }];
+  return beginManualRestart(state, 'throwIn', restartTeam, spot);
 }
 
 function restartCorner(state, restartTeam, exitX, exitY) {
@@ -524,62 +564,48 @@ function restartCorner(state, restartTeam, exitX, exitY) {
     x: exitX > FIELD.width ? FIELD.width - 18 : 18,
     y: exitY > FIELD.height / 2 ? FIELD.height - 18 : 18,
   };
-  const kicker = nearestPlayer(activePlayers(state, restartTeam), spot);
-  if (!kicker) {
-    state.ball.x = spot.x;
-    state.ball.y = spot.y;
-    stopBallAtFieldEdge(state);
-    return [{ type: 'cornerKick', team: restartTeam, playerId: null }];
-  }
-
-  kicker.x = spot.x;
-  kicker.y = spot.y;
-  const receiver = launchAutomaticRestart(state, kicker);
-  return [{ type: 'cornerKick', team: restartTeam, playerId: kicker.id, receiverId: receiver?.id ?? null }];
+  return beginManualRestart(state, 'cornerKick', restartTeam, spot);
 }
 
-function restartGoalKick(state, restartTeam, exitY) {
-  const keeper = activePlayers(state, restartTeam).find((player) => player.role === 'goalkeeper') ?? null;
-  if (!keeper) {
-    state.ball.x = restartTeam === 'home' ? 0 : FIELD.width;
-    state.ball.y = clamp(exitY, FIELD.goalTop, FIELD.goalBottom);
-    stopBallAtFieldEdge(state);
-    return [{ type: 'goalKick', team: restartTeam, playerId: null }];
-  }
-
-  keeper.y = clamp(exitY, FIELD.goalTop, FIELD.goalBottom);
-  setBallOwner(state, keeper);
-  state.phase = 'goalKick';
-  state.phaseSeconds = 1;
-  putBallAtPlayer(state, keeper);
-  return [{ type: 'goalKick', team: restartTeam, playerId: keeper.id }];
+function restartGoalKick(state, restartTeam) {
+  const spot = {
+    x: restartTeam === 'home' ? 70 : FIELD.width - 70,
+    y: FIELD.height / 2,
+  };
+  return beginManualRestart(state, 'goalKick', restartTeam, spot);
 }
 
 function checkBallBoundary(state) {
   const { ball } = state;
-  if (ball.y >= FIELD.goalTop && ball.y <= FIELD.goalBottom) {
-    if (ball.x > FIELD.width) return scoreGoal(state, 'home');
-    if (ball.x < 0) return scoreGoal(state, 'away');
+  if (ball.x - BALL_RADIUS > FIELD.width
+      && ball.y - BALL_RADIUS >= FIELD.goalTop
+      && ball.y + BALL_RADIUS <= FIELD.goalBottom) {
+    return scoreGoal(state, 'home');
+  }
+  if (ball.x + BALL_RADIUS < 0
+      && ball.y - BALL_RADIUS >= FIELD.goalTop
+      && ball.y + BALL_RADIUS <= FIELD.goalBottom) {
+    return scoreGoal(state, 'away');
   }
 
   const lastTouchTeam = ['home', 'away'].includes(ball.lastTouchTeam) ? ball.lastTouchTeam : null;
-  if (ball.y < 0 || ball.y > FIELD.height) {
+  if (ball.y + BALL_RADIUS < 0 || ball.y - BALL_RADIUS > FIELD.height) {
     const restartTeam = lastTouchTeam
       ? (lastTouchTeam === 'home' ? 'away' : 'home')
       : 'home';
     return restartThrowIn(state, restartTeam, ball.x, ball.y);
   }
 
-  if (ball.x < 0 || ball.x > FIELD.width) {
-    const attackingTeam = ball.x > FIELD.width ? 'home' : 'away';
+  if (ball.x - BALL_RADIUS > FIELD.width || ball.x + BALL_RADIUS < 0) {
+    const attackingTeam = ball.x - BALL_RADIUS > FIELD.width ? 'home' : 'away';
     const defendingTeam = attackingTeam === 'home' ? 'away' : 'home';
     if (!lastTouchTeam) {
       return attackingTeam === 'home'
         ? restartCorner(state, 'home', ball.x, ball.y)
-        : restartGoalKick(state, 'home', ball.y);
+        : restartGoalKick(state, 'home');
     }
     const lastTouch = lastTouchTeam;
-    if (lastTouch === attackingTeam) return restartGoalKick(state, defendingTeam, ball.y);
+    if (lastTouch === attackingTeam) return restartGoalKick(state, defendingTeam);
     return restartCorner(state, attackingTeam, ball.x, ball.y);
   }
   return [];
@@ -1144,6 +1170,111 @@ function beginGoalKick(state, deltaSeconds) {
   return [{ type: 'goalKick', team: keeper?.team }];
 }
 
+function releaseRestart(state, restart, action) {
+  const taker = byId(state, restart.takerId);
+  if (!taker || taker.dismissed) return [];
+
+  const isShort = action === 'shortPass';
+  const receiver = isShort || action === 'throwIn'
+    ? chooseReceiver(state, taker, 'groundPass')
+    : null;
+  const facing = facingFor(taker);
+  putBallAtPlayer(state, taker);
+  let target;
+  if (receiver) {
+    target = { x: receiver.x, y: receiver.y };
+  } else if (restart.type === 'cornerKick' && action === 'cornerCross') {
+    const attackDirection = restart.team === 'home' ? 1 : -1;
+    target = {
+      x: clamp(state.ball.x + attackDirection * 300, 0, FIELD.width),
+      y: clamp(state.ball.y + facing.y * 150, 55, FIELD.height - 55),
+    };
+  } else {
+    const targetDistance = action === 'longKick'
+      ? 300
+      : restart.type === 'throwIn' ? 180 : GROUND_CLEARANCE_DISTANCE;
+    target = {
+      x: clamp(state.ball.x + facing.x * targetDistance, 0, FIELD.width),
+      y: clamp(state.ball.y + facing.y * targetDistance, 0, FIELD.height),
+    };
+  }
+
+  const direction = unit(target.x - state.ball.x, target.y - state.ball.y);
+  if (direction.x === 0 && direction.y === 0) return [];
+  const isAerial = action !== 'shortPass';
+  const speed = action === 'throwIn' ? 235
+    : action === 'cornerCross' ? 320
+      : action === 'longKick' ? 340 : 330;
+  state.ball.ownerId = null;
+  state.ball.x = clamp(state.ball.x, 0, FIELD.width);
+  state.ball.y = clamp(state.ball.y, 0, FIELD.height);
+  state.ball.vx = direction.x * speed;
+  state.ball.vy = direction.y * speed;
+  state.ball.flightKind = isAerial
+    ? (action === 'cornerCross' ? 'cross' : 'lob')
+    : 'ground';
+  state.ball.flightSeconds = 0;
+  state.ball.flightDurationSeconds = Math.max(0.35, distance(target, state.ball) / speed);
+  state.ball.height = 0;
+  state.ball.verticalVelocity = isAerial ? LOB_VERTICAL_VELOCITY : 0;
+  state.ball.passTeam = restart.team;
+  state.ball.lastTouchTeam = restart.team;
+  state.ball.passProtectionSeconds = 0;
+  delete state.ball.skillId;
+  delete state.ball.lastHeaderPlayerId;
+  if (isAerial) {
+    state.ball.flightTarget = target;
+    delete state.ball.passTarget;
+  } else {
+    state.ball.flightTarget = null;
+    state.ball.passTarget = target;
+  }
+  state.possessionTeam = restart.team;
+  if (restart.team === 'home' && receiver && restart.type !== 'goalKick') {
+    state.controlledPlayerId = receiver.id;
+  }
+  if (restart.type === 'goalKick' && restart.team === 'home') {
+    const previous = byId(state, restart.previousControlledPlayerId);
+    state.controlledPlayerId = previous?.team === 'home' && !previous.dismissed
+      ? previous.id
+      : nearestPlayer(activePlayers(state, 'home'), taker)?.id ?? null;
+  }
+  state.restart = null;
+  state.phase = state.overtimeRemainingSeconds === null ? 'playing' : 'overtime';
+  return [
+    { type: 'pass', team: restart.team, action: action === 'shortPass' ? 'groundPass' : action, receiverId: receiver?.id ?? null, completed: false },
+    { type: 'restartTaken', restartType: restart.type, team: restart.team, playerId: taker.id },
+  ];
+}
+
+function advanceManualRestart(state, input, deltaSeconds) {
+  const restart = state.restart;
+  if (!restart) return [];
+  restart.readySeconds = Math.max(0, restart.readySeconds - deltaSeconds);
+  const taker = byId(state, restart.takerId);
+  if (!taker || taker.dismissed) return [];
+  if (restart.readySeconds > 0) return [];
+
+  if (restart.team === 'away') {
+    const receiver = launchAutomaticRestart(state, taker);
+    state.restart = null;
+    state.phase = state.overtimeRemainingSeconds === null ? 'playing' : 'overtime';
+    return [{ type: 'restartTaken', restartType: restart.type, team: restart.team, playerId: taker.id, receiverId: receiver?.id ?? null }];
+  }
+
+  if (input.moveX !== 0 || input.moveY !== 0) {
+    const facing = unit(input.moveX, input.moveY);
+    taker.facingX = facing.x;
+    taker.facingY = facing.y;
+  }
+  if (restart.type === 'throwIn' && input.pressed.has('s')) return releaseRestart(state, restart, 'throwIn');
+  if (restart.type === 'cornerKick' && input.pressed.has('a')) return releaseRestart(state, restart, 'cornerCross');
+  if (restart.type === 'cornerKick' && input.pressed.has('s')) return releaseRestart(state, restart, 'shortPass');
+  if (restart.type === 'goalKick' && input.pressed.has('a')) return releaseRestart(state, restart, 'longKick');
+  if (restart.type === 'goalKick' && input.pressed.has('s')) return releaseRestart(state, restart, 'shortPass');
+  return [];
+}
+
 function beginSetPiece(state, deltaSeconds) {
   state.phaseSeconds -= deltaSeconds;
   if (state.phaseSeconds > 0) return [];
@@ -1212,7 +1343,11 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   }
 
   if (state.phase === 'goalPause') return [...events, ...beginKickoff(state, dt)];
+  if (state.restart && ['throwIn', 'cornerKick', 'goalKick'].includes(state.phase)) {
+    return [...events, ...advanceManualRestart(state, input, dt)];
+  }
   if (state.phase === 'goalKick') return [...events, ...beginGoalKick(state, dt)];
+  if (state.phase === 'throwIn' || state.phase === 'cornerKick') return events;
   if (state.phase === 'freeKick' || state.phase === 'penaltyKick') return [...events, ...beginSetPiece(state, dt)];
 
   let controlled = byId(state, state.controlledPlayerId);

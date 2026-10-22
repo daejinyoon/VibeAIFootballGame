@@ -7,11 +7,12 @@
 [P01 경기 규칙과 화면 구성](./phases/2026-10-22-law-based-3d-football-rework/P01-match-rules-and-presentation/phase.md)
 
 ## Active Task
-[T02 공 경계 판정과 직접 조작하는 경기 재개](./phases/2026-10-22-law-based-3d-football-rework/P01-match-rules-and-presentation/T02-boundaries-and-manual-restarts.md)
+[T03 접촉 위험도 기반 파울 징계](./phases/2026-10-22-law-based-3d-football-rework/P01-match-rules-and-presentation/T03-foul-severity-and-discipline.md)
 
 ## Status
 - T01 완료: 충전 게이지 제거, 즉시 방향 기준 패스/슛과 UI 조작 안내 변경. production build 통과.
-- P01 진행률 1/4 (active: T02)
+- T02 완료: 공 전체 경계 판정과 수동 스로인/코너/골킥 구현. production build 통과.
+- P01 진행률 2/4 (active: T03)
 
 ## Next Step (IMPORTANT)
-T02 청사진을 읽고 `game/src/game/stepGame.js`에서 공 전체 경계 판정과 직접 조작하는 스로인·코너·골킥을 구현합니다. 작업 디렉터리는 `game/`이며 빌드 검증 명령은 `npm run build`입니다.
+T03 청사진을 읽고 `game/src/game/stepGame.js`의 `resolveTackle`/`awardFoul` 위험도 분류와 경고·퇴장 상태 전이를 구현합니다. 작업 디렉터리는 `game/`이며 빌드 검증 명령은 `npm run build`입니다.
