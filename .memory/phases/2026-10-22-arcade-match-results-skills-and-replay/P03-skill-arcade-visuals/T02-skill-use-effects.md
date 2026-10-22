@@ -69,7 +69,7 @@ Task: T02-skill-use-effects
 ## Progress
 - [x] Implementation complete
 - [x] Validation passed
-- commit: `9f8441b`
+- commit: `9658d34`
 
 ## Execution Notes
 - Added transient effect state with stable per-match IDs. Successful player and AI skill uses create cues; Rainbow Reflect adds activation and return cues, and Power Tackle contact adds a short impact cue.
