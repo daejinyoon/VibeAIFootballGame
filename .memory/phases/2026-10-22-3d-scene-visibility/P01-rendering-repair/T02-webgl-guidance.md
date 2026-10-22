@@ -1,6 +1,6 @@
 # Task: T02 Unsupported WebGL Guidance
 
-## Status: pending
+## Status: done
 
 ## Goal
 Replace a blank match scene with a clear Korean support message when the browser cannot initialize the WebGL 2 renderer required by the installed Three.js version, or when the active WebGL context is lost.
@@ -57,11 +57,11 @@ Replace a blank match scene with a clear Korean support message when the browser
   - Do not hide pause controls, the external score HUD, or the match page navigation.
 
 ## Acceptance Criteria
-- [ ] With working WebGL 2, the normal 3D canvas remains visible and no unsupported message appears.
-- [ ] When WebGL 2 context creation is blocked, the blue blank scene is replaced by the Korean browser-support guidance.
-- [ ] When the context is lost during play, the canvas shows the same guidance rather than remaining blank.
-- [ ] A renderer error does not remove the score HUD or break the rest of the React app.
-- [ ] Guidance remains readable at desktop and narrow viewport sizes.
+- [x] With working WebGL 2, the normal 3D canvas remains visible and no unsupported message appears.
+- [x] When WebGL 2 context creation is blocked, the blue blank scene is replaced by the Korean browser-support guidance.
+- [x] When the context is lost during play, the canvas shows the same guidance rather than remaining blank.
+- [x] A renderer error does not remove the score HUD or break the rest of the React app.
+- [x] Guidance remains readable at desktop and narrow viewport sizes.
 
 ## Validation
 - `cd game; npm run build` — production bundle compiles.
@@ -81,6 +81,11 @@ Task: T02-webgl-guidance
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
+- [x] Implementation complete
+- [x] Validation passed
 - commit: pending
+## Execution Notes
+- Added a WebGL 2 preflight check before mounting R3F. The temporary probe context is released through `WEBGL_lose_context` so it does not occupy a browser context slot.
+- Added a local React error boundary for Canvas initialization/render errors, plus `webglcontextlost`/`webglcontextrestored` listeners on the renderer canvas. Unsupported, lost, or restored renderer states stay separate from ordinary scene visibility problems.
+- The fallback is an in-canvas Korean support panel; it does not switch to the legacy 2D pitch. Score/time HUD remains outside and visible.
+- `npm run build` passed. Manual browser checks covered working WebGL 2, blocked WebGL 2, a simulated renderer initialization error, context loss, and narrow-screen readability. The existing Three.js chunk-size warning remains.

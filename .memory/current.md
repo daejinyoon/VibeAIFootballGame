@@ -4,14 +4,15 @@
 [3D Scene Visibility](./plans/2026-10-22-3d-scene-visibility.md)
 
 ## Active Phase
-[P01 Rendering Repair](./phases/2026-10-22-3d-scene-visibility/P01-rendering-repair/phase.md)
+None — all tasks in P01 are complete.
 
 ## Active Task
-[T02 Unsupported WebGL Guidance](./phases/2026-10-22-3d-scene-visibility/P01-rendering-repair/T02-webgl-guidance.md)
+None — plan complete.
 
 ## Status
-- T01 complete: fixed camera framing unit mismatch and increased football contrast; production build and desktop/narrow Chrome visual checks passed.
-- Phase progress: 1/2 tasks complete; T02 is active.
+- T01 complete: corrected the camera framing unit mismatch and improved ball contrast; build and desktop/narrow Chrome checks passed.
+- T02 complete: added WebGL 2 initialization checks, renderer error fallback, and context-loss guidance; build and browser checks passed.
+- Phase progress: 2/2 tasks complete; plan complete.
 
 ## Next Step (IMPORTANT)
-Read T02's blueprint, then show clear Korean guidance when WebGL 2 initialization fails or the renderer context is lost.
+Plan complete. If further graphics work is requested, inspect the local game in Chrome and use the existing 3D scene as the baseline.
