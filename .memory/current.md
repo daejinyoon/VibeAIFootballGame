@@ -1,13 +1,13 @@
 # Current Context
 
 ## Active Plan
-[축구 게임 시각 검수와 초기 로딩 최적화](./plans/2026-10-22-football-visual-optimization.md)
+[축구 경기 청크 캐시 경계 개선](./plans/2026-10-22-football-match-chunk-cache.md)
 
 ## Active Phase
-[P01 시각 검수와 초기 로딩](./phases/2026-10-22-football-visual-optimization/P01-visual-and-startup/phase.md) — 완료
+[P01 엔진 캐시 경계](./phases/2026-10-22-football-match-chunk-cache/P01-engine-cache-boundary/phase.md)
 
 ## Active Task
-없음 — 시각 검수와 초기 로딩 최적화 태스크를 모두 완료했습니다.
+[T01 경기 엔진 chunk 캐시 경계 분리](./phases/2026-10-22-football-match-chunk-cache/P01-engine-cache-boundary/T01-split-engine-chunk.md)
 
 ## Status
 - P01 실제 3D 장면 완료: T01 commit 08befaf, T02 commit eff1ed6, T03 commit 408c57c
@@ -19,6 +19,7 @@
 - P03-T02 완료: 밝은 캠페인 UI·보상 카드·편성 흐름, 검증·커밋 ce2f3c7
 - P01-T01 완료: 데스크톱·모바일 Chrome 시각 검수, 모바일 레이아웃 수정 및 캡처 기록, 커밋 1fe686c
 - P01-T02 완료: 경기 진입 시 GameScreen 지연 로드, 초기 JS 78.9% 감소, 검증·커밋 209cf64
+- 축구 경기 청크 캐시 경계 개선 P01-T01: 구현 및 브라우저 검증 진행 중
 
 ## Next Step (IMPORTANT)
-The visual QA and startup optimization plan is complete. See `.memory/qa/2026-10-22-football-visual-review.md` for screenshots and measured results.
+T01 청사진에 따라 `game/vite.config.js`의 production chunk 구성을 수정하고 빌드·브라우저 요청을 검증합니다.
