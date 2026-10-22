@@ -1,4 +1,15 @@
-import { FIELD } from './constants.js';
+import {
+  BALL_GRAVITY,
+  FIELD,
+  HEADER_HEIGHT_MAX,
+  HEADER_HEIGHT_MIN,
+  HEADER_RADIUS,
+  JUMP_COOLDOWN_SECONDS,
+  JUMP_GRAVITY,
+  JUMP_INITIAL_VELOCITY,
+  JUMP_MAX_HEIGHT,
+  LOB_VERTICAL_VELOCITY,
+} from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
 import { applyAutomaticRainbowReflect, applySkill, SKILL_IDS } from './skills.js';
 
@@ -62,12 +73,14 @@ function setBallOwner(state, player) {
   state.ball.vx = 0;
   state.ball.vy = 0;
   state.ball.height = 0;
+  state.ball.verticalVelocity = 0;
   state.ball.flightKind = 'ground';
   state.ball.flightSeconds = 0;
   delete state.ball.flightDurationSeconds;
   delete state.ball.skillId;
   delete state.ball.passTeam;
   delete state.ball.passTarget;
+  delete state.ball.lastHeaderPlayerId;
   state.ball.passProtectionSeconds = 0;
   state.ball.lastTouchTeam = player.team;
   state.possessionTeam = player.team;
@@ -109,10 +122,18 @@ function releasePass(state, player, kind, chargeRatio, moveX, moveY) {
   state.ball.ownerId = null;
   state.ball.vx = direction.x * speed;
   state.ball.vy = direction.y * speed;
-  state.ball.flightKind = kind === 'lobPass' ? 'lob' : 'ground';
+  const attackDirection = player.team === 'home' ? 1 : -1;
+  const isForward = direction.x * attackDirection > 0.2;
+  const isWide = player.y < FIELD.height * 0.22 || player.y > FIELD.height * 0.78;
+  const flightKind = kind === 'lobPass'
+    ? (isWide && isForward ? 'cross' : 'lob')
+    : 'ground';
+  state.ball.flightKind = flightKind;
   state.ball.flightSeconds = 0;
   state.ball.flightDurationSeconds = Math.max(0.35, distance(receiver, player) / speed);
   state.ball.height = 0;
+  state.ball.verticalVelocity = flightKind === 'ground' ? 0 : LOB_VERTICAL_VELOCITY;
+  delete state.ball.lastHeaderPlayerId;
   delete state.ball.skillId;
   state.ball.passTeam = player.team;
   if (kind === 'groundPass') {
@@ -146,6 +167,7 @@ function releaseShot(state, player, chargeRatio) {
   state.ball.flightKind = 'shot';
   state.ball.flightSeconds = 0;
   state.ball.height = 0;
+  state.ball.verticalVelocity = 0;
   delete state.ball.flightDurationSeconds;
   delete state.ball.skillId;
   delete state.ball.passTeam;
@@ -493,19 +515,76 @@ function integrateLooseBall(state, deltaSeconds) {
   ball.x += ball.vx * deltaSeconds;
   ball.y += ball.vy * deltaSeconds;
   ball.flightSeconds = (ball.flightSeconds ?? 0) + deltaSeconds;
-  const friction = Math.exp(-2.4 * deltaSeconds);
-  ball.vx *= friction;
-  ball.vy *= friction;
-
-  if (ball.flightKind === 'lob') {
-    const duration = Math.max(0.35, ball.flightDurationSeconds ?? 0.9);
-    const progress = clamp(ball.flightSeconds / duration, 0, 1);
-    ball.height = Math.sin(progress * Math.PI) * 48;
-    if (progress >= 1) {
+  if (['lob', 'cross', 'header'].includes(ball.flightKind)) {
+    ball.verticalVelocity = (ball.verticalVelocity ?? 0) - BALL_GRAVITY * deltaSeconds;
+    ball.height = Math.max(0, ball.height + ball.verticalVelocity * deltaSeconds);
+    if (ball.height === 0) {
+      ball.verticalVelocity = 0;
       ball.height = 0;
       ball.flightKind = 'ground';
     }
+  } else {
+    const friction = Math.exp(-2.4 * deltaSeconds);
+    ball.vx *= friction;
+    ball.vy *= friction;
   }
+}
+
+function updateJumps(state, controlled, input, deltaSeconds) {
+  for (const player of state.players) {
+    player.jumpCooldownSeconds = Math.max(0, (player.jumpCooldownSeconds ?? 0) - deltaSeconds);
+    if (player.dismissed || player.role === 'goalkeeper') continue;
+    if (player.id === controlled?.id && input.pressed.has('Space')
+        && player.jumpHeight <= 0 && player.jumpCooldownSeconds === 0) {
+      player.jumpVelocity = JUMP_INITIAL_VELOCITY;
+      player.jumpCooldownSeconds = JUMP_COOLDOWN_SECONDS;
+    }
+    if (player.id !== controlled?.id && state.ball.height > 10
+        && state.ball.verticalVelocity < 0 && distance(player, state.ball) <= 90
+        && player.jumpHeight <= 0 && player.jumpCooldownSeconds === 0) {
+      player.jumpVelocity = JUMP_INITIAL_VELOCITY;
+      player.jumpCooldownSeconds = JUMP_COOLDOWN_SECONDS;
+    }
+    if (player.jumpVelocity !== 0 || player.jumpHeight > 0) {
+      player.jumpVelocity -= JUMP_GRAVITY * deltaSeconds;
+      player.jumpHeight = clamp(player.jumpHeight + player.jumpVelocity * deltaSeconds, 0, JUMP_MAX_HEIGHT);
+      if (player.jumpHeight === 0) player.jumpVelocity = 0;
+    }
+  }
+}
+
+function resolveAerialHeader(state) {
+  const { ball } = state;
+  if (ball.ownerId || ball.height < HEADER_HEIGHT_MIN || ball.height > HEADER_HEIGHT_MAX) return [];
+  const lastHeaderPlayer = byId(state, ball.lastHeaderPlayerId);
+  if (lastHeaderPlayer && distance(lastHeaderPlayer, ball) > HEADER_RADIUS) {
+    delete ball.lastHeaderPlayerId;
+  }
+  const jumper = state.players
+    .filter((player) => !player.dismissed && player.role !== 'goalkeeper'
+      && player.id !== ball.lastHeaderPlayerId && player.jumpHeight > 0)
+    .map((player, index) => ({ player, index, distance: distance(player, ball) }))
+    .filter(({ distance: gap }) => gap <= HEADER_RADIUS)
+    .sort((a, b) => a.distance - b.distance || a.index - b.index)[0]?.player;
+  if (!jumper) return [];
+
+  const attackDirection = jumper.team === 'home' ? 1 : -1;
+  const facing = unit(jumper.facingX, jumper.facingY);
+  ball.ownerId = null;
+  ball.vx = (facing.x || attackDirection) * 360;
+  ball.vy = (facing.y || 0) * 360 + (jumper.team === 'home' ? 120 : -120);
+  ball.height = Math.max(HEADER_HEIGHT_MIN, jumper.jumpHeight + 22);
+  ball.verticalVelocity = 120;
+  ball.flightKind = 'header';
+  ball.flightSeconds = 0;
+  ball.lastHeaderPlayerId = jumper.id;
+  ball.lastTouchTeam = jumper.team;
+  delete ball.passTarget;
+  ball.passProtectionSeconds = 0;
+  delete ball.passTeam;
+  state.possessionTeam = jumper.team;
+  if (jumper.team === 'home') state.controlledPlayerId = jumper.id;
+  return [{ type: 'header', team: jumper.team, playerId: jumper.id }];
 }
 
 function collectLooseBall(state) {
@@ -866,6 +945,8 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
     state.controlledPlayerId = controlled?.id ?? null;
   }
 
+  updateJumps(state, controlled, input, dt);
+
   for (const team of ['home', 'away']) {
     const reflectionEvent = applyAutomaticRainbowReflect(state, team, dt);
     if (reflectionEvent) events.push(reflectionEvent);
@@ -900,6 +981,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
       updateOwnedBall(state);
     } else {
       integrateLooseBall(state, dt);
+      events.push(...resolveAerialHeader(state));
       events.push(...handleKeeperContact(state));
       events.push(...checkBallBoundary(state));
       if (!['goalPause', 'goalKick', 'finished'].includes(state.phase)) {

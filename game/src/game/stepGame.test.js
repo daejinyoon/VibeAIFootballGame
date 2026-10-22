@@ -25,6 +25,21 @@ test('moves the selected player at the intended speed and normalizes diagonals',
   assert.equal(state.ball.x, player.x + player.facingX * 17);
 });
 
+test('Space makes a field player jump and goalkeepers stay grounded', () => {
+  const state = createInitialGameState();
+  const player = state.players.find((candidate) => candidate.id === 'home-fw');
+  const keeper = state.players.find((candidate) => candidate.id === 'home-gk');
+
+  stepGame(state, frame({ pressed: ['Space'] }), 0.05);
+  assert.ok(player.jumpHeight > 0);
+  assert.ok(player.jumpHeight <= 70);
+  assert.equal(keeper.jumpHeight, 0);
+
+  for (let index = 0; index < 30; index += 1) stepGame(state, frame(), 0.05);
+  assert.equal(player.jumpHeight, 0);
+  assert.equal(player.jumpVelocity, 0);
+});
+
 test('home support AI is deterministic and keeps targets inside the pitch', () => {
   const first = createInitialGameState();
   const second = structuredClone(first);
@@ -98,8 +113,51 @@ test('an arrow direction selects the intended teammate for a charged lob pass', 
   assert.equal(state.controlledPlayerId, 'home-def-1');
   assert.equal(state.ball.ownerId, null);
   assert.equal(state.ball.flightKind, 'lob');
+  assert.ok(state.ball.height > 0);
+  assert.ok(state.ball.verticalVelocity > 0);
   assert.ok(state.ball.vx < 0);
   assert.ok(events.some((event) => event.type === 'pass' && event.action === 'lobPass'));
+});
+
+test('a forward lob from a wide lane is classified as a cross', () => {
+  const state = createInitialGameState();
+  const passer = state.players.find((candidate) => candidate.id === 'home-fw');
+  const receiver = state.players.find((candidate) => candidate.id === 'home-mid-1');
+  passer.x = 400;
+  passer.y = 90;
+  receiver.x = 560;
+  receiver.y = 100;
+  state.ball.ownerId = passer.id;
+  state.controlledPlayerId = passer.id;
+  state.possessionTeam = 'home';
+  stepGame(state, frame({ moveX: 1, down: ['a'], pressed: ['a'] }), 0.05);
+  stepGame(state, frame({ moveX: 1, released: ['a'] }), 0.05);
+
+  assert.equal(state.ball.flightKind, 'cross');
+  assert.ok(state.ball.verticalVelocity > 0);
+  stepGame(state, frame(), 0.05);
+  assert.ok(state.ball.height > 0);
+});
+
+test('a jumping field player heads a reachable airborne ball', () => {
+  const state = createInitialGameState();
+  const jumper = state.players.find((candidate) => candidate.id === 'home-fw');
+  Object.assign(jumper, { x: 500, y: 250, jumpHeight: 45, jumpVelocity: 0, facingX: 1, facingY: 0 });
+  for (const player of state.players) {
+    if (player.id !== jumper.id) Object.assign(player, { x: 100, y: player.team === 'home' ? 40 : 500 });
+  }
+  Object.assign(state.ball, {
+    x: 510, y: 250, vx: 0, vy: 0, ownerId: null,
+    height: 40, verticalVelocity: -40, flightKind: 'cross', lastTouchTeam: 'away',
+  });
+  state.possessionTeam = 'away';
+
+  const events = stepGame(state, frame(), 0.01);
+  assert.ok(events.some((event) => event.type === 'header' && event.playerId === jumper.id));
+  assert.equal(state.ball.flightKind, 'header');
+  assert.equal(state.ball.lastTouchTeam, 'home');
+  assert.equal(state.ball.ownerId, null);
+  assert.ok(state.ball.verticalVelocity > 0);
 });
 
 test('S releases a ground pass and transfers control to the receiver', () => {

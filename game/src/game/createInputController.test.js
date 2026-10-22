@@ -47,6 +47,17 @@ test('reads held movement keys and one-frame press/release edges', () => {
   controller.destroy();
 });
 
+test('reads Space by KeyboardEvent.code as a one-frame jump press', () => {
+  const target = createFakeWindow();
+  const controller = createInputController(target);
+  target.emit('keydown', { key: ' ', code: 'Space', preventDefault() {} });
+  assert.ok(controller.readFrame().pressed.has('Space'));
+  assert.ok(!controller.readFrame().pressed.has('Space'));
+  target.emit('keyup', { key: ' ', code: 'Space', preventDefault() {} });
+  assert.ok(controller.readFrame().released.has('Space'));
+  controller.destroy();
+});
+
 test('clears held keys on window blur and when disabled', () => {
   const target = createFakeWindow();
   const controller = createInputController(target);

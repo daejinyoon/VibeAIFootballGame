@@ -134,7 +134,8 @@ function drawPitch(ctx, camera) {
 
 function drawPlayer(ctx, player, isControlled, camera) {
   if (player.dismissed) return;
-  const point = projectPoint(player.x, player.y, camera);
+  const groundPoint = projectPoint(player.x, player.y, camera);
+  const point = { ...groundPoint, y: groundPoint.y - Math.max(0, player.jumpHeight ?? 0) * groundPoint.scale };
   const width = Math.round((player.role === 'goalkeeper' ? 22 : 18) * point.scale);
   const height = Math.round((player.role === 'goalkeeper' ? 26 : 24) * point.scale);
   const x = Math.round(point.x - width / 2);
@@ -144,7 +145,7 @@ function drawPlayer(ctx, player, isControlled, camera) {
     : COLORS[player.team];
 
   ctx.fillStyle = COLORS.shadow;
-  ctx.fillRect(x + 3 * point.scale, y + height - 1, width, Math.max(3, 5 * point.scale));
+  ctx.fillRect(groundPoint.x - width / 2 + 3 * point.scale, groundPoint.y + height / 2 - 1, width, Math.max(3, 5 * point.scale));
   if (isControlled) {
     ctx.strokeStyle = COLORS.outline;
     ctx.lineWidth = 2;
