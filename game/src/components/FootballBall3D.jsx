@@ -26,30 +26,30 @@ export function FootballBall3D({ ball, actorsRef }) {
   return (
     <group ref={registerActor} position={[x, 0, z]}>
       <mesh position={[0, 0.033, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[1 + height * 0.15, 1, 1 + height * 0.15]}>
-        <circleGeometry args={[0.14, 24]} />
+        <circleGeometry args={[0.2, 24]} />
         <meshBasicMaterial color="#275341" transparent opacity={Math.max(0.16, 0.34 - height * 0.025)} depthWrite={false} />
       </mesh>
 
       <group ref={(actor) => { ballRef.current = actor; registerBallBody(actor); }} position={[0, ballY, 0]}>
         <mesh castShadow>
-          <sphereGeometry args={[0.145, 18, 14]} />
+          <sphereGeometry args={[0.19, 18, 14]} />
           <meshStandardMaterial
-            color={ball.flightKind === 'skill-shot' ? '#fff1bd' : '#ffffff'}
+            color={ball.flightKind === 'skill-shot' ? '#fff1bd' : '#fff7df'}
             emissive={ball.flightKind === 'skill-shot' ? '#ffb144' : '#ffffff'}
             emissiveIntensity={ball.flightKind === 'skill-shot' ? 0.48 : 0.04}
             roughness={0.4}
           />
         </mesh>
-        <mesh position={[0, 0.014, 0.13]}>
-          <icosahedronGeometry args={[0.038, 0]} />
+        <mesh position={[0, 0.018, 0.17]}>
+          <icosahedronGeometry args={[0.05, 0]} />
           <meshStandardMaterial color="#273945" roughness={0.54} />
         </mesh>
-        <mesh position={[-0.093, 0.052, 0.071]} rotation={[0.3, 0, -0.4]}>
-          <icosahedronGeometry args={[0.031, 0]} />
+        <mesh position={[-0.122, 0.068, 0.093]} rotation={[0.3, 0, -0.4]}>
+          <icosahedronGeometry args={[0.041, 0]} />
           <meshStandardMaterial color="#273945" roughness={0.54} />
         </mesh>
-        <mesh position={[0.091, -0.049, 0.068]} rotation={[-0.3, 0, 0.4]}>
-          <icosahedronGeometry args={[0.031, 0]} />
+        <mesh position={[0.119, -0.064, 0.089]} rotation={[-0.3, 0, 0.4]}>
+          <icosahedronGeometry args={[0.041, 0]} />
           <meshStandardMaterial color="#273945" roughness={0.54} />
         </mesh>
       </group>
