@@ -1,9 +1,9 @@
-const SEAT_COLORS = ['#4db8ef', '#d5f185', '#e87f61', '#b78bff', '#83d4ac'];
+const SEAT_COLORS = ['#58c9f2', '#e1f477', '#ff9b79', '#c4a3ff', '#81ddad'];
 
 function SideStand({ side }) {
   const tiers = Array.from({ length: 4 }, (_, index) => index);
   const seats = Array.from({ length: 23 }, (_, index) => index);
-  const accent = side < 0 ? '#4db8ef' : '#ff9a54';
+  const accent = side < 0 ? '#3fb8e4' : '#ff8b63';
 
   return (
     <group position={[0, 0, side * 4.15]}>
@@ -14,7 +14,7 @@ function SideStand({ side }) {
           <group key={`tier-${tier}`} position={[0, rise, setback]}>
             <mesh position={[0, -0.1, 0]} castShadow receiveShadow>
               <boxGeometry args={[19, 0.22, 0.5]} />
-              <meshStandardMaterial color={tier % 2 ? '#26364a' : '#303f50'} roughness={0.78} />
+              <meshStandardMaterial color={tier % 2 ? '#76b5c4' : '#91cbd0'} roughness={0.78} />
             </mesh>
             {seats.map((seat) => {
               const x = -8.8 + seat * 0.8;
@@ -36,11 +36,11 @@ function SideStand({ side }) {
       </mesh>
       <mesh position={[-4.45, 0.94, -side * 0.1]}>
         <boxGeometry args={[8.9, 0.26, 0.12]} />
-        <meshStandardMaterial color={side < 0 ? '#143d52' : '#522b2a'} emissive={accent} emissiveIntensity={0.25} />
+        <meshStandardMaterial color={side < 0 ? '#9eddea' : '#ffd0a7'} emissive={accent} emissiveIntensity={0.08} />
       </mesh>
       <mesh position={[4.45, 0.94, -side * 0.1]}>
         <boxGeometry args={[8.9, 0.26, 0.12]} />
-        <meshStandardMaterial color={side < 0 ? '#143d52' : '#522b2a'} emissive={accent} emissiveIntensity={0.25} />
+        <meshStandardMaterial color={side < 0 ? '#9eddea' : '#ffd0a7'} emissive={accent} emissiveIntensity={0.08} />
       </mesh>
     </group>
   );
@@ -51,7 +51,7 @@ function EndStand({ side, color }) {
     <group position={[side * 8.15, 0.9, 0]}>
       <mesh position={[0, 0.15, 0]} receiveShadow>
         <boxGeometry args={[0.5, 2.1, 8.9]} />
-        <meshStandardMaterial color="#233341" roughness={0.8} />
+        <meshStandardMaterial color="#81b9c7" roughness={0.8} />
       </mesh>
       {[-3.1, -1.55, 0, 1.55, 3.1].map((z, index) => (
         <mesh key={`end-seat-${index}`} position={[side * -0.3, 0.3 + (index % 2) * 0.2, z]}>
@@ -61,7 +61,7 @@ function EndStand({ side, color }) {
       ))}
       <mesh position={[side * -0.3, 2.0, 0]}>
         <boxGeometry args={[0.2, 0.14, 8.9]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.85} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.22} />
       </mesh>
     </group>
   );
@@ -72,7 +72,7 @@ export function StadiumBackdrop3D() {
     <group>
       <mesh position={[0, -0.3, 0]} receiveShadow>
         <boxGeometry args={[23, 0.2, 16]} />
-        <meshStandardMaterial color="#192638" roughness={0.96} />
+        <meshStandardMaterial color="#a7d8d4" roughness={0.96} />
       </mesh>
 
       <SideStand side={-1} />
@@ -84,23 +84,23 @@ export function StadiumBackdrop3D() {
         <group key={`floodlight-${xSide}-${zSide}`} position={[xSide * 9.1, 0, zSide * 5.7]}>
           <mesh position={[0, 2.65, 0]} castShadow>
             <boxGeometry args={[0.18, 5.3, 0.18]} />
-            <meshStandardMaterial color="#647286" metalness={0.55} roughness={0.36} />
+          <meshStandardMaterial color="#8fc5ce" metalness={0.4} roughness={0.45} />
           </mesh>
           <mesh position={[0, 5.35, 0]}>
             <boxGeometry args={[1.25, 0.3, 0.3]} />
-            <meshStandardMaterial color="#e7f5ff" emissive={zSide < 0 ? '#89d9ff' : '#ffe2b6'} emissiveIntensity={2.2} />
+            <meshStandardMaterial color="#fff8dc" emissive={zSide < 0 ? '#b6edff' : '#ffe5c2'} emissiveIntensity={0.35} />
           </mesh>
-          <pointLight position={[0, 5.1, -zSide * 0.6]} color={zSide < 0 ? '#8ddaff' : '#ffe0ae'} intensity={30} distance={11} decay={2} />
+          <pointLight position={[0, 5.1, -zSide * 0.6]} color={zSide < 0 ? '#e8fbff' : '#fff3d6'} intensity={5} distance={14} decay={2} />
         </group>
       )))}
 
       <mesh position={[0, 1.7, -6.8]}>
         <boxGeometry args={[7.8, 0.42, 0.18]} />
-        <meshStandardMaterial color="#18242f" emissive="#55bdff" emissiveIntensity={0.32} />
+        <meshStandardMaterial color="#b8eafa" emissive="#55bdff" emissiveIntensity={0.08} />
       </mesh>
       <mesh position={[0, 1.7, 6.8]}>
         <boxGeometry args={[7.8, 0.42, 0.18]} />
-        <meshStandardMaterial color="#2d2021" emissive="#ff9859" emissiveIntensity={0.32} />
+        <meshStandardMaterial color="#ffdcc0" emissive="#ff9859" emissiveIntensity={0.08} />
       </mesh>
     </group>
   );

@@ -5,7 +5,7 @@ const FIELD_WIDTH = 12;
 const FIELD_DEPTH = (FIELD.height / FIELD.width) * FIELD_WIDTH;
 const HALF_WIDTH = FIELD_WIDTH / 2;
 const HALF_DEPTH = FIELD_DEPTH / 2;
-const LINE_COLOR = '#e5f4cd';
+const LINE_COLOR = '#f4fff0';
 
 function PitchLine({ position, size, color = LINE_COLOR }) {
   return (
@@ -60,7 +60,7 @@ function Goal({ side, accent }) {
 export function FootballPitch3D() {
   const stripes = Array.from({ length: 10 }, (_, index) => ({
     x: -HALF_WIDTH + (index + 0.5) * (FIELD_WIDTH / 10),
-    color: index % 2 === 0 ? '#267c50' : '#2d8957',
+    color: index % 2 === 0 ? '#38ae60' : '#48bf6d',
   }));
   const boxWidth = FIELD_WIDTH * (165 / FIELD.width);
   const boxDepth = FIELD_DEPTH * (300 / FIELD.height);
@@ -73,7 +73,7 @@ export function FootballPitch3D() {
     <group>
       <mesh position={[0, -0.08, 0]} receiveShadow>
         <boxGeometry args={[FIELD_WIDTH + 0.5, 0.16, FIELD_DEPTH + 0.5]} />
-        <meshStandardMaterial color="#153d2c" roughness={0.95} />
+        <meshStandardMaterial color="#328454" roughness={0.95} />
       </mesh>
 
       {stripes.map(({ x, color }) => (
