@@ -106,7 +106,9 @@ export default function App() {
       stageReached: campaign.currentStage,
       goalDifference,
     });
-    const bestProfile = updateBestRecord(profile, { stageReached: campaign.currentStage, goalDifference });
+    const bestProfile = endEvent.type === 'matchWon'
+      ? updateBestRecord(profile, { stageReached: campaign.currentStage, goalDifference })
+      : profile;
     const savedProfile = { ...bestProfile, campaignSave: createCampaignSave(nextCampaign) };
     setProfile(savedProfile);
     try {

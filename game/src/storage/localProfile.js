@@ -1,10 +1,12 @@
 import { STAGE_COUNT } from '../game/constants.js';
+import { createOpponentSkillSets } from '../game/campaign.js';
 import { FIELD_PLAYER_IDS, SKILL_IDS, validateSkillAssignments } from '../game/skills.js';
 
 export const STORAGE_KEY = 'dex-pixel-football:v1';
+const PROFILE_VERSION = 2;
 
 export function createEmptyProfile() {
-  return { schemaVersion: 1, nickname: '', campaignSave: null, bestRecord: null };
+  return { schemaVersion: PROFILE_VERSION, nickname: '', campaignSave: null, bestRecord: null };
 }
 
 function getDefaultStorage() {
@@ -15,36 +17,39 @@ function getDefaultStorage() {
   }
 }
 
-function isCampaignSave(value) {
-  if (!value || !Number.isInteger(value.currentStage) || value.currentStage < 1 || value.currentStage > STAGE_COUNT
-      || !value.opponentSkillSets || typeof value.opponentSkillSets !== 'object'
-      || !Array.isArray(value.clearedStageResults)) return false;
-  if (value.playerSkillStacks && value.skillInventory) {
-    const validOffer = value.pendingSkillOffer == null
-      || (Array.isArray(value.pendingSkillOffer) && value.pendingSkillOffer.length === 3
-        && new Set(value.pendingSkillOffer).size === 3
-        && value.pendingSkillOffer.every((skillId) => SKILL_IDS.includes(skillId)));
-    return validOffer
-      && (value.pendingSkillAssignment == null || SKILL_IDS.includes(value.pendingSkillAssignment))
-      && validateSkillAssignments(value.playerSkillStacks, FIELD_PLAYER_IDS).valid
-      && SKILL_IDS.every((skillId) => Number.isInteger(value.skillInventory[skillId]) && value.skillInventory[skillId] >= 0);
-  }
-  return Boolean(value.homeLoadout && typeof value.homeLoadout === 'object');
+function isStageResult(value, expectedStage = null) {
+  return Boolean(value && Number.isInteger(value.stage) && value.stage >= 1 && value.stage <= STAGE_COUNT
+    && (expectedStage == null || value.stage === expectedStage)
+    && Number.isFinite(value.homeGoals) && value.homeGoals >= 0
+    && Number.isFinite(value.awayGoals) && value.awayGoals >= 0
+    && value.goalDifference === value.homeGoals - value.awayGoals);
 }
 
-function upgradeCampaignSave(value) {
-  if (value.playerSkillStacks && value.skillInventory) return value;
-  const playerSkillStacks = Object.fromEntries(FIELD_PLAYER_IDS.map((playerId) => {
-    const skillId = value.homeLoadout[playerId];
-    return [playerId, SKILL_IDS.includes(skillId) ? { skillId, copies: 1 } : null];
-  }));
-  return {
-    ...value,
-    playerSkillStacks,
-    skillInventory: Object.fromEntries(SKILL_IDS.map((skillId) => [skillId, 0])),
-    pendingSkillOffer: null,
-    pendingSkillAssignment: null,
-  };
+function isOpponentSkillSets(value) {
+  if (!value || typeof value !== 'object') return false;
+  return Array.from({ length: STAGE_COUNT }, (_, index) => String(index + 1)).every((stage, index) => {
+    const skills = value[stage];
+    const expectedCount = [0, 1, 2, 3, 3][index];
+    return Array.isArray(skills) && skills.length === expectedCount
+      && new Set(skills).size === skills.length
+      && skills.every((skillId) => SKILL_IDS.includes(skillId));
+  });
+}
+
+function isCampaignSave(value) {
+  if (!value || !Number.isInteger(value.currentStage) || value.currentStage < 1 || value.currentStage > STAGE_COUNT
+      || !Array.isArray(value.clearedStageResults) || !isOpponentSkillSets(value.opponentSkillSets)
+      || !value.playerSkillStacks || !value.skillInventory) return false;
+  if (!value.clearedStageResults.every((item, index) => isStageResult(item, index + 1))) return false;
+  const validOffer = value.pendingSkillOffer == null
+    || (Array.isArray(value.pendingSkillOffer) && value.pendingSkillOffer.length === 3
+      && new Set(value.pendingSkillOffer).size === 3
+      && value.pendingSkillOffer.every((skillId) => SKILL_IDS.includes(skillId)));
+  const validStatus = value.status == null || ['active', 'complete'].includes(value.status);
+  return validOffer && validStatus
+    && (value.pendingSkillAssignment == null || SKILL_IDS.includes(value.pendingSkillAssignment))
+    && validateSkillAssignments(value.playerSkillStacks, FIELD_PLAYER_IDS).valid
+    && SKILL_IDS.every((skillId) => Number.isInteger(value.skillInventory[skillId]) && value.skillInventory[skillId] >= 0);
 }
 
 function isBestRecord(value) {
@@ -53,17 +58,72 @@ function isBestRecord(value) {
     && Number.isFinite(value.goalDifference));
 }
 
+function migrateLegacyCampaign(campaignSave) {
+  if (!campaignSave || !Number.isInteger(campaignSave.currentStage)
+      || campaignSave.currentStage < 1 || campaignSave.currentStage > STAGE_COUNT
+      || !Array.isArray(campaignSave.clearedStageResults)) return null;
+
+  const clearedStageResults = campaignSave.clearedStageResults.filter((item, index) => isStageResult(item, index + 1));
+  const opponentSkillSets = createOpponentSkillSets();
+
+  // Preserve the newer v1 checkpoint shape created by earlier builds.
+  if (campaignSave.playerSkillStacks && campaignSave.skillInventory) {
+    const checkpoint = {
+      ...campaignSave,
+      clearedStageResults,
+      opponentSkillSets: isOpponentSkillSets(campaignSave.opponentSkillSets) ? campaignSave.opponentSkillSets : opponentSkillSets,
+      status: campaignSave.status === 'complete' ? 'complete' : 'active',
+    };
+    return isCampaignSave(checkpoint) ? checkpoint : null;
+  }
+
+  // Older six-person loadouts become inventory cards; the keeper remains unequipped.
+  if (!campaignSave.homeLoadout || typeof campaignSave.homeLoadout !== 'object') return null;
+  const playerSkillStacks = Object.fromEntries(FIELD_PLAYER_IDS.map((playerId) => [playerId, null]));
+  const skillInventory = Object.fromEntries(SKILL_IDS.map((skillId) => [skillId, 0]));
+  for (const skillId of Object.values(campaignSave.homeLoadout)) {
+    if (SKILL_IDS.includes(skillId)) skillInventory[skillId] += 1;
+  }
+  return {
+    savedAt: campaignSave.savedAt,
+    currentStage: campaignSave.currentStage,
+    clearedStageResults,
+    playerSkillStacks,
+    skillInventory,
+    pendingSkillOffer: null,
+    pendingSkillAssignment: null,
+    status: 'active',
+    opponentSkillSets,
+  };
+}
+
+/** Converts the old local profile envelope into the current schema without changing its storage key. */
+export function migrateProfileV1(parsedProfile) {
+  if (!parsedProfile || parsedProfile.schemaVersion !== 1 || typeof parsedProfile.nickname !== 'string') {
+    return createEmptyProfile();
+  }
+  const migratedCampaign = migrateLegacyCampaign(parsedProfile.campaignSave);
+  return {
+    schemaVersion: PROFILE_VERSION,
+    nickname: parsedProfile.nickname,
+    campaignSave: migratedCampaign,
+    bestRecord: isBestRecord(parsedProfile.bestRecord) ? { ...parsedProfile.bestRecord } : null,
+  };
+}
+
 export function readProfile(storage = getDefaultStorage()) {
   if (!storage) return createEmptyProfile();
   try {
     const raw = storage.getItem(STORAGE_KEY);
     if (!raw) return createEmptyProfile();
     const parsed = JSON.parse(raw);
-    if (!parsed || parsed.schemaVersion !== 1 || typeof parsed.nickname !== 'string') return createEmptyProfile();
+    if (!parsed || typeof parsed.nickname !== 'string') return createEmptyProfile();
+    if (parsed.schemaVersion === 1) return migrateProfileV1(parsed);
+    if (parsed.schemaVersion !== PROFILE_VERSION) return createEmptyProfile();
     return {
-      schemaVersion: 1,
+      schemaVersion: PROFILE_VERSION,
       nickname: parsed.nickname,
-      campaignSave: isCampaignSave(parsed.campaignSave) ? upgradeCampaignSave(parsed.campaignSave) : null,
+      campaignSave: isCampaignSave(parsed.campaignSave) ? parsed.campaignSave : null,
       bestRecord: isBestRecord(parsed.bestRecord) ? parsed.bestRecord : null,
     };
   } catch {
@@ -74,7 +134,7 @@ export function readProfile(storage = getDefaultStorage()) {
 export function writeProfile(profile, storage = getDefaultStorage()) {
   if (!storage) throw new Error('이 브라우저에서는 로컬 저장을 사용할 수 없습니다.');
   const normalized = {
-    schemaVersion: 1,
+    schemaVersion: PROFILE_VERSION,
     nickname: String(profile?.nickname ?? ''),
     campaignSave: isCampaignSave(profile?.campaignSave) ? profile.campaignSave : null,
     bestRecord: isBestRecord(profile?.bestRecord) ? profile.bestRecord : null,
@@ -91,7 +151,7 @@ export function setNickname(profile, nickname) {
   const bestRecord = profile.bestRecord
     ? { ...profile.bestRecord, nickname: normalized }
     : null;
-  return { ...profile, nickname: normalized, bestRecord };
+  return { ...profile, schemaVersion: PROFILE_VERSION, nickname: normalized, bestRecord };
 }
 
 export function createCampaignSave(campaign) {
