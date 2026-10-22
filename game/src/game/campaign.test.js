@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createInitialGameState } from './createInitialGameState.js';
-import { assignOpponentSkills, createCampaign, createOpponentSkillSets, finishStage } from './campaign.js';
+import { assignOpponentSkills, createCampaign, createOpponentSkillSets, finishStage, getUnlockedStage } from './campaign.js';
 import { SKILL_IDS, assignSkillCard, awardSkillCard } from './skills.js';
 
 test('starts campaigns with no equipped skills and an empty inventory', () => {
@@ -75,6 +75,52 @@ test('a match-win event score envelope advances the campaign stage', () => {
     stage: 1, homeGoals: 2, awayGoals: 1, goalDifference: 1,
   });
   assert.equal(advanced.pendingSkillOffer.length, 3);
+});
+
+test('winning a replay replaces its stage record and offers a fresh skill card set', () => {
+  let campaign = createCampaign({ rng: () => 0.2 });
+  for (let stage = 1; stage <= 3; stage += 1) {
+    campaign = finishStage(campaign, { homeGoals: stage + 1, awayGoals: stage }, () => stage / 10);
+  }
+  campaign = {
+    ...campaign,
+    currentStage: 2,
+    playerSkillStacks: { ...campaign.playerSkillStacks, 'home-fw': { skillId: 'eagleShot', copies: 2 } },
+    skillInventory: { ...campaign.skillInventory, tornadoShot: 1 },
+    pendingSkillOffer: ['eagleShot', 'tornadoShot', 'powerTackle'],
+  };
+
+  const replayed = finishStage(campaign, { homeGoals: 4, awayGoals: 1 }, () => 0.45);
+
+  assert.deepEqual(replayed.clearedStageResults, [
+    { stage: 1, homeGoals: 2, awayGoals: 1, goalDifference: 1 },
+    { stage: 2, homeGoals: 4, awayGoals: 1, goalDifference: 3 },
+    { stage: 3, homeGoals: 4, awayGoals: 3, goalDifference: 1 },
+  ]);
+  assert.equal(replayed.currentStage, 3);
+  assert.equal(getUnlockedStage(replayed), 4);
+  assert.equal(replayed.status, 'active');
+  assert.equal(replayed.pendingSkillOffer.length, 3);
+  assert.notDeepEqual(replayed.pendingSkillOffer, campaign.pendingSkillOffer);
+  assert.deepEqual(replayed.playerSkillStacks, campaign.playerSkillStacks);
+  assert.deepEqual(replayed.skillInventory, campaign.skillInventory);
+  assert.deepEqual(replayed.opponentSkillSets, campaign.opponentSkillSets);
+});
+
+test('stage five remains unlocked after replaying an earlier cleared stage', () => {
+  const campaign = {
+    ...createCampaign({ rng: () => 0.2 }),
+    currentStage: 3,
+    clearedStageResults: [1, 2, 3, 4, 5].map((stage) => ({ stage, homeGoals: 2, awayGoals: 1, goalDifference: 1 })),
+    status: 'active',
+  };
+
+  const replayed = finishStage({ ...campaign, currentStage: 2 }, { homeGoals: 3, awayGoals: 0 }, () => 0.6);
+
+  assert.equal(getUnlockedStage(replayed), 5);
+  assert.equal(replayed.currentStage, 3);
+  assert.equal(replayed.status, 'active');
+  assert.deepEqual(replayed.clearedStageResults.map(({ stage }) => stage), [1, 2, 3, 4, 5]);
 });
 
 test('a tied stage result leaves campaign progression and rewards unchanged', () => {

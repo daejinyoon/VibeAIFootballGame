@@ -67,6 +67,29 @@ test('writes and reads skill stacks and inventory without match coordinates', ()
   assert.equal(createCampaignSave(createCampaign(5)).currentStage, 5);
 });
 
+test('round-trips sorted replay results with gaps and rejects malformed result rows', () => {
+  const storage = createMemoryStorage();
+  const campaign = createCampaign(4);
+  campaign.clearedStageResults = [
+    { stage: 1, homeGoals: 2, awayGoals: 1, goalDifference: 1 },
+    { stage: 3, homeGoals: 4, awayGoals: 2, goalDifference: 2 },
+  ];
+  const save = createCampaignSave(campaign);
+  writeProfile({ ...createEmptyProfile(), nickname: 'Dex', campaignSave: save }, storage);
+  assert.deepEqual(readProfile(storage).campaignSave.clearedStageResults, campaign.clearedStageResults);
+
+  for (const clearedStageResults of [
+    [campaign.clearedStageResults[0], campaign.clearedStageResults[0]],
+    [...campaign.clearedStageResults].reverse(),
+    [{ stage: 6, homeGoals: 1, awayGoals: 0, goalDifference: 1 }],
+    [{ stage: 2, homeGoals: -1, awayGoals: 0, goalDifference: -1 }],
+    [{ stage: 2, homeGoals: 2, awayGoals: 0, goalDifference: 0 }],
+  ]) {
+    const invalid = writeProfile({ ...createEmptyProfile(), nickname: 'Dex', campaignSave: { ...save, clearedStageResults } }, createMemoryStorage());
+    assert.equal(invalid.campaignSave, null);
+  }
+});
+
 test('migrates legacy six-person loadouts into inventory and leaves the new field roster unequipped', () => {
   const legacy = {
     currentStage: 2,

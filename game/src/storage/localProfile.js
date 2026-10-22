@@ -17,9 +17,8 @@ function getDefaultStorage() {
   }
 }
 
-function isStageResult(value, expectedStage = null) {
+function isStageResult(value) {
   return Boolean(value && Number.isInteger(value.stage) && value.stage >= 1 && value.stage <= STAGE_COUNT
-    && (expectedStage == null || value.stage === expectedStage)
     && Number.isFinite(value.homeGoals) && value.homeGoals >= 0
     && Number.isFinite(value.awayGoals) && value.awayGoals >= 0
     && value.goalDifference === value.homeGoals - value.awayGoals);
@@ -40,7 +39,9 @@ function isCampaignSave(value) {
   if (!value || !Number.isInteger(value.currentStage) || value.currentStage < 1 || value.currentStage > STAGE_COUNT
       || !Array.isArray(value.clearedStageResults) || !isOpponentSkillSets(value.opponentSkillSets)
       || !value.playerSkillStacks || !value.skillInventory) return false;
-  if (!value.clearedStageResults.every((item, index) => isStageResult(item, index + 1))) return false;
+  if (!value.clearedStageResults.every((item, index, results) => (
+    isStageResult(item) && (index === 0 || results[index - 1].stage < item.stage)
+  ))) return false;
   const validOffer = value.pendingSkillOffer == null
     || (Array.isArray(value.pendingSkillOffer) && value.pendingSkillOffer.length === 3
       && new Set(value.pendingSkillOffer).size === 3
@@ -63,7 +64,10 @@ function migrateLegacyCampaign(campaignSave) {
       || campaignSave.currentStage < 1 || campaignSave.currentStage > STAGE_COUNT
       || !Array.isArray(campaignSave.clearedStageResults)) return null;
 
-  const clearedStageResults = campaignSave.clearedStageResults.filter((item, index) => isStageResult(item, index + 1));
+  const clearedStageResults = campaignSave.clearedStageResults
+    .filter(isStageResult)
+    .filter((item, index, results) => results.findIndex((result) => result.stage === item.stage) === index)
+    .sort((left, right) => left.stage - right.stage);
   const opponentSkillSets = createOpponentSkillSets();
 
   // Preserve the newer v1 checkpoint shape created by earlier builds.

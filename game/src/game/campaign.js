@@ -51,10 +51,16 @@ export function finishStage(campaign, result, rng = Math.random) {
 
   if (homeGoals < awayGoals) return { ...campaign };
 
+  const stageResult = {
+    stage: campaign.currentStage,
+    homeGoals,
+    awayGoals,
+    goalDifference: homeGoals - awayGoals,
+  };
   const clearedStageResults = [
-    ...campaign.clearedStageResults,
-    { stage: campaign.currentStage, homeGoals, awayGoals, goalDifference: homeGoals - awayGoals },
-  ];
+    ...campaign.clearedStageResults.filter((item) => item.stage !== campaign.currentStage),
+    stageResult,
+  ].sort((left, right) => left.stage - right.stage);
   const isFinal = campaign.currentStage === STAGE_COUNT;
   return {
     ...campaign,
@@ -63,6 +69,20 @@ export function finishStage(campaign, result, rng = Math.random) {
     pendingSkillOffer: createSkillCardOffer(rng),
     status: isFinal ? 'complete' : 'active',
   };
+}
+
+export function getUnlockedStage(campaign) {
+  const currentStage = Number.isInteger(campaign?.currentStage)
+    ? campaign.currentStage
+    : 1;
+  const highestClearedStage = Array.isArray(campaign?.clearedStageResults)
+    ? campaign.clearedStageResults.reduce((highest, result) => (
+      Number.isInteger(result?.stage) && result.stage >= 1 && result.stage <= STAGE_COUNT
+        ? Math.max(highest, result.stage)
+        : highest
+    ), 0)
+    : 0;
+  return Math.min(STAGE_COUNT, Math.max(1, currentStage, highestClearedStage + 1));
 }
 
 export function assignOpponentSkills(players, skillIds) {
