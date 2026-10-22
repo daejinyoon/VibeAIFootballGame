@@ -1,13 +1,13 @@
 # Current Context
 
 ## Active Plan
-[축구 경기 청크 캐시 경계 개선](./plans/2026-10-22-football-match-chunk-cache.md)
+[축구 경기 청크 캐시 경계 개선](./plans/2026-10-22-football-match-chunk-cache.md) — 완료
 
 ## Active Phase
-[P01 엔진 캐시 경계](./phases/2026-10-22-football-match-chunk-cache/P01-engine-cache-boundary/phase.md)
+[P01 엔진 캐시 경계](./phases/2026-10-22-football-match-chunk-cache/P01-engine-cache-boundary/phase.md) — 완료
 
 ## Active Task
-[T01 경기 엔진 chunk 캐시 경계 분리](./phases/2026-10-22-football-match-chunk-cache/P01-engine-cache-boundary/T01-split-engine-chunk.md)
+없음 — 경기 청크 캐시 경계 개선 태스크를 모두 완료했습니다.
 
 ## Status
 - P01 실제 3D 장면 완료: T01 commit 08befaf, T02 commit eff1ed6, T03 commit 408c57c
@@ -20,6 +20,7 @@
 - P01-T01 완료: 데스크톱·모바일 Chrome 시각 검수, 모바일 레이아웃 수정 및 캡처 기록, 커밋 1fe686c
 - P01-T02 완료: 경기 진입 시 GameScreen 지연 로드, 초기 JS 78.9% 감소, 검증·커밋 209cf64
 - 축구 경기 청크 캐시 경계 개선 P01-T01: 구현 및 브라우저 검증 진행 중
+- 축구 경기 청크 캐시 경계 개선 P01-T01 완료: Three/R3F 런타임 청크 분리, 테스트·빌드·Chrome 검수 통과
 
 ## Next Step (IMPORTANT)
-T01 청사진에 따라 `game/vite.config.js`의 production chunk 구성을 수정하고 빌드·브라우저 요청을 검증합니다.
+완료. 청크 크기와 시각 검수 기록은 `.memory/qa/2026-10-22-football-visual-review.md`를 확인합니다.

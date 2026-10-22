@@ -33,6 +33,14 @@
 - Chrome Network에서 첫 화면에 GameScreen/R3F 요청이 없고 경기 시작 뒤 요청되는 것을 확인했다. 지연 중 `경기장을 준비하고 있어요…` 안내가 표시되고 경기 화면으로 정상 전환됐다.
 - 빌드는 성공했다. Three/R3F 경기 chunk가 500kB를 넘어 Vite의 chunk 크기 경고는 남아 있다. 이 코드는 사용자가 경기에 들어간 뒤에만 내려받는다.
 
+## 경기 엔진 캐시 분리 결과
+
+- Vite output에서 `three-vendor`와 `r3f-vendor`를 경기 UI chunk와 분리했다. `onlyExplicitManualChunks`를 켜서 vendor의 React 의존성이 앱의 초기 entry로 다시 끌려오는 동작을 막았다.
+- 최종 초기 JS는 entry 246.66 kB + preload된 공용 React chunk 12.92 kB = 259.58 kB raw, gzip 합계 81.97 kB다. 이전 지연 로드 결과(259.80 kB / 81.26 kB gzip)와 거의 같다.
+- 경기 진입 시 추가되는 파일은 `index-egcvtJm-` 9.02 kB, `GameScreen` 41.29 kB, `r3f-vendor` 168.85 kB, `three-vendor` 745.90 kB다. 추가 경기 파일 합계는 965.06 kB raw / 261.60 kB gzip으로, 기존 경기 chunk 총량과 비슷하다. 이번 변경은 경기 전송량을 크게 줄이는 작업이 아니라 엔진과 게임 코드를 분리해 캐시 재사용 범위를 좁힌 것이다.
+- Chrome production preview 요청 검사에서 시작 화면은 `index-BNjxxkSa.js`와 `index-Q_LrcHg8.js`만 받았다. Three/R3F 요청은 없었다. 새 캠페인 시작 후 `GameScreen`, `r3f-vendor`, `three-vendor`가 로드됐고 Canvas 1개, pageerror 0개였다.
+- Three.js 자체 chunk가 745.90 kB이므로 Vite의 500 kB 경고는 계속 표시된다. 임계값을 숨기지 않았다.
+
 ## 화면 캡처
 
 - 시작 [desktop](./football-visual-review/start-desktop.png) · [mobile](./football-visual-review/start-mobile.png)

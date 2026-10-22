@@ -6,7 +6,7 @@
 ## Phases
 | Phase | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
-| P01 | `in_progress` | Three.js/R3F 런타임과 경기 화면의 빌드 캐시 경계를 분리하고 검증한다. | [P01](../phases/2026-10-22-football-match-chunk-cache/P01-engine-cache-boundary/phase.md) |
+| P01 | `done ✅` | Three.js/R3F 런타임과 경기 화면의 빌드 캐시 경계를 분리하고 검증한다. | [P01](../phases/2026-10-22-football-match-chunk-cache/P01-engine-cache-boundary/phase.md) |
 
 ## Task Order
 1. P01-T01: Vite build output에서 3D 런타임과 경기 UI를 나누고 초기/경기 chunk 및 브라우저 동작을 검증한다.
