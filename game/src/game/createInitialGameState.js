@@ -39,6 +39,7 @@ function createPlayer({ id, team, role, x, y, skillId = null, skillCopies = 0, a
     knockdownDirectionY: 0,
     motionAction: 'idle',
     foulCount: 0,
+    yellowCardCount: 0,
     card: 'none',
     dismissed: false,
     aiTackleCooldownSeconds: 0,

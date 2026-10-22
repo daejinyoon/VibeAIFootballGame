@@ -17,6 +17,9 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
   const activeHome = viewState.players.filter((player) => player.team === 'home' && !player.dismissed).length;
   const activeAway = viewState.players.filter((player) => player.team === 'away' && !player.dismissed).length;
   const foulLabel = viewState.lastFoul?.restart === 'penaltyKick' ? 'PENALTY KICK' : 'FREE KICK';
+  const foulSeverityLabel = viewState.lastFoul?.secondCautionDismissal
+    ? '두 번째 경고 · 퇴장'
+    : ({ careless: '부주의 접촉 · 파울', reckless: '무모한 태클 · 경고', excessiveForce: '과도한 힘 · 퇴장' }[viewState.lastFoul?.severity] ?? null);
   const controlledPlayer = viewState.players.find((player) => player.id === viewState.controlledPlayerId);
   const awaySkillUses = viewState.players
     .filter((player) => player.team === 'away' && player.skillId && player.skillUsesRemaining > 0)
@@ -27,7 +30,7 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
       <div className="game-topline"><div><p className="eyebrow">STAGE 0{stage}{stage === 5 ? ' · BOSS MATCH' : ''}</p><h1>경기 진행 중</h1></div><button className="secondary-button pause-button" onClick={onPause}>Ⅱ 일시정지</button></div>
       <div className="match-card-status" aria-live="polite">
         <span>ACTIVE PLAYERS <b>{activeHome}</b> : <b>{activeAway}</b> · {possession}</span>
-        {viewState.foulNoticeSeconds > 0 && viewState.lastFoul && <strong>{foulLabel} · {viewState.lastFoul.team.toUpperCase()} FOUL</strong>}
+        {viewState.foulNoticeSeconds > 0 && viewState.lastFoul && <strong>{foulLabel} · {viewState.lastFoul.team.toUpperCase()} FOUL{foulSeverityLabel ? ` · ${foulSeverityLabel}` : ''}</strong>}
       </div>
       <div className="game-canvas-wrap"><Match3DGame initialState={gameState} paused={paused} onGameEvents={onGameEvents} onStateChange={(next) => {
         const now = performance.now();

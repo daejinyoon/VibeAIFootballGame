@@ -1,6 +1,6 @@
 # Task: T03 접촉 위험도 기반 파울 징계
 
-## Status: pending
+## Status: done
 
 ## Goal
 현재 파울 감지 및 직접 프리킥/페널티킥 재개를 유지하면서 부주의 접촉, 무모한 태클, 과도한 힘을 구분한다. 부주의는 파울만, 무모함은 경고, 과도한 힘은 즉시 퇴장, 두 번째 경고는 퇴장으로 처리한다.
@@ -80,6 +80,6 @@ Task: T03-foul-severity-and-discipline
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
+- [x] 구현 완료
+- [x] 검증 통과 (`npm run build`)
 - commit: pending
