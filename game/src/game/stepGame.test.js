@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { FIELD, getAiTuning } from './constants.js';
-import { createInitialGameState } from './createInitialGameState.js';
+import { FIELD, KICKOFF_CIRCLE_RADIUS, getAiTuning } from './constants.js';
+import { createInitialGameState as createGameState } from './createInitialGameState.js';
 import { stepGame } from './stepGame.js';
 
 const frame = ({ moveX = 0, moveY = 0, down = [], pressed = [], released = [] } = {}) => ({
@@ -10,6 +10,52 @@ const frame = ({ moveX = 0, moveY = 0, down = [], pressed = [], released = [] } 
   down: new Set(down),
   pressed: new Set(pressed),
   released: new Set(released),
+});
+
+const createInitialGameState = (options) => {
+  const state = createGameState(options);
+  state.kickoffLocked = false;
+  state.kickoffTakerId = null;
+  const opposingForward = state.players.find((player) => player.id === 'away-fw');
+  opposingForward.x = FIELD.width / 2;
+  opposingForward.y = FIELD.height / 2;
+  return state;
+};
+
+test('kickoff circle keeps non-kickers outside until the ball moves clear', () => {
+  const state = createGameState();
+  const center = { x: FIELD.width / 2, y: FIELD.height / 2 };
+  const awayForward = state.players.find((player) => player.id === 'away-fw');
+  awayForward.x = center.x + 40;
+  awayForward.y = center.y;
+
+  stepGame(state, frame(), 0.05);
+
+  assert.ok(Math.hypot(awayForward.x - center.x, awayForward.y - center.y) >= KICKOFF_CIRCLE_RADIUS);
+  assert.equal(state.kickoffLocked, true);
+
+  stepGame(state, frame({ moveX: 1 }), 0.05);
+
+  assert.equal(state.kickoffLocked, false);
+  assert.equal(state.kickoffTakerId, null);
+});
+
+test('post-goal kickoff assigns only the conceding team taker to the center circle', () => {
+  const state = createGameState();
+  state.score = { home: 1, away: 0 };
+  state.phase = 'goalPause';
+  state.phaseSeconds = 0.01;
+  state.pendingKickoffTeam = 'away';
+
+  stepGame(state, frame(), 0.05);
+
+  const center = { x: FIELD.width / 2, y: FIELD.height / 2 };
+  const inside = state.players.filter((player) => Math.hypot(player.x - center.x, player.y - center.y) < KICKOFF_CIRCLE_RADIUS);
+  assert.equal(state.kickoffLocked, true);
+  assert.equal(state.kickoffTakerId, 'away-fw');
+  assert.deepEqual(inside.map((player) => player.id), ['away-fw']);
+  assert.equal(state.ball.ownerId, 'away-fw');
+  assert.deepEqual(state.score, { home: 1, away: 0 });
 });
 
 test('moves the selected player at the intended speed and normalizes diagonals', () => {

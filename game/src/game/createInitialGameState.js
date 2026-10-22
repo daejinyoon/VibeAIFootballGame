@@ -1,4 +1,4 @@
-import { FIELD, REGULATION_SECONDS, STAGE_COUNT } from './constants.js';
+import { FIELD, KICKOFF_CIRCLE_RADIUS, REGULATION_SECONDS, STAGE_COUNT } from './constants.js';
 
 const homeFormation = [
   { id: 'home-gk', role: 'goalkeeper', x: 55, y: 270 },
@@ -57,6 +57,23 @@ function createAwayFormation() {
   }));
 }
 
+function positionForKickoff(players, kickoffTeam, kickoffTakerId) {
+  const center = { x: FIELD.width / 2, y: FIELD.height / 2 };
+  const nonKickerOffset = kickoffTeam === 'home' ? 88 : -88;
+  for (const player of players) {
+    if (player.id === kickoffTakerId) {
+      player.x = center.x;
+      player.y = center.y;
+      continue;
+    }
+    if (Math.hypot(player.x - center.x, player.y - center.y) < KICKOFF_CIRCLE_RADIUS) {
+      const teamOffset = player.team === kickoffTeam ? -nonKickerOffset : nonKickerOffset;
+      player.x = center.x + teamOffset;
+      player.y = center.y;
+    }
+  }
+}
+
 /** Create a fresh 4v4 kickoff state without depending on browser APIs. */
 export function createInitialGameState({
   stage = 1,
@@ -97,13 +114,18 @@ export function createInitialGameState({
     });
   });
 
+  const players = [...homePlayers, ...awayPlayers];
+  positionForKickoff(players, 'home', 'home-fw');
+
   return {
     stage: safeStage,
     phase: 'playing',
+    kickoffLocked: true,
+    kickoffTakerId: 'home-fw',
     remainingSeconds: REGULATION_SECONDS,
     overtimeRemainingSeconds: null,
     score: { home: 0, away: 0 },
-    players: [...homePlayers, ...awayPlayers],
+    players,
     ball: {
       x: FIELD.width / 2,
       y: FIELD.height / 2,

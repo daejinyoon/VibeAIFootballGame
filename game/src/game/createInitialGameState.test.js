@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { FIELD } from './constants.js';
+import { FIELD, KICKOFF_CIRCLE_RADIUS } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
 
 test('creates eight unique players with three field players and a goalkeeper per team', () => {
@@ -20,11 +20,15 @@ test('starts stage one at a home kickoff with a clean score and no skill gauges'
   const state = createInitialGameState();
   assert.equal(state.stage, 1);
   assert.equal(state.phase, 'playing');
+  assert.equal(state.kickoffLocked, true);
+  assert.equal(state.kickoffTakerId, 'home-fw');
   assert.equal(state.remainingSeconds, 60);
   assert.deepEqual(state.score, { home: 0, away: 0 });
   assert.equal(state.ball.ownerId, 'home-fw');
   assert.equal(state.controlledPlayerId, 'home-fw');
   assert.equal(state.possessionTeam, 'home');
+  const center = { x: FIELD.width / 2, y: FIELD.height / 2 };
+  assert.ok(state.players.filter((player) => Math.hypot(player.x - center.x, player.y - center.y) < KICKOFF_CIRCLE_RADIUS).every((player) => player.id === state.kickoffTakerId));
   assert.equal('skillGauge' in state, false);
   assert.equal(state.aiRandomSeed, 0x6d2b79f5);
   assert.ok(state.players.filter((player) => player.team === 'home')
@@ -63,6 +67,11 @@ test('mirrors the away formation across the middle of the pitch', () => {
   const home = state.players.filter((player) => player.team === 'home');
   const away = state.players.filter((player) => player.team === 'away');
   home.forEach((player, index) => {
+    if (player.id === 'home-fw') {
+      assert.equal(away[index].x, FIELD.width / 2 + 88);
+      assert.equal(away[index].y, FIELD.height / 2);
+      return;
+    }
     assert.equal(away[index].x, FIELD.width - player.x);
     assert.equal(away[index].y, player.y);
   });

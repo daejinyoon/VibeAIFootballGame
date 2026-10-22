@@ -15,6 +15,7 @@ import {
   LOB_CLEARANCE_DISTANCE,
   LOB_VERTICAL_VELOCITY,
   SHOT_ASSIST_DISTANCE,
+  KICKOFF_CIRCLE_RADIUS,
 } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
 import { applyAutomaticRainbowReflect, applySkill, SKILL_IDS } from './skills.js';
@@ -91,6 +92,65 @@ function moveByInput(player, moveX, moveY, speed, deltaSeconds) {
     player.facingX = Math.sign(direction.x);
     player.facingY = Math.sign(direction.y);
     player.motionAction = 'run';
+  }
+}
+
+function enforceKickoffCircle(state) {
+  if (!state.kickoffLocked) return;
+  const center = { x: FIELD.width / 2, y: FIELD.height / 2 };
+  for (const player of state.players) {
+    if (player.dismissed || player.id === state.kickoffTakerId) continue;
+    const dx = player.x - center.x;
+    const dy = player.y - center.y;
+    const radius = Math.hypot(dx, dy);
+    if (radius >= KICKOFF_CIRCLE_RADIUS) continue;
+    const fallbackX = player.team === state.possessionTeam
+      ? (player.team === 'home' ? -1 : 1)
+      : (player.team === 'home' ? 1 : -1);
+    const direction = radius > 0.001 ? { x: dx / radius, y: dy / radius } : { x: fallbackX, y: 0 };
+    player.x = clamp(center.x + direction.x * KICKOFF_CIRCLE_RADIUS, 0, FIELD.width);
+    player.y = clamp(center.y + direction.y * KICKOFF_CIRCLE_RADIUS, 0, FIELD.height);
+  }
+}
+
+function releaseKickoffLockIfBallCleared(state) {
+  if (!state.kickoffLocked) return;
+  const center = { x: FIELD.width / 2, y: FIELD.height / 2 };
+  if (distance(state.ball, center) < 12) return;
+  const owner = carrier(state);
+  const taker = byId(state, state.kickoffTakerId);
+  const takerCarriedClear = owner?.id === state.kickoffTakerId && taker && distance(taker, center) >= 1;
+  const ballWasKicked = !owner || owner.id !== state.kickoffTakerId || state.ball.flightKind !== 'ground';
+  if (takerCarriedClear || ballWasKicked) {
+    state.kickoffLocked = false;
+    state.kickoffTakerId = null;
+  }
+}
+
+function placeKickoffPlayers(state, kickoffTeam) {
+  const center = { x: FIELD.width / 2, y: FIELD.height / 2 };
+  const expectedTakerId = `${kickoffTeam}-fw`;
+  const taker = byId(state, expectedTakerId);
+  const actualTaker = taker && !taker.dismissed
+    ? taker
+    : nearestPlayer(activePlayers(state, kickoffTeam), center);
+  state.kickoffTakerId = actualTaker?.id ?? null;
+  state.kickoffLocked = Boolean(actualTaker);
+  for (const player of state.players) {
+    if (player.id === state.kickoffTakerId) {
+      player.x = center.x;
+      player.y = center.y;
+      continue;
+    }
+    const dx = player.x - center.x;
+    const dy = player.y - center.y;
+    const radius = Math.hypot(dx, dy);
+    if (radius >= KICKOFF_CIRCLE_RADIUS) continue;
+    const towardOwnSide = player.team === kickoffTeam;
+    const directionX = player.team === 'home' ? -1 : 1;
+    const useOwnSide = towardOwnSide ? directionX : -directionX;
+    player.x = center.x + useOwnSide * (KICKOFF_CIRCLE_RADIUS + 18);
+    player.y = center.y;
   }
 }
 
@@ -296,7 +356,8 @@ function resetForKickoff(state, kickoffTeam) {
     player.skillUsesRemaining = remainingUses.get(player.id) ?? player.skillUsesRemaining;
   }
   state.possessionTeam = kickoffTeam;
-  state.ball.ownerId = `${kickoffTeam}-fw`;
+  placeKickoffPlayers(state, kickoffTeam);
+  state.ball.ownerId = state.kickoffTakerId;
   state.ball.lastTouchTeam = kickoffTeam;
   const homePlayers = activePlayers(state, 'home');
   const stillControlled = byId(state, controlledPlayerId);
@@ -306,6 +367,7 @@ function resetForKickoff(state, kickoffTeam) {
   if (state.players.some((player) => player.id === state.ball.ownerId && player.dismissed)) {
     const restartPlayer = nearestPlayer(activePlayers(state, kickoffTeam), { x: FIELD.width / 2, y: FIELD.height / 2 });
     state.ball.ownerId = restartPlayer?.id ?? null;
+    state.kickoffTakerId = restartPlayer?.id ?? null;
   }
   putBallAtPlayer(state, carrier(state));
 }
@@ -1362,6 +1424,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
     player.aiTackleCooldownSeconds = Math.max(0, (player.aiTackleCooldownSeconds ?? 0) - dt);
   }
   state.foulNoticeSeconds = Math.max(0, (state.foulNoticeSeconds ?? 0) - dt);
+  releaseKickoffLockIfBallCleared(state);
 
   if (state.overtimeRemainingSeconds !== null) {
     state.overtimeRemainingSeconds = Math.max(0, state.overtimeRemainingSeconds - dt);
@@ -1422,6 +1485,8 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
     updateAwayDefense(state, dt, events, 'home', controlled);
   }
 
+  enforceKickoffCircle(state);
+
   if (state.vacuumEffect) {
     events.push(...advanceVacuum(state, dt));
   } else {
@@ -1442,6 +1507,8 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
       }
     }
   }
+
+  releaseKickoffLockIfBallCleared(state);
 
   return events;
 }
