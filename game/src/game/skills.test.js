@@ -104,7 +104,7 @@ test('Power Tackle increases slide contact range', () => {
   assert.equal(state.ball.ownerId, 'home-fw');
 });
 
-test('Eulryongta stuns the nearest opponent in front for two seconds', () => {
+test('Eulryongta knocks down its actual field-player target for one second', () => {
   const state = createInitialGameState({ playerSkillStacks: { 'home-mid-1': { skillId: 'eulryongta', copies: 1 } } });
   const user = state.players.find((player) => player.id === 'home-mid-1');
   const target = state.players.find((player) => player.id === 'away-mid-1');
@@ -114,8 +114,24 @@ test('Eulryongta stuns the nearest opponent in front for two seconds', () => {
   behind.x = 250; behind.y = 175;
   const result = applySkill(state, user.id);
   assert.equal(result.ok, true);
-  assert.equal(target.stunnedSeconds, 2);
+  assert.equal(target.knockdownSeconds, 1);
+  assert.equal(target.motionAction, 'knockdown');
+  assert.ok(result.events.some((event) => event.type === 'playerKnockedDown' && event.playerId === target.id));
   assert.equal(behind.stunnedSeconds, 0);
+});
+
+test('Eulryongta can knock down a goalkeeper only when the skill targets them', () => {
+  const state = createInitialGameState({ playerSkillStacks: { 'home-mid-1': { skillId: 'eulryongta', copies: 1 } } });
+  const user = state.players.find((player) => player.id === 'home-mid-1');
+  const keeper = state.players.find((player) => player.id === 'away-gk');
+  user.x = 300; user.y = 175; user.facingX = 1; user.facingY = 0;
+  keeper.x = 380; keeper.y = 175;
+
+  const result = applySkill(state, user.id);
+
+  assert.equal(result.ok, true);
+  assert.equal(keeper.knockdownSeconds, 1);
+  assert.ok(result.events.some((event) => event.type === 'playerKnockedDown' && event.playerId === keeper.id));
 });
 
 test('Vacuum Cleaner pulls a nearby loose ball to a field player', () => {

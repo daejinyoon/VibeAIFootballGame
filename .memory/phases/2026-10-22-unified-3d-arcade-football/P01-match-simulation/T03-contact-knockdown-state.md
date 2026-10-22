@@ -1,13 +1,13 @@
 # Task: T03 접촉 넘어짐·회복 시뮬레이션 상태
 
-## Status: pending
+## Status: done
 
 ## Goal
 태클·밀침으로 실제 접촉한 필드 선수가 양 팀 공통으로 넘어져 1초간 조작과 액션을 받지 않고 회복하게 하며, 골키퍼는 반칙 또는 강한 스킬 충돌에서만 같은 상태를 적용한다.
 
 ## Decision Summary
 - 접촉한 선수의 sim state가 모션과 조작 제한의 단일 기준이다. 일반 패스 차단은 받기 이벤트만 내고 넘어짐을 일으키지 않는다.
-- 넘어짐은 `stunnedSeconds`를 재사용하되 기존 스킬 스턴과 분리할 수 있도록 `knockdownSeconds`, `knockdownDirectionX/Y`, `motionAction`을 추가한다.
+- 넘어짐 상태는 기존 `stunnedSeconds`와 분리하고 `knockdownSeconds`, `knockdownDirectionX/Y`, `motionAction`으로 관리한다.
 
 ## Implementation
 
@@ -15,7 +15,7 @@
 - Related Files:
   - `game/src/game/createInitialGameState.js` :: `createPlayer` — 상태 초기화; modify
   - `game/src/game/stepGame.js` :: `resolveTackle`, `awardFoul`, `maybeUseAiSkill`, `stepGame` — 접촉과 입력 차단; modify
-  - `game/src/game/skills.js` :: `applySkill` — 강한 스킬 접촉 이벤트 계약 확인; read-only unless needed
+  - `game/src/game/skills.js` :: `applySkill`, `findEulryongtaTarget` — 용룡타의 실제 지정 대상을 1초 넘어짐 상태로 처리; modify
   - `game/src/game/stepGame.test.js` :: tackle/contact knockdown tests — modify
 
 #### Details
@@ -66,6 +66,6 @@ Task: T03-contact-knockdown-state
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
-- commit: pending
+- [x] 구현 완료
+- [x] 검증 통과: `node --test src/game/stepGame.test.js src/game/skills.test.js`, `npm run build`
+- commit: `feat(game): add contact knockdown and recovery state`

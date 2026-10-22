@@ -6,8 +6,8 @@
 ## Phases
 | Phase | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
-| P01 | `in_progress` | 경기 시뮬레이션 규칙: 시간·무승부, 전술 AI와 공 경로 판정, 접촉 상태를 구현한다. | [P01](../phases/2026-10-22-unified-3d-arcade-football/P01-match-simulation/phase.md) |
-| P02 | `pending` | 3D 표시와 결과 UI를 시뮬레이션 상태에 연결해 경기 동작을 읽기 쉽게 만든다. | [P02](../phases/2026-10-22-unified-3d-arcade-football/P02-3d-game-feel/phase.md) |
+| P01 | `done` | 경기 시뮬레이션 규칙: 시간·무승부, 전술 AI와 공 경로 판정, 접촉 상태를 구현한다. | [P01](../phases/2026-10-22-unified-3d-arcade-football/P01-match-simulation/phase.md) |
+| P02 | `in_progress` | 3D 표시와 결과 UI를 시뮬레이션 상태에 연결해 경기 동작을 읽기 쉽게 만든다. | [P02](../phases/2026-10-22-unified-3d-arcade-football/P02-3d-game-feel/phase.md) |
 
 ## Scope and Dependencies
 - DEX 통합 결정 문서: [2026-10-22-unified-3d-arcade-football.md](../decisions/2026-10-22-unified-3d-arcade-football.md)

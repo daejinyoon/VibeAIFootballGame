@@ -240,6 +240,8 @@ test('ground passes are intercepted by the opponent crossing the swept ball path
   assert.equal(state.ball.ownerId, interceptor.id);
   assert.equal(state.possessionTeam, 'away');
   assert.ok(events.some((event) => event.type === 'passIntercepted' && event.fromTeam === 'home' && event.passKind === 'ground'));
+  assert.ok(!events.some((event) => event.type === 'playerKnockedDown'));
+  assert.equal(interceptor.knockdownSeconds, 0);
   assert.equal(state.controlledPlayerId, 'home-fw');
 });
 
@@ -263,6 +265,8 @@ test('home players intercept away ground passes and become the controlled receiv
   assert.equal(state.possessionTeam, 'home');
   assert.equal(state.controlledPlayerId, interceptor.id);
   assert.ok(events.some((event) => event.type === 'passIntercepted' && event.fromTeam === 'away'));
+  assert.ok(!events.some((event) => event.type === 'playerKnockedDown'));
+  assert.equal(interceptor.knockdownSeconds, 0);
 });
 
 test('ground passes do not intercept players outside the swept lane', () => {
@@ -309,6 +313,8 @@ test('a keeper catches an ordinary shot and starts a timed goal kick', () => {
   assert.equal(state.phase, 'goalKick');
   assert.equal(state.ball.ownerId, 'home-gk');
   assert.ok(events.some((event) => event.type === 'keeperCatch'));
+  assert.ok(!events.some((event) => event.type === 'playerKnockedDown'));
+  assert.equal(state.players.find((player) => player.id === 'home-gk').knockdownSeconds, 0);
   let kickEvents = [];
   for (let i = 0; i < 24 && !kickEvents.some((event) => event.type === 'goalKick'); i += 1) {
     kickEvents = stepGame(state, frame(), 0.05);
@@ -536,6 +542,74 @@ test('the defensive A action can win possession with a short slide tackle', () =
   assert.equal(state.ball.ownerId, defender.id);
   assert.equal(state.possessionTeam, 'home');
   assert.ok(events.some((event) => event.type === 'tackle'));
+  assert.equal(opponent.knockdownSeconds, 1);
+  assert.equal(opponent.motionAction, 'knockdown');
+  const knockdown = events.find((event) => event.type === 'playerKnockedDown');
+  assert.equal(knockdown.playerId, opponent.id);
+  assert.ok(knockdown.direction.x > 0);
+});
+
+test('AI tackles knock down a contacted home field player too', () => {
+  const state = createInitialGameState();
+  const carrier = state.players.find((player) => player.id === 'home-fw');
+  const defender = state.players.find((player) => player.id === 'away-def-1');
+  carrier.x = 350; carrier.y = 270; carrier.facingX = -1;
+  defender.x = 330; defender.y = 270;
+  state.ball.ownerId = carrier.id;
+  state.ball.x = 333; state.ball.y = 270;
+  state.possessionTeam = 'home';
+
+  const events = stepGame(state, frame(), 0.01);
+
+  assert.equal(state.ball.ownerId, defender.id);
+  assert.equal(carrier.knockdownSeconds, 1);
+  assert.ok(events.some((event) => event.type === 'playerKnockedDown' && event.team === 'home'));
+});
+
+test('knockdown freezes direct input and AI movement until the one-second recovery completes', () => {
+  const state = createInitialGameState();
+  const controlled = state.players.find((player) => player.id === state.controlledPlayerId);
+  const aiCarrier = state.players.find((player) => player.id === 'away-fw');
+  controlled.knockdownSeconds = 0.1;
+  controlled.motionAction = 'knockdown';
+  controlled.knockdownDirectionX = -1;
+  aiCarrier.knockdownSeconds = 0.1;
+  aiCarrier.motionAction = 'knockdown';
+  state.ball.ownerId = aiCarrier.id;
+  state.ball.x = aiCarrier.x;
+  state.ball.y = aiCarrier.y;
+  state.possessionTeam = 'away';
+  const controlledStart = { x: controlled.x, y: controlled.y };
+  const aiStart = { x: aiCarrier.x, y: aiCarrier.y };
+
+  stepGame(state, frame({ moveX: 1, pressed: ['f', 'd', 's'] }), 0.05);
+  assert.deepEqual({ x: controlled.x, y: controlled.y }, controlledStart);
+  assert.deepEqual({ x: aiCarrier.x, y: aiCarrier.y }, aiStart);
+  assert.equal(controlled.motionAction, 'knockdown');
+  assert.equal(controlled.knockdownSeconds, 0.05);
+  assert.equal(state.controlledPlayerId, controlled.id);
+
+  stepGame(state, frame({ moveX: 1 }), 0.05);
+  assert.deepEqual({ x: controlled.x, y: controlled.y }, controlledStart);
+  assert.equal(controlled.motionAction, 'recover');
+  assert.equal(controlled.knockdownSeconds, 0);
+  assert.notEqual(controlled.knockdownDirectionX, 0);
+
+  stepGame(state, frame({ moveX: 1 }), 0.05);
+  assert.ok(controlled.x > controlledStart.x);
+  assert.equal(controlled.motionAction, 'run');
+  assert.equal(controlled.knockdownDirectionX, 0);
+});
+
+test('knockdown timer respects the simulation delta clamp', () => {
+  const state = createInitialGameState();
+  const player = state.players.find((candidate) => candidate.id === 'home-fw');
+  player.knockdownSeconds = 1;
+  player.motionAction = 'knockdown';
+
+  stepGame(state, frame(), 5);
+
+  assert.equal(player.knockdownSeconds, 0.95);
 });
 
 test('a rear slide tackle gives a yellow, then a red card and switches control after dismissal', () => {
@@ -546,6 +620,8 @@ test('a rear slide tackle gives a yellow, then a red card and switches control a
   tackler.y = 270;
   ballCarrier.x = 500;
   ballCarrier.y = 270;
+  ballCarrier.knockdownSeconds = 0;
+  ballCarrier.motionAction = 'idle';
   ballCarrier.facingX = -1;
   state.controlledPlayerId = tackler.id;
   state.possessionTeam = 'away';
@@ -570,6 +646,8 @@ test('a rear slide tackle gives a yellow, then a red card and switches control a
   tackler.y = 270;
   ballCarrier.x = 500;
   ballCarrier.y = 270;
+  ballCarrier.knockdownSeconds = 0;
+  ballCarrier.motionAction = 'idle';
   const second = stepGame(state, frame({ pressed: ['a'] }), 0.01);
 
   assert.ok(second.some((event) => event.type === 'redCard'));

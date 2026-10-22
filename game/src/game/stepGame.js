@@ -26,6 +26,7 @@ const INTERCEPTION_RADIUS = 16;
 const AI_JUMP_REACH_RADIUS = 88;
 const AI_MIN_PASS_DISTANCE = 48;
 const AI_MAX_PASS_DISTANCE = 330;
+const KNOCKDOWN_SECONDS = 1;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -56,7 +57,8 @@ function carrier(state) {
 }
 
 function moveToward(player, target, speed, deltaSeconds) {
-  if (!player || !target || player.dismissed || player.stunnedSeconds > 0) return;
+  if (!player || !target || player.dismissed || player.stunnedSeconds > 0
+      || player.knockdownSeconds > 0 || player.motionAction === 'recover') return;
   const direction = unit(target.x - player.x, target.y - player.y);
   const distanceToTarget = distance(player, target);
   const travel = Math.min(distanceToTarget, speed * deltaSeconds);
@@ -67,11 +69,13 @@ function moveToward(player, target, speed, deltaSeconds) {
   if (direction.x !== 0 || direction.y !== 0) {
     player.facingX = Math.sign(direction.x);
     player.facingY = Math.sign(direction.y);
+    player.motionAction = 'run';
   }
 }
 
 function moveByInput(player, moveX, moveY, speed, deltaSeconds) {
-  if (!player || player.dismissed || player.stunnedSeconds > 0) return;
+  if (!player || player.dismissed || player.stunnedSeconds > 0
+      || player.knockdownSeconds > 0 || player.motionAction === 'recover') return;
   const direction = unit(
     Number.isFinite(moveX) ? moveX : 0,
     Number.isFinite(moveY) ? moveY : 0,
@@ -83,6 +87,7 @@ function moveByInput(player, moveX, moveY, speed, deltaSeconds) {
   if (direction.x !== 0 || direction.y !== 0) {
     player.facingX = Math.sign(direction.x);
     player.facingY = Math.sign(direction.y);
+    player.motionAction = 'run';
   }
 }
 
@@ -298,6 +303,46 @@ function activePlayers(state, team) {
   return state.players.filter((player) => player.team === team && !player.dismissed);
 }
 
+function knockDownPlayer(state, player, source, durationSeconds = KNOCKDOWN_SECONDS) {
+  if (!player || player.dismissed) return null;
+  const dx = player.x - (source?.x ?? player.x);
+  const dy = player.y - (source?.y ?? player.y);
+  const length = Math.hypot(dx, dy);
+  const direction = length > 0 ? { x: dx / length, y: dy / length } : { x: 0, y: 0 };
+  const duration = clamp(Number.isFinite(durationSeconds) ? durationSeconds : KNOCKDOWN_SECONDS, 0, KNOCKDOWN_SECONDS);
+  player.knockdownSeconds = Math.max(player.knockdownSeconds ?? 0, duration);
+  player.knockdownDirectionX = direction.x;
+  player.knockdownDirectionY = direction.y;
+  player.motionAction = 'knockdown';
+  player.vx = 0;
+  player.vy = 0;
+  return {
+    type: 'playerKnockedDown',
+    team: player.team,
+    playerId: player.id,
+    durationSeconds: duration,
+    direction,
+  };
+}
+
+function advancePlayerRecovery(player, deltaSeconds) {
+  if (player.motionAction === 'tackle') {
+    player.motionAction = 'idle';
+  }
+  if (player.knockdownSeconds > 0) {
+    player.knockdownSeconds = Math.max(0, player.knockdownSeconds - deltaSeconds);
+    if (player.knockdownSeconds === 0) {
+      player.motionAction = 'recover';
+      player.vx = 0;
+      player.vy = 0;
+    }
+  } else if (player.motionAction === 'recover') {
+    player.motionAction = 'idle';
+    player.knockdownDirectionX = 0;
+    player.knockdownDirectionY = 0;
+  }
+}
+
 function nearestPlayer(players, point) {
   return players
     .map((player, index) => ({ player, index, distance: distance(player, point) }))
@@ -316,6 +361,7 @@ function awardFoul(state, foulingPlayer, fouledPlayer, spot) {
   const inPenaltyArea = Math.abs(foulSpot.y - FIELD.height / 2) <= 100
     && (defendingTeam === 'home' ? foulSpot.x <= 132 : foulSpot.x >= FIELD.width - 132);
   const restart = inPenaltyArea ? 'penaltyKick' : 'freeKick';
+  foulingPlayer.motionAction = 'tackle';
   foulingPlayer.foulCount = Math.min(2, (foulingPlayer.foulCount ?? 0) + 1);
   const redCard = foulingPlayer.foulCount >= 2;
   foulingPlayer.card = redCard ? 'red' : 'yellow';
@@ -346,6 +392,8 @@ function awardFoul(state, foulingPlayer, fouledPlayer, spot) {
     { type: 'foul', team: foulingPlayer.team, playerId: foulingPlayer.id, spot: foulSpot, restart },
     { type: redCard ? 'redCard' : 'yellowCard', team: foulingPlayer.team, playerId: foulingPlayer.id },
   ];
+  const knockdownEvent = knockDownPlayer(state, fouledPlayer, foulingPlayer);
+  if (knockdownEvent) events.push(knockdownEvent);
   if (redCard) {
     events.push({ type: 'playerDismissed', team: foulingPlayer.team, playerId: foulingPlayer.id });
     if (state.controlledPlayerId === foulingPlayer.id) {
@@ -357,7 +405,9 @@ function awardFoul(state, foulingPlayer, fouledPlayer, spot) {
 }
 
 function resolveTackle(state, tackler, ballCarrier, skillProtected = false) {
-  if (!tackler || !ballCarrier || tackler.dismissed || ballCarrier.dismissed || tackler.stunnedSeconds > 0) return [];
+  if (!tackler || !ballCarrier || tackler.dismissed || ballCarrier.dismissed
+      || tackler.stunnedSeconds > 0 || tackler.knockdownSeconds > 0
+      || ballCarrier.knockdownSeconds > 0) return [];
   const tackleRange = tackler.powerTackleSeconds > 0 ? 39 : 26;
   if (distance(tackler, ballCarrier) > tackleRange) return [];
 
@@ -368,9 +418,11 @@ function resolveTackle(state, tackler, ballCarrier, skillProtected = false) {
     return awardFoul(state, tackler, ballCarrier, state.ball);
   }
 
+  tackler.motionAction = 'tackle';
   setBallOwner(state, tackler);
+  const knockdownEvent = knockDownPlayer(state, ballCarrier, tackler);
   if (tackler.team === 'home') state.controlledPlayerId = tackler.id;
-  return [{ type: 'tackle', team: tackler.team, playerId: tackler.id }];
+  return [{ type: 'tackle', team: tackler.team, playerId: tackler.id }, ...(knockdownEvent ? [knockdownEvent] : [])];
 }
 
 function stopBallAtFieldEdge(state) {
@@ -501,7 +553,8 @@ function handleKeeperContact(state) {
   const { ball } = state;
   if (ball.ownerId || !['shot', 'skill-shot'].includes(ball.flightKind) || ball.height > 8) return [];
 
-  for (const keeper of state.players.filter((player) => player.role === 'goalkeeper' && !player.dismissed)) {
+  for (const keeper of state.players.filter((player) => player.role === 'goalkeeper'
+      && !player.dismissed && player.knockdownSeconds <= 0)) {
     if (Math.abs(ball.x - keeper.x) > 12 || Math.abs(ball.y - keeper.y) > 14) continue;
 
     if (ball.lastTouchTeam === keeper.team) continue;
@@ -623,7 +676,7 @@ function updateJumps(state, controlled, input, deltaSeconds) {
   const autoJumper = landingPoint
     ? state.players
       .filter((player) => !player.dismissed && player.role !== 'goalkeeper' && player.id !== controlled?.id
-        && player.jumpHeight <= 0 && player.jumpCooldownSeconds <= deltaSeconds)
+        && player.knockdownSeconds <= 0 && player.jumpHeight <= 0 && player.jumpCooldownSeconds <= deltaSeconds)
       .map((player, index) => ({ player, index, gap: distance(player, landingPoint) }))
       .filter((entry) => entry.gap <= AI_JUMP_REACH_RADIUS)
       .sort((left, right) => left.gap - right.gap || left.index - right.index)[0]?.player ?? null
@@ -631,7 +684,7 @@ function updateJumps(state, controlled, input, deltaSeconds) {
 
   for (const player of state.players) {
     player.jumpCooldownSeconds = Math.max(0, (player.jumpCooldownSeconds ?? 0) - deltaSeconds);
-    if (player.dismissed || player.role === 'goalkeeper') continue;
+    if (player.dismissed || player.role === 'goalkeeper' || player.knockdownSeconds > 0 || player.motionAction === 'recover') continue;
     if (player.id === controlled?.id && input.pressed.has('Space')
         && player.jumpHeight <= 0 && player.jumpCooldownSeconds === 0) {
       player.jumpVelocity = JUMP_INITIAL_VELOCITY;
@@ -659,7 +712,7 @@ function resolveAerialHeader(state) {
   }
   const jumper = state.players
     .filter((player) => !player.dismissed && player.role !== 'goalkeeper'
-      && player.id !== ball.lastHeaderPlayerId && player.jumpHeight > 0)
+      && player.knockdownSeconds <= 0 && player.id !== ball.lastHeaderPlayerId && player.jumpHeight > 0)
     .map((player, index) => ({ player, index, distance: distance(player, ball) }))
     .filter(({ distance: gap }) => gap <= HEADER_RADIUS)
     .sort((a, b) => a.distance - b.distance || a.index - b.index)[0]?.player;
@@ -701,7 +754,7 @@ function collectLooseBall(state) {
   if (ball.ownerId || ball.height > 14) return [];
   if (ball.flightKind === 'skill-shot' && ['eagleShot', 'tornadoShot'].includes(ball.skillId)) return [];
   const candidates = state.players
-    .filter((player) => !player.dismissed)
+    .filter((player) => !player.dismissed && player.knockdownSeconds <= 0 && player.motionAction !== 'recover')
     .map((player) => ({ player, distance: distance(player, ball) }))
     .filter(({ distance: playerDistance }) => playerDistance <= 18)
     .sort((a, b) => a.distance - b.distance);
@@ -751,6 +804,10 @@ function handleHomeAttack(state, controlled, input, deltaSeconds) {
 }
 
 function controlBallAction(state, controlled, input, deltaSeconds) {
+  if (controlled.knockdownSeconds > 0 || controlled.motionAction === 'recover') {
+    state.charge = { action: null, elapsedSeconds: 0 };
+    return [];
+  }
   if (state.possessionTeam !== 'home') {
     state.charge = { action: null, elapsedSeconds: 0 };
     return [];
@@ -790,16 +847,19 @@ function updateAwayDefense(state, deltaSeconds, events, defendingTeam = 'away', 
   const defendingCarrier = carrier(state);
   if (!defendingCarrier || defendingCarrier.team === defendingTeam) return;
   const defenders = activePlayers(state, defendingTeam)
-    .filter((player) => player.role !== 'goalkeeper' && player.id !== controlled?.id);
+    .filter((player) => player.role !== 'goalkeeper' && player.id !== controlled?.id
+      && player.knockdownSeconds <= 0 && player.motionAction !== 'recover');
   const attackers = activePlayers(state, defendingCarrier.team)
-    .filter((player) => player.role !== 'goalkeeper' && player.id !== defendingCarrier.id)
+    .filter((player) => player.role !== 'goalkeeper' && player.id !== defendingCarrier.id
+      && player.knockdownSeconds <= 0 && player.motionAction !== 'recover')
     .sort((left, right) => distance(left, defendingCarrier) - distance(right, defendingCarrier));
   const pressingDistance = getAiTuning(state.stage).pressingDistance;
   const presser = nearestPlayer(defenders, defendingCarrier);
   if (presser && distance(presser, defendingCarrier) <= pressingDistance) {
     const approachDistance = distance(presser, defendingCarrier);
     if (approachDistance > 30) moveToward(presser, defendingCarrier, SLIDE_SPEED, deltaSeconds);
-    if (approachDistance >= 18 && approachDistance <= 34 && presser.aiTackleCooldownSeconds <= 0) {
+    if (approachDistance >= 18 && approachDistance <= 34 && presser.knockdownSeconds <= 0
+        && presser.aiTackleCooldownSeconds <= 0) {
       putBallAtPlayer(state, defendingCarrier);
       presser.aiTackleCooldownSeconds = 1.35;
       events.push(...resolveTackle(state, presser, defendingCarrier, presser.powerTackleSeconds > 0));
@@ -906,7 +966,8 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
   const ballCarrier = carrier(state);
   const opponentCarrier = state.players.find((player) => player.team !== 'home' && !player.dismissed && player.id === state.ball.ownerId);
 
-  if (controlled.stunnedSeconds <= 0 && state.rainbowReflection?.playerId !== controlled.id) {
+  if (controlled.stunnedSeconds <= 0 && controlled.knockdownSeconds <= 0
+      && controlled.motionAction !== 'recover' && state.rainbowReflection?.playerId !== controlled.id) {
     if (state.possessionTeam === 'away' && input.down.has('d') && opponentCarrier) {
       moveToward(controlled, opponentCarrier, PRESSURE_SPEED, deltaSeconds);
     } else if (controlled.slideSeconds > 0 && opponentCarrier) {
@@ -917,8 +978,10 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
     }
   }
 
-  if (state.possessionTeam === 'away' && input.pressed.has('s')) {
-    const homePlayers = activePlayers(state, 'home');
+  if (controlled.knockdownSeconds <= 0 && controlled.motionAction !== 'recover'
+      && state.possessionTeam === 'away' && input.pressed.has('s')) {
+    const homePlayers = activePlayers(state, 'home').filter((player) => player.knockdownSeconds <= 0
+      && player.motionAction !== 'recover');
     const index = homePlayers.findIndex((player) => player.id === state.controlledPlayerId);
     if (homePlayers.length > 0) {
       state.controlledPlayerId = homePlayers[(index + 1) % homePlayers.length].id;
@@ -926,12 +989,13 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
     }
   }
 
-  if (state.possessionTeam === 'away' && input.pressed.has('a')) {
+  if (controlled.knockdownSeconds <= 0 && controlled.motionAction !== 'recover'
+      && state.possessionTeam === 'away' && input.pressed.has('a')) {
     controlled.slideSeconds = 0.25;
   }
 
   for (const player of state.players) {
-    if (player.dismissed || player.id === controlled?.id) continue;
+    if (player.dismissed || player.id === controlled?.id || player.knockdownSeconds > 0 || player.motionAction === 'recover') continue;
     if (state.rainbowReflection?.playerId === player.id) continue;
     if (player.team !== 'away') continue;
     if (player.id === state.ball.ownerId) {
@@ -972,6 +1036,7 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
 function maybeUseAiSkill(state, team, events) {
   const opponentCarrier = state.players.find((player) => player.team !== team && !player.dismissed && player.id === state.ball.ownerId);
   const candidates = state.players.filter((player) => player.team === team && player.role !== 'goalkeeper' && !player.dismissed
+    && player.knockdownSeconds <= 0 && player.motionAction !== 'recover'
     && SKILL_IDS.includes(player.skillId) && player.skillUsesRemaining > 0);
 
   for (const player of candidates) {
@@ -1091,6 +1156,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   state.aiShotCooldownSeconds = Math.max(0, (state.aiShotCooldownSeconds ?? 0) - dt);
   for (const player of state.players) {
     player.stunnedSeconds = Math.max(0, (player.stunnedSeconds ?? 0) - dt);
+    advancePlayerRecovery(player, dt);
     player.powerTackleSeconds = Math.max(0, (player.powerTackleSeconds ?? 0) - dt);
     player.aiTackleCooldownSeconds = Math.max(0, (player.aiTackleCooldownSeconds ?? 0) - dt);
   }
@@ -1132,7 +1198,8 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
     if (reflectionEvent) events.push(reflectionEvent);
   }
 
-  if (controlled && input.pressed.has('f') && state.rainbowReflection?.playerId !== controlled.id) {
+  if (controlled && controlled.knockdownSeconds <= 0 && controlled.motionAction !== 'recover'
+      && input.pressed.has('f') && state.rainbowReflection?.playerId !== controlled.id) {
     const attempt = applySkill(state, controlled.id);
     if (attempt.ok) events.push(...attempt.events);
   }
