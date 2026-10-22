@@ -6,7 +6,7 @@
 ## Phases
 | Phase | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
-| P01 | `in_progress` | 경기 조작, 규칙 재개/징계, HUD와 공격 진영 카메라를 기존 시뮬레이션에 순차 적용 | [P01](../phases/2026-10-22-law-based-3d-football-rework/P01-match-rules-and-presentation/phase.md) |
+| P01 | `done ✅` | 경기 조작, 규칙 재개/징계, HUD와 공격 진영 카메라를 기존 시뮬레이션에 순차 적용 | [P01](../phases/2026-10-22-law-based-3d-football-rework/P01-match-rules-and-presentation/phase.md) |
 
 ## Source Decisions
 - [확정 결정](../decisions/2026-10-22-law-based-3d-football-rework.md)

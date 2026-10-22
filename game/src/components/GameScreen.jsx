@@ -3,11 +3,22 @@ import Match3DGame from './Match3DGame.jsx';
 import PauseMenu from './PauseMenu.jsx';
 import { SKILLS } from '../game/skills.js';
 
+export function formatMatchTime(seconds) {
+  if (!Number.isFinite(seconds)) return '00:00';
+  const totalSeconds = Math.max(0, Math.ceil(seconds));
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainder = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
+}
+
 export default function GameScreen({ gameState, paused, errorMessage, onPause, onResume, onSaveAndExit, onGameEvents }) {
   const [viewState, setViewState] = useState(gameState);
   const lastUpdate = useRef(0);
   const stage = gameState.stage;
-  const timeLabel = viewState.phase === 'overtime' ? 'GOLDEN GOAL' : String(Math.ceil(viewState.remainingSeconds));
+  const isOvertime = viewState.phase === 'overtime';
+  const timeLabel = formatMatchTime(isOvertime ? viewState.overtimeRemainingSeconds : viewState.remainingSeconds);
+  const homeScore = Number.isFinite(viewState.score?.home) ? viewState.score.home : 0;
+  const awayScore = Number.isFinite(viewState.score?.away) ? viewState.score.away : 0;
   const possession = viewState.possessionTeam === 'home' ? '우리 팀 공격' : viewState.possessionTeam === 'away' ? '상대 공격' : '공 경합 중';
   const restartControls = viewState.restart?.team !== 'home'
     ? viewState.restart ? '상대 팀 재개 중' : '방향키 이동 · Space 점프·헤딩 · A 로빙 패스·걷어내기 · S 땅볼 패스(수비 시 선수 전환) · D 슛 · F 스킬'
@@ -32,13 +43,20 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
         <span>ACTIVE PLAYERS <b>{activeHome}</b> : <b>{activeAway}</b> · {possession}</span>
         {viewState.foulNoticeSeconds > 0 && viewState.lastFoul && <strong>{foulLabel} · {viewState.lastFoul.team.toUpperCase()} FOUL{foulSeverityLabel ? ` · ${foulSeverityLabel}` : ''}</strong>}
       </div>
-      <div className="game-canvas-wrap"><Match3DGame initialState={gameState} paused={paused} onGameEvents={onGameEvents} onStateChange={(next) => {
+      <div className="game-canvas-wrap">
+        <div className="match-score-hud" role="group" aria-label={`DEX ${homeScore}, 상대 ${awayScore}, 남은 시간 ${timeLabel}`}>
+          <div className="score-team score-team-home"><span className="score-team-mark">DEX</span><span className="score-team-name">DEX FC</span><b>{homeScore}</b></div>
+          <div className="score-clock"><small>{isOvertime ? 'GOLDEN GOAL' : 'MATCH TIME'}</small><strong>{timeLabel}</strong></div>
+          <div className="score-team score-team-away"><b>{awayScore}</b><span className="score-team-name">AI RIVALS</span><span className="score-team-mark">AI</span></div>
+        </div>
+        <Match3DGame initialState={gameState} paused={paused} onGameEvents={onGameEvents} onStateChange={(next) => {
         const now = performance.now();
         if (now - lastUpdate.current > 100) {
           lastUpdate.current = now;
           setViewState(next);
         }
-      }} /></div>
+        }} />
+      </div>
       <div className="game-bottomline">
         <div className="skill-stock"><span>조작 선수 스킬</span><b>{controlledPlayer?.skillId ? SKILLS[controlledPlayer.skillId]?.name : '장착된 스킬 없음'}</b><small>{controlledPlayer?.skillId === 'rainbowReflect' ? '자동 발동' : `F · 남은 사용 ${controlledPlayer?.skillUsesRemaining ?? 0}회`}</small></div>
         <div className="skill-stock away-skill-stock"><span>상대 팀 스킬</span><b>남은 사용 횟수</b><small>{awaySkillUses}회</small></div>

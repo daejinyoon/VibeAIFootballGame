@@ -1,6 +1,6 @@
 # Task: T04 상단 스코어보드와 공격 진영 카메라
 
-## Status: pending
+## Status: done
 
 ## Goal
 참고 이미지처럼 양 팀 표시/점수와 남은 시간을 경기 화면 상단에 고정하고, 높은 사선 시점에서 공을 가진 팀의 공격 절반을 강조하면서 양쪽 골대를 확인하게 한다.
@@ -88,6 +88,6 @@ Task: T04-score-hud-and-camera
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
+- [x] 구현 완료
+- [x] 검증 통과 (`npm run build`)
 - commit: pending
