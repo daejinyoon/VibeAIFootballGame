@@ -105,7 +105,7 @@ test('home support AI is deterministic and keeps targets inside the pitch', () =
       && player.aiTarget.y >= 0 && player.aiTarget.y <= FIELD.height));
 });
 
-test('home support players retarget deterministically from their carrier role', () => {
+test('home support players retarget deterministically into short outlet and forward run lanes', () => {
   const state = createInitialGameState();
   const teammate = state.players.find((player) => player.id === 'home-def-1');
 
@@ -117,7 +117,7 @@ test('home support players retarget deterministically from their carrier role', 
 
   assert.notDeepEqual(teammate.aiTarget, firstTarget);
   assert.equal(state.aiRandomSeed, 0x6d2b79f5);
-  assert.ok(teammate.aiTarget.x < state.players.find((player) => player.id === 'home-fw').x);
+  assert.ok(teammate.aiTarget.x > 0 && teammate.aiTarget.x <= FIELD.width);
   assert.ok(teammate.aiTarget.x >= 0 && teammate.aiTarget.x <= FIELD.width);
   assert.ok(teammate.aiTarget.y >= 0 && teammate.aiTarget.y <= FIELD.height);
 });
@@ -1046,10 +1046,38 @@ test('the nearest away defender presses while remaining defenders cover separate
   stepGame(state, frame(), 0.05);
 
   assert.ok(presser.x < 470);
+  assert.equal(state.aiPressingPlayerId, presser.id);
   assert.ok(coverOne.aiTarget && coverTwo.aiTarget);
   assert.notDeepEqual(coverOne.aiTarget, coverTwo.aiTarget);
+  const initialPresserId = state.aiPressingPlayerId;
+  const initialMarks = { ...state.aiMarkingAssignments };
+  stepGame(state, frame(), 0.05);
+  assert.equal(state.aiPressingPlayerId, initialPresserId);
+  assert.deepEqual(state.aiMarkingAssignments, initialMarks);
+  assert.equal(new Set(Object.values(state.aiMarkingAssignments)).size, Object.keys(state.aiMarkingAssignments).length);
   assert.ok([coverOne.aiTarget, coverTwo.aiTarget].every((target) => target.x >= 0 && target.x <= FIELD.width
     && target.y >= 0 && target.y <= FIELD.height));
+});
+
+test('the stable presser is reassigned when the ball carrier changes', () => {
+  const state = createInitialGameState({ stage: 3 });
+  const firstCarrier = state.players.find((player) => player.id === 'home-fw');
+  const nextCarrier = state.players.find((player) => player.id === 'home-mid-1');
+  Object.assign(firstCarrier, { x: 400, y: 270 });
+  Object.assign(nextCarrier, { x: 550, y: 270 });
+  Object.assign(state.players.find((player) => player.id === 'away-fw'), { x: 360, y: 270 });
+  Object.assign(state.players.find((player) => player.id === 'away-def-1'), { x: 500, y: 270 });
+  Object.assign(state.players.find((player) => player.id === 'away-mid-1'), { x: 800, y: 150 });
+  Object.assign(state.ball, { ownerId: firstCarrier.id, x: firstCarrier.x, y: firstCarrier.y });
+  state.possessionTeam = 'home';
+  stepGame(state, frame(), 0.05);
+  const firstPresserId = state.aiPressingPlayerId;
+
+  Object.assign(state.ball, { ownerId: nextCarrier.id, x: nextCarrier.x, y: nextCarrier.y });
+  stepGame(state, frame(), 0.05);
+
+  assert.notEqual(state.aiPressingPlayerId, firstPresserId);
+  assert.equal(state.aiPressingPlayerId, 'away-def-1');
 });
 
 test('the stage-five boss makes attack decisions sooner than a regular opponent', () => {

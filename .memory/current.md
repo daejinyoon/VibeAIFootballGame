@@ -1,20 +1,18 @@
 # Current Context
 
 ## Active Plan
-[규칙 기반 3D 아케이드 축구 조작 및 재개 개편](./plans/2026-10-22-law-based-3d-football-rework.md)
+[3D Arcade Football Match Polish](./plans/2026-10-22-arcade-3d-match-polish.md)
 
 ## Active Phase
-[P01 경기 규칙과 화면 구성](./phases/2026-10-22-law-based-3d-football-rework/P01-match-rules-and-presentation/phase.md)
+[P01 Arcade Match Polish](./phases/2026-10-22-arcade-3d-match-polish/P01-arcade-match-polish/phase.md)
 
 ## Active Task
-없음 — 계획의 모든 Task가 완료되었습니다.
+[T03 Three-Zone Camera](./phases/2026-10-22-arcade-3d-match-polish/P01-arcade-match-polish/T03-three-zone-camera.md)
 
 ## Status
-- T01 완료: 충전 게이지 제거, 즉시 방향 기준 패스/슛과 UI 조작 안내 변경. production build 통과.
-- T02 완료: 공 전체 경계 판정과 수동 스로인/코너/골킥 구현. production build 통과.
-- T03 완료: 부주의/무모함/과도한 힘 파울 분류, 반복 경고와 퇴장 처리. production build 통과.
-- T04 완료: 상단 점수/시간 HUD와 공격 방향 추적 카메라 구현. production build 통과.
-- P01 완료: 4/4
+- T01 complete: kickoff circle lock covers opening and post-goal kickoffs; focused checks and build passed.
+- T02 complete: persistent pressure/marking and split home support lanes; focused checks/build passed, full test suite has 11 known unrelated failures.
+- Phase progress: 2/5 tasks complete.
 
 ## Next Step (IMPORTANT)
-계획의 모든 Task가 완료되었습니다. 다음 기능은 별도 `/grill-me` 및 `/memory-plan` 절차로 시작합니다.
+Read T03-three-zone-camera.md and implement the camera framing around the kickoff center and active ball zone. Validate, commit, then advance the pointer to T04.
