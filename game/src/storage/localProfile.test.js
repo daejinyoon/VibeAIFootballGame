@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createOpponentSkillSets } from '../game/campaign.js';
-import { SKILL_IDS } from '../game/skills.js';
 import { DEFAULT_TEAM_CUSTOMIZATION } from '../game/teamBranding.js';
 import {
   createCampaignSave,
@@ -26,8 +25,34 @@ function createCampaign(currentStage = 2) {
   return {
     currentStage,
     clearedStageResults: [{ stage: 1, homeGoals: 2, awayGoals: 1, goalDifference: 1 }],
-    playerSkillStacks: { 'home-def-1': { skillId: 'eagleShot', copies: 2 }, 'home-mid-1': null, 'home-fw': null },
-    skillInventory: Object.fromEntries(SKILL_IDS.map((skillId) => [skillId, skillId === 'powerTackle' ? 1 : 0])),
+    teamSkillDeck: [
+      { skillId: 'eagleShot', level: 2 },
+      { skillId: 'powerTackle', level: 1 },
+    ],
+    pendingSkillOffer: null,
+    pendingSkillPlacement: null,
+    opponentSkillSets: createOpponentSkillSets(() => 0.2),
+    status: 'active',
+  };
+}
+
+function legacyV3Campaign(currentStage = 4) {
+  return {
+    currentStage,
+    clearedStageResults: [1, 2, 3].map((stage) => ({ stage, homeGoals: 2, awayGoals: 1, goalDifference: 1 })),
+    playerSkillStacks: {
+      'home-def-1': { skillId: 'eagleShot', copies: 2 },
+      'home-mid-1': null,
+      'home-fw': { skillId: 'tornadoShot', copies: 3 },
+    },
+    skillInventory: {
+      eagleShot: 2,
+      tornadoShot: 1,
+      powerTackle: 1,
+      eulryongta: 0,
+      vacuumCleaner: 2,
+      rainbowReflect: 2,
+    },
     pendingSkillOffer: null,
     pendingSkillAssignment: null,
     opponentSkillSets: createOpponentSkillSets(() => 0.2),
@@ -35,8 +60,9 @@ function createCampaign(currentStage = 2) {
   };
 }
 
-test('creates an empty profile and validates a trimmed nickname', () => {
+test('creates a v4 empty profile and validates a trimmed nickname', () => {
   const empty = createEmptyProfile();
+  assert.equal(empty.schemaVersion, 4);
   assert.equal(empty.nickname, '');
   assert.deepEqual(empty.teamCustomization, DEFAULT_TEAM_CUSTOMIZATION);
   assert.equal(setNickname(empty, '  Dex  ').nickname, 'Dex');
@@ -48,11 +74,11 @@ test('creates an empty profile and validates a trimmed nickname', () => {
 test('recovers from malformed or unsupported browser profile data', () => {
   const broken = createMemoryStorage({ 'dex-pixel-football:v1': '{bad json' });
   assert.deepEqual(readProfile(broken), createEmptyProfile());
-  const old = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({ schemaVersion: 4, nickname: 'Dex' }) });
+  const old = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({ schemaVersion: 5, nickname: 'Dex' }) });
   assert.deepEqual(readProfile(old), createEmptyProfile());
 });
 
-test('writes and reads skill stacks and inventory without match coordinates', () => {
+test('round-trips the ordered team deck without match coordinates or legacy fields', () => {
   const storage = createMemoryStorage();
   const campaign = createCampaign();
   const save = createCampaignSave(campaign);
@@ -62,12 +88,13 @@ test('writes and reads skill stacks and inventory without match coordinates', ()
   }, storage);
   const loaded = readProfile(storage);
   assert.equal(loaded.nickname, 'Dex');
-  assert.equal(profile.schemaVersion, 3);
-  assert.equal(JSON.parse(storage.getItem('dex-pixel-football:v1')).schemaVersion, 3);
+  assert.equal(profile.schemaVersion, 4);
+  assert.equal(JSON.parse(storage.getItem('dex-pixel-football:v1')).schemaVersion, 4);
   assert.deepEqual(loaded.teamCustomization, { logoId: 'apple', paletteId: 'violet-ice' });
   assert.equal(loaded.campaignSave.currentStage, 2);
-  assert.deepEqual(loaded.campaignSave.playerSkillStacks, campaign.playerSkillStacks);
-  assert.deepEqual(loaded.campaignSave.skillInventory, campaign.skillInventory);
+  assert.deepEqual(loaded.campaignSave.teamSkillDeck, campaign.teamSkillDeck);
+  assert.equal('playerSkillStacks' in loaded.campaignSave, false);
+  assert.equal('skillInventory' in loaded.campaignSave, false);
   assert.equal('ball' in loaded.campaignSave, false);
   assert.ok(profile.campaignSave.savedAt);
   assert.equal(createCampaignSave(createCampaign(5)).currentStage, 5);
@@ -96,11 +123,29 @@ test('round-trips sorted replay results with gaps and rejects malformed result r
   }
 });
 
-test('migrates legacy six-person loadouts into inventory and leaves the new field roster unequipped', () => {
+test('rejects invalid duplicate, over-level, and ineligible pending deck data', () => {
+  const base = createCampaignSave(createCampaign());
+  for (const teamSkillDeck of [
+    [{ skillId: 'eagleShot', level: 1 }, { skillId: 'eagleShot', level: 2 }],
+    [{ skillId: 'rainbowReflect', level: 2 }],
+    [{ skillId: 'unknownSkill', level: 1 }],
+  ]) {
+    const result = writeProfile({ ...createEmptyProfile(), nickname: 'Dex', campaignSave: { ...base, teamSkillDeck } }, createMemoryStorage());
+    assert.equal(result.campaignSave, null);
+  }
+
+  const ineligibleOffer = writeProfile({
+    ...createEmptyProfile(), nickname: 'Dex',
+    campaignSave: { ...base, teamSkillDeck: [{ skillId: 'rainbowReflect', level: 1 }], pendingSkillOffer: ['rainbowReflect'] },
+  }, createMemoryStorage());
+  assert.equal(ineligibleOffer.campaignSave, null);
+});
+
+test('v1 six-person loadouts migrate to unique shared team skills', () => {
   const legacy = {
     currentStage: 2,
     clearedStageResults: [{ stage: 1, homeGoals: 2, awayGoals: 1, goalDifference: 1 }],
-    homeLoadout: { 'home-gk': 'rainbowReflect', 'home-def-1': 'eagleShot' },
+    homeLoadout: { 'home-gk': 'rainbowReflect', 'home-def-1': 'eagleShot', 'home-fw': 'eagleShot' },
     opponentSkillSets: { 1: [], 2: [], 3: [] },
   };
   const storage = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({
@@ -111,68 +156,99 @@ test('migrates legacy six-person loadouts into inventory and leaves the new fiel
   }) });
   const profile = readProfile(storage);
   const saved = profile.campaignSave;
-  assert.equal(profile.schemaVersion, 3);
+  assert.equal(profile.schemaVersion, 4);
   assert.deepEqual(profile.teamCustomization, DEFAULT_TEAM_CUSTOMIZATION);
   assert.equal(profile.nickname, 'Dex');
   assert.equal(profile.bestRecord.stageReached, 3);
   assert.equal(saved.currentStage, 2);
   assert.deepEqual(saved.clearedStageResults, legacy.clearedStageResults);
-  assert.deepEqual(saved.playerSkillStacks, { 'home-def-1': null, 'home-mid-1': null, 'home-fw': null });
-  assert.equal(saved.skillInventory.eagleShot, 1);
-  assert.equal(saved.skillInventory.rainbowReflect, 1);
+  assert.deepEqual(saved.teamSkillDeck, [
+    { skillId: 'rainbowReflect', level: 1 },
+    { skillId: 'eagleShot', level: 2 },
+  ]);
   assert.deepEqual(Object.values(saved.opponentSkillSets).map((skills) => skills.length), [0, 1, 2, 3, 3]);
 });
 
-test('migrates previous skill-stack checkpoints without losing inventory, pending offers, or opponent setup', () => {
-  const campaign = createCampaign(4);
-  campaign.clearedStageResults = [1, 2, 3].map((stage) => ({ stage, homeGoals: 2, awayGoals: 1, goalDifference: 1 }));
-  campaign.pendingSkillOffer = ['eagleShot', 'tornadoShot', 'powerTackle'];
-  campaign.skillInventory.eagleShot = 2;
-  const storage = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({
-    schemaVersion: 1, nickname: 'Dex', campaignSave: createCampaignSave(campaign),
-  }) });
-  const migrated = readProfile(storage).campaignSave;
-  assert.equal(migrated.currentStage, 4);
-  assert.equal(migrated.skillInventory.eagleShot, 2);
-  assert.deepEqual(migrated.pendingSkillOffer, campaign.pendingSkillOffer);
-  assert.deepEqual(migrated.opponentSkillSets, campaign.opponentSkillSets);
-});
-
-test('migrates v2 profiles and repairs invalid v3 branding without losing campaign data', () => {
-  const campaignSave = createCampaignSave(createCampaign(3));
+test('v3 migration aggregates stacks then inventory, clamps levels, and preserves campaign and branding', () => {
+  const legacyCampaign = legacyV3Campaign();
   const bestRecord = { nickname: 'Dex', stageReached: 4, goalDifference: 7, updatedAt: '2026-10-22T00:00:00.000Z' };
   const storage = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({
-    schemaVersion: 2, nickname: 'Dex', campaignSave, bestRecord,
+    schemaVersion: 3,
+    nickname: 'Dex',
+    campaignSave: legacyCampaign,
+    bestRecord,
+    teamCustomization: { logoId: 'apple', paletteId: 'rose-petal' },
   }) });
   const migrated = readProfile(storage);
-  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.schemaVersion, 4);
+  assert.deepEqual(migrated.campaignSave.teamSkillDeck, [
+    { skillId: 'eagleShot', level: 3 },
+    { skillId: 'tornadoShot', level: 3 },
+    { skillId: 'powerTackle', level: 1 },
+    { skillId: 'vacuumCleaner', level: 1 },
+    { skillId: 'rainbowReflect', level: 1 },
+  ]);
+  assert.equal(migrated.campaignSave.currentStage, legacyCampaign.currentStage);
+  assert.deepEqual(migrated.campaignSave.clearedStageResults, legacyCampaign.clearedStageResults);
+  assert.deepEqual(migrated.campaignSave.opponentSkillSets, legacyCampaign.opponentSkillSets);
+  assert.deepEqual(migrated.teamCustomization, { logoId: 'apple', paletteId: 'rose-petal' });
+  assert.deepEqual(migrated.bestRecord, bestRecord);
+});
+
+test('v3 migration filters pending offers against new ownership and upgrade rules', () => {
+  const legacyCampaign = legacyV3Campaign(3);
+  legacyCampaign.pendingSkillOffer = ['eagleShot', 'powerTackle', 'eulryongta', 'vacuumCleaner'];
+  const storage = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({
+    schemaVersion: 3, nickname: 'Dex', campaignSave: legacyCampaign,
+  }) });
+  assert.deepEqual(readProfile(storage).campaignSave.pendingSkillOffer, ['powerTackle', 'eulryongta']);
+});
+
+test('v2 campaigns migrate and v3 branding is repaired without losing campaign data', () => {
+  const legacyCampaign = legacyV3Campaign(3);
+  const bestRecord = { nickname: 'Dex', stageReached: 4, goalDifference: 7, updatedAt: '2026-10-22T00:00:00.000Z' };
+  const storage = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({
+    schemaVersion: 2, nickname: 'Dex', campaignSave: legacyCampaign, bestRecord,
+  }) });
+  const migrated = readProfile(storage);
+  assert.equal(migrated.schemaVersion, 4);
   assert.deepEqual(migrated.teamCustomization, DEFAULT_TEAM_CUSTOMIZATION);
-  assert.deepEqual(migrated.campaignSave, campaignSave);
+  assert.deepEqual(migrated.campaignSave.teamSkillDeck[0], { skillId: 'eagleShot', level: 3 });
   assert.deepEqual(migrated.bestRecord, bestRecord);
 
   storage.setItem('dex-pixel-football:v1', JSON.stringify({
-    schemaVersion: 3, nickname: 'Dex', campaignSave, bestRecord,
+    schemaVersion: 3, nickname: 'Dex', campaignSave: legacyCampaign, bestRecord,
     teamCustomization: { logoId: 'not-a-logo', paletteId: 'not-a-palette' },
   }));
   const repaired = readProfile(storage);
   assert.deepEqual(repaired.teamCustomization, DEFAULT_TEAM_CUSTOMIZATION);
-  assert.deepEqual(repaired.campaignSave, campaignSave);
+  assert.equal(repaired.campaignSave.currentStage, legacyCampaign.currentStage);
   assert.deepEqual(repaired.bestRecord, bestRecord);
 });
 
-test('persists a pending card offer and assignment prompt for campaign resume', () => {
-  const campaign = createCampaign(2);
-  campaign.pendingSkillOffer = ['eagleShot', 'tornadoShot', 'powerTackle'];
-  campaign.pendingSkillAssignment = 'eagleShot';
-  const save = createCampaignSave(campaign);
+test('migrates an old pending assignment into a saved team skill placement', () => {
+  const legacyCampaign = legacyV3Campaign(2);
+  legacyCampaign.pendingSkillAssignment = 'powerTackle';
+  legacyCampaign.pendingSkillOffer = ['powerTackle', 'eagleShot', 'tornadoShot'];
   const storage = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({
-    schemaVersion: 1,
-    nickname: 'Dex',
-    campaignSave: save,
+    schemaVersion: 3, nickname: 'Dex', campaignSave: legacyCampaign,
   }) });
+  const saved = readProfile(storage).campaignSave;
+  assert.equal(saved.pendingSkillPlacement, 'powerTackle');
+  assert.equal(saved.pendingSkillOffer, null);
+});
+
+test('persists and restores a pending reward placement', () => {
+  const campaign = createCampaign(2);
+  campaign.teamSkillDeck.push({ skillId: 'eulryongta', level: 1 });
+  campaign.pendingSkillPlacement = 'eulryongta';
+  const storage = createMemoryStorage();
+  const save = createCampaignSave(campaign);
+  writeProfile({ ...createEmptyProfile(), nickname: 'Dex', campaignSave: save }, storage);
   const loaded = readProfile(storage).campaignSave;
-  assert.deepEqual(loaded.pendingSkillOffer, campaign.pendingSkillOffer);
-  assert.equal(loaded.pendingSkillAssignment, 'eagleShot');
+  assert.deepEqual(loaded.teamSkillDeck, campaign.teamSkillDeck);
+  assert.equal(loaded.pendingSkillPlacement, 'eulryongta');
+  assert.equal(loaded.pendingSkillOffer, null);
 });
 
 test('keeps one campaign checkpoint and replaces it with a later save', () => {

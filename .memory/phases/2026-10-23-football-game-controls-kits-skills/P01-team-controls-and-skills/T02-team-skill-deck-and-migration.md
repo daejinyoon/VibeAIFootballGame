@@ -1,6 +1,6 @@
 # Task: T02 Team Skill Deck and Save Migration
 
-## Status: pending
+## Status: done
 
 ## Goal
 
@@ -106,5 +106,5 @@ Task: T02-team-skill-deck-and-migration
 
 ## Progress
 
-- [ ] Implementation complete
-- [ ] Validation passed
+- [x] Implementation complete
+- [x] Validation passed

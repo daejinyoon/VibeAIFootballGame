@@ -51,4 +51,5 @@ This stays in one phase because all four tasks change one feature area and share
 ## Status
 
 - T01 kits, kickoff, and controls implemented and validated.
-- `.memory/current.md` points to P01-T02.
+- T02 shared team deck, reward/setup flow, and profile v4 migration implemented and validated.
+- `.memory/current.md` points to P01-T03.

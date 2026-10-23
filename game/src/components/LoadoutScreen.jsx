@@ -1,39 +1,37 @@
-import { useState } from 'react';
-
-export default function LoadoutScreen({ stage = 2, playerRows = [], playerSkillStacks = {}, inventory = {}, skills = {}, onAssign, onConfirm, onBack }) {
-  const [selectedSkill, setSelectedSkill] = useState(null);
-  const available = Object.entries(inventory).filter(([, count]) => count > 0);
-  const selectedName = selectedSkill ? skills[selectedSkill]?.name ?? selectedSkill : null;
-
+export default function LoadoutScreen({ stage = 2, teamSkillDeck = [], skills = {}, onMove, onConfirm, onBack }) {
   return (
     <section className="screen-panel loadout-panel" aria-labelledby="loadout-title">
-      <button className="back-button" onClick={onBack}>← 메인 화면</button>
+      <button className="back-button" type="button" onClick={onBack}>← 메인 화면</button>
       <p className="eyebrow">TEAM SETUP · BEFORE STAGE {String(stage).padStart(2, '0')}</p>
-      <h1 id="loadout-title">다음 경기를 준비하세요</h1>
-      <p className="intro">보유한 카드를 선수에게 추가로 배치할 수 있습니다. 선수를 고르면 장착된 스킬은 보유함으로 돌아갑니다.</p>
-      <div className="loadout-layout">
-        <section className="loadout-stock" aria-labelledby="stock-title">
-          <div className="loadout-section-heading"><div><p className="eyebrow">SKILL INVENTORY</p><h2 id="stock-title">보유 카드</h2></div><span>{available.reduce((sum, [, count]) => sum + count, 0)}장</span></div>
-          {available.length
-            ? <div className="inventory-list">{available.map(([skillId, count]) => <button key={skillId} className={`inventory-card ${selectedSkill === skillId ? 'is-selected' : ''}`} aria-pressed={selectedSkill === skillId} onClick={() => setSelectedSkill(selectedSkill === skillId ? null : skillId)}>
-              <span className="inventory-gem"><img src={skills[skillId]?.artwork} alt="" aria-hidden="true" /></span><span><b>{skills[skillId]?.name ?? skillId}</b><small>{skills[skillId]?.description}</small></span><em>×{count}</em>
-            </button>)}</div>
-            : <div className="inventory-empty">보유한 카드가 없습니다.<br />다음 승리 보상에서 스킬을 얻어 보세요.</div>}
-          {selectedName && <p className="loadout-hint" role="status">{selectedName} 선택됨 · 장착할 선수를 누르세요.</p>}
-        </section>
-        <section className="loadout-roster" aria-labelledby="roster-title">
-          <div className="loadout-section-heading"><div><p className="eyebrow">FIELD PLAYERS</p><h2 id="roster-title">필드 선수</h2></div><span>3명</span></div>
-          <div className="loadout-player-list">{playerRows.map((player, index) => {
-            const stack = playerSkillStacks[player.playerId];
-            const canAssign = Boolean(selectedSkill && inventory[selectedSkill] > 0);
-            return <button key={player.playerId} className={`loadout-player ${canAssign ? 'can-assign' : ''}`} disabled={!canAssign} onClick={() => { onAssign(player.playerId, selectedSkill); setSelectedSkill(null); }}>
-              <span className="loadout-player-number">0{index + 1}</span><span className="loadout-player-info"><b>{player.displayName}</b><small>{stack ? `${skills[stack.skillId]?.name ?? stack.skillId} · 경기당 ${stack.copies}회` : '장착된 스킬 없음'}</small></span><span className="loadout-player-action">{canAssign ? '배치하기 →' : 'PLAYER'}</span>
-            </button>;
-          })}</div>
-          <div className="goalkeeper-note"><span aria-hidden="true">🧤</span><span><b>골키퍼</b><small>스킬 장착 대상에서 제외</small></span><em>GK</em></div>
-        </section>
+      <h1 id="loadout-title">팀 스킬 순서를 정하세요</h1>
+      <p className="intro">경기 중 F를 누르면 조건에 맞는 스킬이 현재 순서대로 발동됩니다. 팀 전체가 스킬을 공유하고, 성공적으로 발동하면 팀 쿨타임이 시작됩니다.</p>
+
+      <section className="team-skill-order-panel" aria-labelledby="team-skill-order-title">
+        <div className="loadout-section-heading">
+          <div><p className="eyebrow">SHARED TEAM DECK</p><h2 id="team-skill-order-title">공용 스킬 순서</h2></div>
+          <span>{teamSkillDeck.length}개</span>
+        </div>
+        {teamSkillDeck.length ? <ol className="team-skill-order-list">
+          {teamSkillDeck.map((entry, index) => {
+            const skill = skills[entry.skillId] ?? {};
+            const passive = entry.skillId === 'rainbowReflect';
+            return <li className="team-skill-order-row" key={entry.skillId}>
+              <span className="team-skill-position">{String(index + 1).padStart(2, '0')}</span>
+              <span className="team-skill-icon"><img src={skill.artwork} alt="" aria-hidden="true" /></span>
+              <span className="team-skill-copy"><b>{skill.name ?? entry.skillId}</b><small>{passive ? '자동 발동 · 패시브' : `팀 공용 · Lv. ${entry.level}`}</small></span>
+              <span className="team-skill-reorder">
+                <button type="button" aria-label={`${skill.name ?? entry.skillId} 순서 앞으로`} disabled={index === 0} onClick={() => onMove?.(index, index - 1)}>앞으로</button>
+                <button type="button" aria-label={`${skill.name ?? entry.skillId} 순서 뒤로`} disabled={index === teamSkillDeck.length - 1} onClick={() => onMove?.(index, index + 1)}>뒤로</button>
+              </span>
+            </li>;
+          })}
+        </ol> : <p className="team-skill-empty">아직 보유한 스킬이 없습니다. 스테이지 승리 보상으로 팀 스킬을 얻을 수 있습니다.</p>}
+      </section>
+
+      <div className="setup-actions">
+        <span className="validation-note">무지개반사는 상대 스킬에 자동으로 대응합니다.</span>
+        <button type="button" className="primary-button" onClick={onConfirm}>스테이지 선택으로 <span aria-hidden="true">→</span></button>
       </div>
-      <div className="setup-actions"><span className="validation-note">배치하지 않은 카드는 보유함에 남습니다.</span><button className="primary-button" onClick={onConfirm}>다음 경기 시작 <span aria-hidden="true">→</span></button></div>
     </section>
   );
 }

@@ -2,19 +2,21 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createInitialGameState } from './createInitialGameState.js';
 import { assignOpponentSkills, createCampaign, createOpponentSkillSets, finishStage, getUnlockedStage } from './campaign.js';
-import { SKILL_IDS, assignSkillCard, awardSkillCard } from './skills.js';
+import {
+  SKILL_IDS,
+  SKILL_MAX_LEVELS,
+  awardSkillCard,
+  placeTeamSkill,
+  reorderTeamSkill,
+} from './skills.js';
 
-test('starts campaigns with no equipped skills and an empty inventory', () => {
+test('starts campaigns with an empty shared team deck', () => {
   const campaign = createCampaign({ rng: () => 0.25 });
   assert.equal(campaign.currentStage, 1);
   assert.equal(getUnlockedStage(campaign), 1);
-  assert.deepEqual(campaign.playerSkillStacks, {
-    'home-def-1': null,
-    'home-mid-1': null,
-    'home-fw': null,
-  });
-  assert.ok(SKILL_IDS.every((skillId) => campaign.skillInventory[skillId] === 0));
+  assert.deepEqual(campaign.teamSkillDeck, []);
   assert.equal(campaign.pendingSkillOffer, null);
+  assert.equal(campaign.pendingSkillPlacement, null);
 });
 
 test('creates opponent skill sets for all five stages without duplicates', () => {
@@ -27,14 +29,14 @@ test('creates opponent skill sets for all five stages without duplicates', () =>
   }
 });
 
-test('a lost stage retains stacks and inventory and can be retried', () => {
+test('a lost stage retains the shared team deck and can be retried', () => {
   const campaign = createCampaign({ rng: () => 0.4 });
+  campaign.teamSkillDeck = [{ skillId: 'eagleShot', level: 2 }];
   const lost = finishStage(campaign, { homeGoals: 1, awayGoals: 2 }, () => 0.2);
   assert.equal(lost.currentStage, 1);
   assert.equal(lost.status, 'active');
   assert.deepEqual(lost.clearedStageResults, []);
-  assert.deepEqual(lost.playerSkillStacks, campaign.playerSkillStacks);
-  assert.deepEqual(lost.skillInventory, campaign.skillInventory);
+  assert.deepEqual(lost.teamSkillDeck, campaign.teamSkillDeck);
   assert.equal(lost.pendingSkillOffer, null);
 });
 
@@ -79,7 +81,7 @@ test('a match-win event score envelope advances the campaign stage', () => {
   assert.equal(advanced.pendingSkillOffer.length, 3);
 });
 
-test('winning a replay replaces its stage record and offers a fresh skill card set', () => {
+test('winning a replay replaces its stage record and offers eligible team skills', () => {
   let campaign = createCampaign({ rng: () => 0.2 });
   for (let stage = 1; stage <= 3; stage += 1) {
     campaign = finishStage(campaign, { homeGoals: stage + 1, awayGoals: stage }, () => stage / 10);
@@ -87,8 +89,7 @@ test('winning a replay replaces its stage record and offers a fresh skill card s
   campaign = {
     ...campaign,
     currentStage: 2,
-    playerSkillStacks: { ...campaign.playerSkillStacks, 'home-fw': { skillId: 'eagleShot', copies: 2 } },
-    skillInventory: { ...campaign.skillInventory, tornadoShot: 1 },
+    teamSkillDeck: [{ skillId: 'eagleShot', level: 2 }],
     pendingSkillOffer: ['eagleShot', 'tornadoShot', 'powerTackle'],
   };
 
@@ -104,8 +105,7 @@ test('winning a replay replaces its stage record and offers a fresh skill card s
   assert.equal(replayed.status, 'active');
   assert.equal(replayed.pendingSkillOffer.length, 3);
   assert.notDeepEqual(replayed.pendingSkillOffer, campaign.pendingSkillOffer);
-  assert.deepEqual(replayed.playerSkillStacks, campaign.playerSkillStacks);
-  assert.deepEqual(replayed.skillInventory, campaign.skillInventory);
+  assert.deepEqual(replayed.teamSkillDeck, campaign.teamSkillDeck);
   assert.deepEqual(replayed.opponentSkillSets, campaign.opponentSkillSets);
 });
 
@@ -132,46 +132,84 @@ test('a tied stage result leaves campaign progression and rewards unchanged', ()
   assert.deepEqual(drawn, campaign);
 });
 
-test('drafted cards enter inventory and can be stacked on one field player up to three copies', () => {
+test('new reward skills enter the ordered team deck and can be placed at any position', () => {
   let campaign = createCampaign({ rng: () => 0.3 });
   campaign = finishStage(campaign, { homeGoals: 1, awayGoals: 0 }, () => 0.4);
   const skillId = campaign.pendingSkillOffer[0];
   const awarded = awardSkillCard(campaign, skillId);
   assert.equal(awarded.ok, true);
   campaign = awarded.campaign;
-  assert.equal(campaign.skillInventory[skillId], 1);
+  assert.deepEqual(campaign.teamSkillDeck, [{ skillId, level: 1 }]);
+  assert.equal(campaign.pendingSkillPlacement, skillId);
   assert.equal(campaign.pendingSkillOffer, null);
 
-  for (let copies = 1; copies <= 3; copies += 1) {
-    if (copies > 1) {
-      campaign.pendingSkillOffer = [skillId, ...SKILL_IDS.filter((id) => id !== skillId).slice(0, 2)];
-      campaign = awardSkillCard(campaign, skillId).campaign;
-    }
-    const assigned = assignSkillCard(campaign, 'home-fw', skillId);
-    assert.equal(assigned.ok, true);
-    campaign = assigned.campaign;
-    assert.equal(campaign.playerSkillStacks['home-fw'].copies, copies);
-    assert.equal(campaign.skillInventory[skillId], 0);
-  }
-  campaign.skillInventory[skillId] = 1;
-  const maxed = assignSkillCard(campaign, 'home-fw', skillId);
-  assert.deepEqual(maxed, { ok: false, reason: 'maxCopies' });
-  assert.equal(campaign.skillInventory[skillId], 1);
+  const placed = placeTeamSkill(campaign, skillId, 0);
+  assert.equal(placed.ok, true);
+  assert.equal(placed.campaign.pendingSkillPlacement, null);
+  assert.deepEqual(placed.campaign.teamSkillDeck, [{ skillId, level: 1 }]);
+
+  const pendingPlacement = { ...campaign, pendingSkillPlacement: skillId };
+  assert.deepEqual(placeTeamSkill(pendingPlacement, skillId, -1), { ok: false, reason: 'invalidPosition' });
+  assert.deepEqual(placeTeamSkill(pendingPlacement, skillId, 2), { ok: false, reason: 'invalidPosition' });
 });
 
-test('replacing a player skill returns all old copies to inventory and never allows goalkeeper assignment', () => {
-  let campaign = createCampaign({ rng: () => 0.1 });
-  const first = campaign.pendingSkillOffer = ['eagleShot', 'tornadoShot', 'powerTackle'];
-  campaign = awardSkillCard(campaign, first[0]).campaign;
-  campaign = assignSkillCard(campaign, 'home-def-1', first[0]).campaign;
-  campaign.skillInventory.eagleShot = 2;
-  campaign.pendingSkillOffer = ['tornadoShot', 'eagleShot', 'powerTackle'];
-  campaign = awardSkillCard(campaign, 'tornadoShot').campaign;
-  campaign = assignSkillCard(campaign, 'home-def-1', 'tornadoShot').campaign;
+test('rejects a skill that was not offered without changing the campaign', () => {
+  const campaign = {
+    ...createCampaign(),
+    pendingSkillOffer: ['eagleShot'],
+  };
+  const before = structuredClone(campaign);
+  assert.deepEqual(awardSkillCard(campaign, 'tornadoShot'), { ok: false, reason: 'notOffered' });
+  assert.deepEqual(campaign, before);
+});
 
-  assert.deepEqual(campaign.playerSkillStacks['home-def-1'], { skillId: 'tornadoShot', copies: 1 });
-  assert.equal(campaign.skillInventory.eagleShot, 3);
-  assert.deepEqual(assignSkillCard(campaign, 'home-gk', 'tornadoShot'), { ok: false, reason: 'notFieldPlayer' });
+test('duplicate rewards upgrade in place up to the skill max level', () => {
+  let campaign = createCampaign();
+  campaign.teamSkillDeck = [
+    { skillId: 'tornadoShot', level: 1 },
+    { skillId: 'eagleShot', level: 1 },
+  ];
+  campaign.pendingSkillOffer = ['eagleShot'];
+  let awarded = awardSkillCard(campaign, 'eagleShot');
+  assert.equal(awarded.ok, true);
+  assert.equal(awarded.upgradedLevel, 2);
+  campaign = awarded.campaign;
+  assert.deepEqual(campaign.teamSkillDeck, [
+    { skillId: 'tornadoShot', level: 1 },
+    { skillId: 'eagleShot', level: 2 },
+  ]);
+  assert.equal(campaign.pendingSkillPlacement, null);
+
+  campaign.pendingSkillOffer = ['eagleShot'];
+  campaign = awardSkillCard(campaign, 'eagleShot').campaign;
+  assert.equal(campaign.teamSkillDeck[1].level, 3);
+  campaign.pendingSkillOffer = ['eagleShot'];
+  assert.deepEqual(awardSkillCard(campaign, 'eagleShot'), { ok: false, reason: 'maxLevel' });
+  assert.equal(SKILL_MAX_LEVELS.vacuumCleaner, 1);
+});
+
+test('offers exclude owned non-upgradeable and max-level skills and stop when exhausted', () => {
+  const campaign = createCampaign();
+  campaign.teamSkillDeck = SKILL_IDS.map((skillId) => ({ skillId, level: SKILL_MAX_LEVELS[skillId] }));
+  const won = finishStage(campaign, { homeGoals: 1, awayGoals: 0 });
+  assert.equal(won.pendingSkillOffer, null);
+});
+
+test('reorders team skills without changing levels and rejects invalid positions', () => {
+  const campaign = createCampaign();
+  campaign.teamSkillDeck = [
+    { skillId: 'eagleShot', level: 2 },
+    { skillId: 'powerTackle', level: 1 },
+  ];
+  const moved = reorderTeamSkill(campaign, 0, 1);
+  assert.deepEqual(moved.campaign.teamSkillDeck, [
+    { skillId: 'powerTackle', level: 1 },
+    { skillId: 'eagleShot', level: 2 },
+  ]);
+  assert.deepEqual(reorderTeamSkill(campaign, -1, 0), { ok: false, reason: 'invalidPosition' });
+  assert.deepEqual(placeTeamSkill({ ...campaign, pendingSkillPlacement: null }, 'eagleShot', 0), {
+    ok: false, reason: 'placementNotPending',
+  });
 });
 
 test('assigns opponent skills only to the three away field players', () => {

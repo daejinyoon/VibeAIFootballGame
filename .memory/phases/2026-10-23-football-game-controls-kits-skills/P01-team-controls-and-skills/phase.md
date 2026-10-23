@@ -5,8 +5,8 @@
 | Task | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
 | T01 | `done` | Add nine kit presets; fix kickoff selection and keyboard guide | [T01](./T01-kits-kickoff-and-controls.md) |
-| T02 | `in_progress` | Create ordered shared team skill deck, reward/setup UI, and save migration | [T02](./T02-team-skill-deck-and-migration.md) |
-| T03 | `pending` | Implement shared activation order/cooldown and all confirmed skill rules | [T03](./T03-shared-skill-simulation.md) |
+| T02 | `done` | Create ordered shared team skill deck, reward/setup UI, and save migration | [T02](./T02-team-skill-deck-and-migration.md) |
+| T03 | `in_progress` | Implement shared activation order/cooldown and all confirmed skill rules | [T03](./T03-shared-skill-simulation.md) |
 | T04 | `pending` | Present skill effects in 3D and add Eulryongta photo cut-in and impact sound | [T04](./T04-skill-3d-effects-and-audio.md) |
 
 ## Dependencies
@@ -18,4 +18,4 @@
 
 ## Progress
 
-- done: 1/4 (active: T02)
+- done: 2/4 (active: T03)

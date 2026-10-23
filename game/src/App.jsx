@@ -1,7 +1,7 @@
-import { lazy, Suspense, useMemo, useRef, useState } from 'react';
-import { assignOpponentSkills, createCampaign, finishStage, getUnlockedStage } from './game/campaign.js';
+import { lazy, Suspense, useRef, useState } from 'react';
+import { createCampaign, finishStage, getUnlockedStage } from './game/campaign.js';
 import { createInitialGameState } from './game/createInitialGameState.js';
-import { FIELD_PLAYER_IDS, SKILLS, assignSkillCard, awardSkillCard } from './game/skills.js';
+import { SKILLS, awardSkillCard, placeTeamSkill, reorderTeamSkill } from './game/skills.js';
 import { getTeamBranding } from './game/teamBranding.js';
 import { createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
@@ -15,17 +15,11 @@ import TeamCustomizationScreen from './components/TeamCustomizationScreen.jsx';
 const GameScreen = lazy(() => import('./components/GameScreen.jsx'));
 
 function makeMatchState(campaign, teamCustomization) {
-  const assigned = assignOpponentSkills(
-    createInitialGameState().players,
-    campaign.opponentSkillSets[campaign.currentStage] ?? [],
-  );
-  const opponentSkillStacks = Object.fromEntries(assigned
-    .filter((player) => player.team === 'away' && player.skillId)
-    .map((player) => [player.id, { skillId: player.skillId, copies: player.skillCopies }]));
   return createInitialGameState({
     stage: campaign.currentStage,
-    playerSkillStacks: campaign.playerSkillStacks,
-    opponentSkillStacks,
+    teamSkillDeck: campaign.teamSkillDeck,
+    opponentSkillDeck: (campaign.opponentSkillSets[campaign.currentStage] ?? [])
+      .map((skillId) => ({ skillId, level: 1 })),
     teamBranding: getTeamBranding(campaign.currentStage, teamCustomization),
   });
 }
@@ -38,18 +32,8 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [profile, setProfile] = useState(() => readProfile());
   const [profileError, setProfileError] = useState('');
-  const [pendingAssignmentSkill, setPendingAssignmentSkill] = useState(null);
   const activeMatchInstanceRef = useRef(0);
   const handledTerminalMatchRef = useRef(null);
-
-  const playerRows = useMemo(() => {
-    const labels = { 'home-def-1': '수비수', 'home-mid-1': '미드필더', 'home-fw': '공격수' };
-    return FIELD_PLAYER_IDS.map((playerId) => ({
-      playerId,
-      displayName: labels[playerId],
-      stack: campaign?.playerSkillStacks?.[playerId] ?? null,
-    }));
-  }, [campaign]);
 
   const startStage = (activeCampaign = campaign) => {
     if (!activeCampaign) return;
@@ -75,7 +59,6 @@ export default function App() {
     setCampaign(nextCampaign);
     setSelectedStage(1);
     setResult(null);
-    setPendingAssignmentSkill(null);
     setScreen('stageSelect');
     if (profile.campaignSave) {
       const nextProfile = { ...profile, campaignSave: null };
@@ -147,7 +130,6 @@ export default function App() {
     const nextCampaign = outcome === 'win' ? finishStage(campaign, { score }) : campaign;
     setCampaign(nextCampaign);
     if (outcome === 'win') setSelectedStage(nextCampaign.currentStage);
-    setPendingAssignmentSkill(null);
     const goalDifference = nextCampaign.clearedStageResults.reduce((total, item) => total + item.goalDifference, 0);
     setResult({
       stage: campaign.currentStage,
@@ -173,42 +155,33 @@ export default function App() {
 
   const chooseSkill = (skillId) => {
     const awarded = awardSkillCard(campaign, skillId);
-    if (!awarded.ok) return;
+    if (!awarded.ok) return null;
     setCampaign(awarded.campaign);
-    setPendingAssignmentSkill(skillId);
     persistCampaign(awarded.campaign);
+    return awarded.upgradedLevel ? { upgradedLevel: awarded.upgradedLevel } : { pendingPlacement: true };
   };
 
-  const keepSkill = () => {
-    if (!campaign || !pendingAssignmentSkill) return;
-    const nextCampaign = { ...campaign, pendingSkillAssignment: null };
-    setCampaign(nextCampaign);
-    setPendingAssignmentSkill(null);
-    persistCampaign(nextCampaign);
+  const placeRewardSkill = (insertionIndex) => {
+    if (!campaign?.pendingSkillPlacement) return;
+    const placed = placeTeamSkill(campaign, campaign.pendingSkillPlacement, insertionIndex);
+    if (!placed.ok) return;
+    setCampaign(placed.campaign);
+    persistCampaign(placed.campaign);
     setScreen('stageSelect');
   };
 
-  const assignSkill = (playerId) => {
-    const assigned = assignSkillCard(campaign, playerId, pendingAssignmentSkill);
-    if (!assigned.ok) return;
-    setCampaign(assigned.campaign);
-    setPendingAssignmentSkill(null);
-    persistCampaign(assigned.campaign);
-    setScreen('stageSelect');
-  };
-
-  const assignInventorySkill = (playerId, skillId) => {
-    const assigned = assignSkillCard(campaign, playerId, skillId);
-    if (!assigned.ok) return;
-    setCampaign(assigned.campaign);
-    persistCampaign(assigned.campaign);
+  const moveTeamSkill = (fromIndex, toIndex) => {
+    if (!campaign) return;
+    const moved = reorderTeamSkill(campaign, fromIndex, toIndex);
+    if (!moved.ok) return;
+    setCampaign(moved.campaign);
+    persistCampaign(moved.campaign);
   };
 
   const home = () => {
     setScreen('start');
     setCampaign(null);
     setMatchState(null);
-    setPendingAssignmentSkill(null);
   };
 
   const continueSavedCampaign = () => {
@@ -218,18 +191,16 @@ export default function App() {
       id: `resume-${Date.now()}`,
       currentStage: saved.currentStage,
       clearedStageResults: saved.clearedStageResults,
-      playerSkillStacks: saved.playerSkillStacks,
-      skillInventory: saved.skillInventory,
+      teamSkillDeck: saved.teamSkillDeck,
       pendingSkillOffer: saved.pendingSkillOffer ?? null,
-      pendingSkillAssignment: saved.pendingSkillAssignment ?? null,
+      pendingSkillPlacement: saved.pendingSkillPlacement ?? null,
       opponentSkillSets: saved.opponentSkillSets,
       status: saved.status === 'complete' ? 'complete' : 'active',
     };
     setCampaign(resumed);
     setSelectedStage(resumed.currentStage);
     setResult(null);
-    setPendingAssignmentSkill(resumed.pendingSkillAssignment ?? null);
-    setScreen(resumed.pendingSkillOffer || resumed.pendingSkillAssignment ? 'skillReward' : 'stageSelect');
+    setScreen(resumed.pendingSkillOffer || resumed.pendingSkillPlacement ? 'skillReward' : 'stageSelect');
   };
 
   const saveAndExit = () => {
@@ -310,23 +281,19 @@ export default function App() {
       />}
       {screen === 'skillReward' && campaign && <SkillRewardScreen
         offer={campaign.pendingSkillOffer}
-        inventory={campaign.skillInventory}
-        playerSkillStacks={campaign.playerSkillStacks}
-        playerRows={playerRows}
+        teamSkillDeck={campaign.teamSkillDeck}
+        pendingSkillPlacement={campaign.pendingSkillPlacement}
         skills={SKILLS}
-        selectedSkill={pendingAssignmentSkill}
         onChoose={chooseSkill}
-        onAssign={assignSkill}
-        onKeep={keepSkill}
+        onPlace={placeRewardSkill}
+        onContinue={() => setScreen('stageSelect')}
         onHome={home}
       />}
       {screen === 'loadout' && campaign && <LoadoutScreen
         stage={selectedStage}
-        playerRows={playerRows}
-        playerSkillStacks={campaign.playerSkillStacks}
-        inventory={campaign.skillInventory}
+        teamSkillDeck={campaign.teamSkillDeck}
         skills={SKILLS}
-        onAssign={assignInventorySkill}
+        onMove={moveTeamSkill}
         onConfirm={() => setScreen('stageSelect')}
         onBack={() => setScreen('stageSelect')}
       />}

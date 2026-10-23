@@ -444,6 +444,28 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
 .inventory-card.is-selected { border-color: var(--ink); background: #dcfff0; box-shadow: 3px 3px 0 var(--ink); }
 .loadout-player.can-assign { border-color: #23815d; background: #e1fff0; box-shadow: 2px 3px 0 #15334f55; }
 .loadout-player.can-assign:hover { transform: translateY(-2px); box-shadow: 3px 4px 0 var(--ink); }
+.team-skill-deck-summary, .team-skill-order-panel { width: 100%; margin-top: 20px; padding: 20px; border: 2px solid var(--ink); border-radius: 15px 6px 15px 6px; background: #f2fbff; box-shadow: 3px 4px 0 #15334f55; }
+.team-skill-deck-summary h2 { margin: 0 0 12px; color: var(--ink); font-size: 16px; }
+.team-skill-deck-summary > p, .team-skill-empty { margin: 0; color: #587184; font-size: 12px; line-height: 1.6; }
+.team-skill-entry, .team-skill-order-row { display: grid; grid-template-columns: 32px 42px minmax(0, 1fr); align-items: center; gap: 10px; min-width: 0; padding: 10px; border: 1px solid #bfd7df; border-radius: 10px 4px 10px 4px; background: white; }
+.team-skill-position { color: #35809b; font: 900 11px Consolas, monospace; text-align: center; }
+.team-skill-icon { display: grid; width: 40px; height: 40px; place-items: center; overflow: hidden; border: 1px solid #9abac9; border-radius: 8px 3px 8px 3px; background: #edf9ff; }
+.team-skill-icon img { width: 100%; height: 100%; object-fit: contain; }
+.team-skill-copy { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.team-skill-copy b { overflow: hidden; color: var(--ink); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.team-skill-copy small { color: #5a7688; font-size: 10px; }
+.team-skill-placement-list, .team-skill-order-list { display: grid; gap: 8px; margin-top: 14px; padding: 0; }
+.team-skill-placement-slot { display: grid; gap: 8px; }
+.skill-insert-button { width: 100%; padding: 8px; border: 1px dashed #2586a1; border-radius: 8px; background: #e8fbff; color: #17647d; font-size: 11px; font-weight: 800; cursor: pointer; }
+.skill-insert-button:hover, .skill-insert-button:focus-visible { border-style: solid; background: #cff5ff; outline: 2px solid #338eaa; outline-offset: 2px; }
+.team-skill-order-row { grid-template-columns: 32px 42px minmax(0, 1fr) auto; list-style: none; }
+.team-skill-reorder { display: flex; gap: 6px; }
+.team-skill-reorder button { padding: 7px 9px; border: 1px solid #8babb9; border-radius: 6px; background: #f2faff; color: #28556a; font-size: 10px; font-weight: 800; cursor: pointer; }
+.team-skill-reorder button:disabled { opacity: .4; cursor: not-allowed; }
+.skill-upgrade-notice { width: 100%; padding: 20px; border: 2px solid #4a9d65; border-radius: 12px 5px 12px 5px; background: #e8fff0; color: var(--ink); }
+.skill-upgrade-notice b { font-size: 18px; }
+.skill-upgrade-notice p { color: #547260; font-size: 12px; }
+.skill-upgrade-notice .primary-button { margin-top: 8px; }
 .goalkeeper-note { border: 2px dashed #9caeb4; border-radius: 12px 5px 12px 5px; background: #f1f7f8; }
 .setup-actions { padding-top: 18px; border-top: 2px dashed #9bbbc5; }
 .validation-note, .validation-ok { color: #42637a; font-weight: 800; }

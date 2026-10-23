@@ -31,10 +31,9 @@ export function createCampaign({ rng = Math.random } = {}) {
     id: `campaign-${Date.now()}-${++campaignCounter}`,
     currentStage: 1,
     clearedStageResults: [],
-    playerSkillStacks: Object.fromEntries(HOME_PLAYER_IDS.map((playerId) => [playerId, null])),
-    skillInventory: Object.fromEntries(SKILL_IDS.map((skillId) => [skillId, 0])),
+    teamSkillDeck: [],
     pendingSkillOffer: null,
-    pendingSkillAssignment: null,
+    pendingSkillPlacement: null,
     opponentSkillSets: createOpponentSkillSets(rng),
     status: 'active',
   };
@@ -62,11 +61,12 @@ export function finishStage(campaign, result, rng = Math.random) {
     stageResult,
   ].sort((left, right) => left.stage - right.stage);
   const isFinal = campaign.currentStage === STAGE_COUNT;
+  const pendingSkillOffer = createSkillCardOffer(rng, campaign.teamSkillDeck);
   return {
     ...campaign,
     clearedStageResults,
     currentStage: isFinal ? STAGE_COUNT : campaign.currentStage + 1,
-    pendingSkillOffer: createSkillCardOffer(rng),
+    pendingSkillOffer: pendingSkillOffer.length ? pendingSkillOffer : null,
     status: isFinal ? 'complete' : 'active',
   };
 }

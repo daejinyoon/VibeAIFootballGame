@@ -5,10 +5,12 @@ import { createInitialGameState } from './createInitialGameState.js';
 import {
   MAX_SKILL_COPIES,
   SKILL_IDS,
+  SKILL_MAX_LEVELS,
   SKILLS,
   applyAutomaticRainbowReflect,
   applySkill,
   createSkillCardOffer,
+  validateTeamSkillDeck,
   validateSkillAssignments,
 } from './skills.js';
 import { stepGame } from './stepGame.js';
@@ -30,6 +32,27 @@ test('draft offers contain three different known skills and respect the injected
   assert.equal(new Set(offer).size, 3);
   assert.ok(offer.every((skillId) => SKILL_IDS.includes(skillId)));
   assert.notDeepEqual(offer, createSkillCardOffer(() => 0.8));
+});
+
+test('draft offers only include new skills or upgrades below their max level', () => {
+  const deck = SKILL_IDS.map((skillId) => ({ skillId, level: SKILL_MAX_LEVELS[skillId] }));
+  deck.find((entry) => entry.skillId === 'eagleShot').level = 2;
+  assert.deepEqual(createSkillCardOffer(() => 0.2, deck), ['eagleShot']);
+  assert.deepEqual(createSkillCardOffer(() => 0.2, SKILL_IDS.map((skillId) => ({ skillId, level: SKILL_MAX_LEVELS[skillId] }))), []);
+});
+
+test('validates a unique ordered team deck and level caps', () => {
+  assert.deepEqual(validateTeamSkillDeck([
+    { skillId: 'eagleShot', level: 3 },
+    { skillId: 'rainbowReflect', level: 1 },
+  ]), { valid: true, errors: [] });
+  assert.equal(validateTeamSkillDeck([
+    { skillId: 'eagleShot', level: 4 },
+  ]).valid, false);
+  assert.equal(validateTeamSkillDeck([
+    { skillId: 'eagleShot', level: 1 },
+    { skillId: 'eagleShot', level: 2 },
+  ]).valid, false);
 });
 
 test('validates empty stacks, copy limits, and excludes non-field player IDs', () => {
