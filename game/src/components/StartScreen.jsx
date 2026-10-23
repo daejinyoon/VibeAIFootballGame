@@ -36,12 +36,10 @@ export default function StartScreen({ hasSave, nickname, profileError, onNicknam
       </div>
 
       <div className="control-guide" aria-label="조작 방법">
-        <div><strong>이동</strong><span>방향키 또는 WASD</span></div>
+        <div><strong>이동</strong><span>방향키 이동 · E 달리기</span></div>
         <div><strong>공격</strong><span>A 로빙 패스 · S 패스 · D 슛</span></div>
         <div><strong>수비</strong><span>A 태클 · S 선수 전환 · D 압박</span></div>
         <div><strong>스킬</strong><span>F 발동</span></div>
-        <div><strong>SPRINT</strong><span>Hold E while moving</span></div>
-        <div><strong>AERIAL</strong><span>Automatic headers and clearances</span></div>
       </div>
     </section>
   );

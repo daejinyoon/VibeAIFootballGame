@@ -393,16 +393,18 @@ function resetForKickoff(state, kickoffTeam) {
   placeKickoffPlayers(state, kickoffTeam);
   state.ball.ownerId = state.kickoffTakerId;
   state.ball.lastTouchTeam = kickoffTeam;
-  const homePlayers = activePlayers(state, 'home');
-  const stillControlled = byId(state, controlledPlayerId);
-  state.controlledPlayerId = stillControlled?.team === 'home' && !stillControlled.dismissed
-    ? controlledPlayerId
-    : nearestPlayer(homePlayers, controlledPosition)?.id ?? null;
   if (state.players.some((player) => player.id === state.ball.ownerId && player.dismissed)) {
     const restartPlayer = nearestPlayer(activePlayers(state, kickoffTeam), { x: FIELD.width / 2, y: FIELD.height / 2 });
     state.ball.ownerId = restartPlayer?.id ?? null;
     state.kickoffTakerId = restartPlayer?.id ?? null;
   }
+  const homePlayers = activePlayers(state, 'home');
+  const stillControlled = byId(state, controlledPlayerId);
+  state.controlledPlayerId = kickoffTeam === 'home'
+    ? state.kickoffTakerId
+    : stillControlled?.team === 'home' && !stillControlled.dismissed
+      ? controlledPlayerId
+      : nearestPlayer(homePlayers, controlledPosition)?.id ?? null;
   putBallAtPlayer(state, carrier(state));
 }
 

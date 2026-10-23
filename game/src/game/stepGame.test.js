@@ -102,6 +102,41 @@ test('post-goal kickoff assigns only the conceding team taker to the center circ
   assert.deepEqual(state.score, { home: 1, away: 0 });
 });
 
+test('home kickoff after conceding selects the forward until the kickoff pass reaches its receiver', () => {
+  const state = createGameState();
+  state.score = { home: 0, away: 1 };
+  state.phase = 'goalPause';
+  state.phaseSeconds = 0.01;
+  state.pendingKickoffTeam = 'home';
+  state.controlledPlayerId = 'home-def-1';
+
+  stepGame(state, frame(), 0.05);
+  assert.equal(state.kickoffTakerId, 'home-fw');
+  assert.equal(state.controlledPlayerId, 'home-fw');
+
+  stepGame(state, frame(), 0.05);
+  assert.equal(state.controlledPlayerId, 'home-fw', 'control stays on the taker before the pass');
+
+  const receiver = state.players.find((player) => player.id === 'home-mid-1');
+  Object.assign(receiver, { x: 620, y: 270 });
+  stepGame(state, frame({ pressed: ['s'] }), 0.05);
+  assert.equal(state.controlledPlayerId, state.ball.passReceiverId);
+  assert.equal(state.controlledPlayerId, receiver.id);
+});
+
+test('away kickoff preserves the currently controlled home player', () => {
+  const state = createGameState();
+  state.phase = 'goalPause';
+  state.phaseSeconds = 0.01;
+  state.pendingKickoffTeam = 'away';
+  state.controlledPlayerId = 'home-mid-1';
+
+  stepGame(state, frame(), 0.05);
+
+  assert.equal(state.kickoffTakerId, 'away-fw');
+  assert.equal(state.controlledPlayerId, 'home-mid-1');
+});
+
 test('moves the selected player at the intended speed and normalizes diagonals', () => {
   const state = createInitialGameState();
   const player = state.players.find((candidate) => candidate.id === 'home-fw');

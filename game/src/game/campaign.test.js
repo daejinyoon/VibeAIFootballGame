@@ -6,6 +6,8 @@ import { SKILL_IDS, assignSkillCard, awardSkillCard } from './skills.js';
 
 test('starts campaigns with no equipped skills and an empty inventory', () => {
   const campaign = createCampaign({ rng: () => 0.25 });
+  assert.equal(campaign.currentStage, 1);
+  assert.equal(getUnlockedStage(campaign), 1);
   assert.deepEqual(campaign.playerSkillStacks, {
     'home-def-1': null,
     'home-mid-1': null,

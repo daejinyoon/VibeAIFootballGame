@@ -14,6 +14,9 @@ export const KIT_PALETTES = freezeOptions([
   { id: 'crimson-ivory', name: '크림슨 아이보리', jersey: '#C72F3B', trim: '#F2D9B6', shorts: '#F6F0E2', boots: '#292229' },
   { id: 'violet-ice', name: '바이올렛 아이스', jersey: '#7042A8', trim: '#A8E8F2', shorts: '#E8F6F7', boots: '#24202E' },
   { id: 'charcoal-gold', name: '차콜 골드', jersey: '#30343B', trim: '#D4AF37', shorts: '#F2F2EE', boots: '#17191E' },
+  { id: 'rose-petal', name: '로즈 페탈', jersey: '#C23C77', trim: '#FFE4EF', shorts: '#292B43', boots: '#15151D' },
+  { id: 'sunflower', name: '선플라워', jersey: '#C49A12', trim: '#FFF1A8', shorts: '#27344C', boots: '#151923' },
+  { id: 'ocean-teal', name: '오션 틸', jersey: '#087F8C', trim: '#F7CA58', shorts: '#F4F3EC', boots: '#17242A' },
 ]);
 
 export const DEFAULT_TEAM_CUSTOMIZATION = Object.freeze({ logoId: 'dex', paletteId: 'cyan-lime' });

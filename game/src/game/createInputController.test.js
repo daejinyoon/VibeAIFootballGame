@@ -63,6 +63,19 @@ test('tracks held E sprint input with key state cleared on release', () => {
   controller.destroy();
 });
 
+test('movement axes are controlled by arrow keys and not WASD', () => {
+  const target = createFakeWindow();
+  const controller = createInputController(target);
+  target.emit('keydown', { key: 'w', preventDefault() {} });
+  target.emit('keydown', { key: 'd', preventDefault() {} });
+  assert.deepEqual(controller.readFrame().moveX, 0);
+  assert.deepEqual(controller.readFrame().moveY, 0);
+
+  target.emit('keydown', { key: 'ArrowUp', preventDefault() {} });
+  assert.equal(controller.readFrame().moveY, -1);
+  controller.destroy();
+});
+
 test('leaves Space unbound and preserves browser key behavior', () => {
   const target = createFakeWindow();
   const controller = createInputController(target);
