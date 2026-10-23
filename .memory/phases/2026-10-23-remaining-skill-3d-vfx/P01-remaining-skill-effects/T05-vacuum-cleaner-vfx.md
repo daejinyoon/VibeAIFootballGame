@@ -1,6 +1,6 @@
 # Task: T05 Vacuum Cleaner VFX
 
-## Status: pending
+## Status: done
 
 ## Goal
 Make Vacuum Cleaner visibly pull the ball to the user with a bright, continuous suction stream and moving ball cue that accelerates near the caster rather than appearing to teleport.
@@ -47,9 +47,9 @@ Make Vacuum Cleaner visibly pull the ball to the user with a bright, continuous 
 - Confirm the ball starts away from the user, travels continuously for the visible pull interval, and reaches the user without a teleport-looking gap.
 
 ## Acceptance Criteria
-- [ ] A recognizable vacuum nozzle and bright spiral stream connect the starting ball position to the caster.
-- [ ] Ball stays continuously visible and accelerates near the user over the current visual interval.
-- [ ] Visual remains ground-level and ends without duplicate balls or possession changes.
+- [x] A recognizable vacuum nozzle and bright spiral stream connect the starting ball position to the caster.
+- [x] Ball stays continuously visible and accelerates near the user over the current visual interval.
+- [x] Visual remains ground-level and ends without duplicate balls or possession changes.
 
 ## Validation
 - `cd game; npm run build` — suction component and scene integration compile.
@@ -68,6 +68,7 @@ Task: T05-vacuum-cleaner-vfx
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed (`npm run build`)
+- [x] Preview route remains available for in-game inspection; gameplay ownership and ball motion remain simulation-owned.
+- commit: recorded in Git history after validation

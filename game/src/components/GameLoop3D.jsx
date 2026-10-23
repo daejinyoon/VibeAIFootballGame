@@ -61,6 +61,22 @@ export function GameLoop3D({
     const presentationScale = state.skillCutIn ? 0.4 : 1;
     const simulationDelta = Math.min(delta, 0.05) * presentationScale;
     const events = stepGame(state, inputRef.current?.readFrame(), simulationDelta);
+    const vacuumEffect = state.vacuumEffect;
+    const vacuumPlayer = vacuumEffect && state.players.find((player) => player.id === vacuumEffect.playerId);
+    if (vacuumEffect && vacuumPlayer && !vacuumPlayer.dismissed) {
+      const from = vacuumEffect.startPosition;
+      state.vacuumPullVisual = from && [from.x, from.y, vacuumPlayer.x, vacuumPlayer.y].every(Number.isFinite)
+        ? {
+          from: { x: from.x, y: from.y, height: 0 },
+          to: { x: vacuumPlayer.x, y: vacuumPlayer.y, height: 0 },
+          sourcePlayerId: vacuumPlayer.id,
+          elapsedSeconds: vacuumEffect.elapsedSeconds,
+          durationSeconds: vacuumEffect.durationSeconds,
+        }
+        : null;
+    } else {
+      delete state.vacuumPullVisual;
+    }
     for (const event of events) {
       if (event.type === 'skillUsed' && !event.automatic) playSkillAudio(event.skillId);
       if (event.type === 'skillReflected') playSkillAudio('rainbowReflect');
@@ -87,12 +103,12 @@ export function GameLoop3D({
     if (ballActor) {
       ballActor.position.set(worldX(ball.x), 0, worldZ(ball.y));
       // The animated eagle is the ball during every phase of Eagle Shot.
-      ballActor.visible = !state.eagleVolley;
+      ballActor.visible = !state.eagleVolley && !state.vacuumEffect;
     }
     const ballBody = actorsRef.current.ballBody;
     if (ballBody) {
       ballBody.position.y = Math.max(0, ball.height ?? 0) / 80 + 0.12;
-      ballBody.visible = !state.eagleVolley;
+      ballBody.visible = !state.eagleVolley && !state.vacuumEffect;
     }
 
     if (events.length > 0) callbacksRef.current.onGameEvents?.(events);

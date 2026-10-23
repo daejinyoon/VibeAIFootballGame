@@ -206,6 +206,10 @@ export function SkillEffects3D({ gameStateRef }) {
         root.visible = false;
         continue;
       }
+      if (effect.skillId === 'vacuumCleaner') {
+        root.visible = false;
+        continue;
+      }
 
       const source = state.players.find((player) => player.id === effect.sourcePlayerId);
       const target = effect.targetPlayerId
