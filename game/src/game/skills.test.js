@@ -50,7 +50,9 @@ test('F activates the first usable team skill, shares its ten-second cooldown, a
   const striker = carrier(state);
   const events = stepGame(state, frame(['f']), 0.01);
   assert.ok(events.some((event) => event.type === 'skillUsed' && event.skillId === 'eagleShot'));
-  assert.equal(state.ball.scoreValue, 1);
+  assert.equal(state.eagleVolley.level, 1);
+  assert.equal(state.ball.scoreValue, undefined);
+  assert.equal(state.skillProjectiles.length, 1);
   assert.equal(state.skillCooldownRemaining.home, 10);
   assert.equal(state.skillQueueIndex.home, 1);
   assert.equal(striker.skillUsesRemaining, undefined);
@@ -84,16 +86,66 @@ test('unavailable ordered skills are skipped without consuming the queue slot on
   assert.equal(unavailable.skillQueueIndex.home, 0);
 });
 
-test('Eagle Shot stores level score and bypasses a keeper save', () => {
-  const state = createInitialGameState({ teamSkillDeck: teamDeck('eagleShot', 3) });
-  carrier(state);
-  assert.equal(activateNextTeamSkill(state, 'home', 'home-fw').ok, true);
-  assert.equal(state.ball.scoreValue, 3);
-  Object.assign(state.ball, { x: FIELD.width - 2, y: 270, vx: 650, vy: 0 });
-  const events = stepGame(state, frame(), 0.05);
-  assert.equal(state.score.home, 3);
-  assert.equal(events.find((event) => event.type === 'goal')?.points, 3);
-  assert.equal(state.phase, 'goalPause');
+test('Eagle Shot launches one, two, or three angled eagles and awards one point per goal', () => {
+  for (const level of [1, 2, 3]) {
+    const state = createInitialGameState({ teamSkillDeck: teamDeck('eagleShot', level) });
+    carrier(state);
+    const keeper = state.players.find((player) => player.id === 'away-gk');
+    Object.assign(keeper, { x: 900, y: 270 });
+    assert.equal(activateNextTeamSkill(state, 'home', 'home-fw').ok, true);
+    assert.equal(state.eagleVolley.level, level);
+    assert.equal(state.skillProjectiles.length, 1);
+    assert.equal(state.skillProjectiles[0].phase, 'ascending');
+    assert.equal(state.ball.scoreValue, undefined);
+    const launchX = state.skillProjectiles[0].x;
+    if (level > 1) assert.equal(new Set(state.eagleVolley.targetYs).size, level);
+    stepGame(state, frame(), 0.2);
+    assert.equal(state.skillProjectiles[0].x, launchX, 'the ball rises in place before flying forward');
+    assert.ok(state.skillProjectiles[0].height > 0 && state.skillProjectiles[0].height < 180);
+    const events = [];
+    for (let frameIndex = 0; frameIndex < 80 && state.phase === 'playing'; frameIndex += 1) {
+      events.push(...stepGame(state, frame(), 0.05));
+    }
+    assert.equal(state.score.home, level);
+    assert.equal(events.filter((event) => event.type === 'goal' && event.skillId === 'eagleShot').length, level);
+    assert.ok(events.filter((event) => event.type === 'goal' && event.skillId === 'eagleShot')
+      .every((event) => event.points === 1));
+    assert.equal(state.phase, 'goalPause');
+    assert.equal(state.pendingKickoffTeam, 'away');
+    assert.equal(state.eagleVolley, null);
+    assert.deepEqual(state.skillProjectiles, []);
+    assert.equal(state.ball.flightKind, 'ground');
+    assert.equal(state.ball.skillId, undefined);
+
+    let kickoffCount = 0;
+    for (let frameIndex = 0; frameIndex < 25; frameIndex += 1) {
+      kickoffCount += stepGame(state, frame(), 0.05).filter((event) => event.type === 'kickoff').length;
+    }
+    assert.equal(kickoffCount, 1);
+  }
+});
+
+test('Eagle Shot clears a lower wall and is blocked by a wall above its flight height', () => {
+  const runShot = (wallHeight) => {
+    const state = createInitialGameState({ teamSkillDeck: teamDeck('eagleShot', 1) });
+    carrier(state);
+    state.powerBarriers.push({ skillId: 'powerTackle', team: 'away', sourcePlayerId: 'away-def-1',
+      x: 620, y: 210, facingX: 0, facingY: 1, length: 120, thickness: 28, height: wallHeight, remainingSeconds: 3 });
+    activateNextTeamSkill(state, 'home', 'home-fw');
+    const events = [];
+    for (let frameIndex = 0; frameIndex < 80 && state.phase === 'playing'; frameIndex += 1) {
+      events.push(...stepGame(state, frame(), 0.05));
+    }
+    return { state, events };
+  };
+
+  const lowWall = runShot(170);
+  assert.equal(lowWall.state.score.home, 1);
+  assert.ok(lowWall.events.some((event) => event.type === 'goal' && event.skillId === 'eagleShot'));
+
+  const highWall = runShot(200);
+  assert.equal(highWall.state.score.home, 0);
+  assert.ok(!highWall.events.some((event) => event.type === 'goal' && event.skillId === 'eagleShot'));
 });
 
 test('Tornado lifts every other player, including both keepers, and expires by level', () => {
@@ -193,7 +245,8 @@ test('away AI activates its shared deck and cooldown prevents repeat activation'
   const events = stepGame(state, frame(), 0.01);
   assert.ok(events.some((event) => event.type === 'skillUsed' && event.team === 'away'));
   assert.equal(state.skillCooldownRemaining.away, 10);
-  assert.equal(state.ball.scoreValue, 2);
+  assert.equal(state.eagleVolley.level, 2);
+  assert.equal(state.skillProjectiles.length, 1);
   const nextEvents = stepGame(state, frame(), 0.05);
   assert.ok(!nextEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'));
 });

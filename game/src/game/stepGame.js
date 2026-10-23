@@ -1,6 +1,9 @@
 import {
   BALL_GRAVITY,
   BALL_RADIUS,
+  EAGLE_ASCENT_SECONDS,
+  EAGLE_FLIGHT_HEIGHT,
+  EAGLE_SHOT_INTERVAL_SECONDS,
   FIELD,
   GROUND_CLEARANCE_DISTANCE,
   GOLDEN_GOAL_SECONDS,
@@ -18,7 +21,7 @@ import {
   SPRINT_STAMINA_MAX,
 } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
-import { addSkillEffect, activateNextTeamSkill, applyAutomaticRainbowReflect } from './skills.js';
+import { addSkillEffect, activateNextTeamSkill, applyAutomaticRainbowReflect, spawnNextEagleProjectile } from './skills.js';
 
 const PLAYER_SPEED = 176;
 const AI_SPEED = 136;
@@ -54,11 +57,26 @@ function barrierSegment(barrier) {
   } };
 }
 
-function blockedByBarrier(state, point, radius = 0) {
+function blockedByBarrier(state, point, radius = 0, objectHeight = 0) {
   return (state.powerBarriers ?? []).some((barrier) => {
+    if (objectHeight > (barrier.height ?? 72)) return false;
     const { start, end } = barrierSegment(barrier);
     return segmentDistance(point, start, end) <= barrier.thickness / 2 + radius;
   });
+}
+
+function blockedByBarrierSegment(state, start, end, radius, objectHeight) {
+  const length = distance(start, end);
+  const steps = Math.max(1, Math.ceil(length / Math.max(4, radius / 2)));
+  for (let index = 0; index <= steps; index += 1) {
+    const progress = index / steps;
+    const point = {
+      x: start.x + (end.x - start.x) * progress,
+      y: start.y + (end.y - start.y) * progress,
+    };
+    if (blockedByBarrier(state, point, radius, objectHeight)) return true;
+  }
+  return false;
 }
 
 function enforcePowerBarriers(state, frameStartPositions) {
@@ -469,6 +487,8 @@ function finishMatch(state) {
 
 function clearSkillTransientState(state) {
   state.skillEffects = [];
+  state.skillProjectiles = [];
+  state.eagleVolley = null;
   state.powerBarriers = [];
   state.vacuumEffect = null;
   state.skillCutIn = null;
@@ -484,9 +504,7 @@ function clearSkillTransientState(state) {
 }
 
 function scoreGoal(state, scoringTeam) {
-  const points = state.ball.skillId === 'eagleShot' && state.ball.lastTouchTeam === scoringTeam
-    ? clamp(state.ball.scoreValue ?? 1, 1, 3)
-    : 1;
+  const points = 1;
   state.score[scoringTeam] += points;
   state.restart = null;
   const event = { type: 'goal', team: scoringTeam, points, score: { ...state.score } };
@@ -733,6 +751,140 @@ function checkBallBoundary(state) {
     return restartCorner(state, attackingTeam, ball.x, ball.y);
   }
   return [];
+}
+
+function finishEagleVolley(state, volley) {
+  const ball = state.ball;
+  const finalProjectile = state.skillProjectiles.at(-1);
+  const lastPosition = volley.lastPosition ?? finalProjectile ?? { x: ball.x, y: ball.y };
+  const lastOutcome = volley.lastOutcome ?? finalProjectile?.outcome ?? 'blocked';
+  state.eagleVolley = null;
+  state.skillProjectiles = [];
+  ball.ownerId = null;
+  ball.vx = 0;
+  ball.vy = 0;
+  ball.height = 0;
+  ball.verticalVelocity = 0;
+  ball.flightKind = 'ground';
+  ball.flightSeconds = 0;
+  delete ball.skillId;
+  delete ball.skillLevel;
+  delete ball.scoreValue;
+  delete ball.flightTarget;
+  delete ball.passTarget;
+  delete ball.passReceiverId;
+
+  if (volley.points > 0) {
+    ball.x = FIELD.width / 2;
+    ball.y = FIELD.height / 2;
+    state.restart = null;
+    if (state.overtimeRemainingSeconds !== null) return finishMatch(state);
+    state.phase = 'goalPause';
+    state.phaseSeconds = 1;
+    state.pendingKickoffTeam = volley.team === 'home' ? 'away' : 'home';
+    return [];
+  }
+
+  ball.x = clamp(lastPosition.x, -BALL_RADIUS - 1, FIELD.width + BALL_RADIUS + 1);
+  ball.y = clamp(lastPosition.y, -BALL_RADIUS - 1, FIELD.height + BALL_RADIUS + 1);
+  ball.lastTouchTeam = volley.team;
+  state.possessionTeam = volley.team;
+  if (lastOutcome === 'missed') return checkBallBoundary(state);
+  return [];
+}
+
+function advanceEagleVolley(state, deltaSeconds) {
+  const volley = state.eagleVolley;
+  if (!volley) return [];
+  const events = [];
+
+  if (volley.spawned < volley.level) {
+    volley.nextLaunchSeconds -= deltaSeconds;
+    while (volley.spawned < volley.level && volley.nextLaunchSeconds <= 0) {
+      spawnNextEagleProjectile(state);
+      volley.nextLaunchSeconds += EAGLE_SHOT_INTERVAL_SECONDS;
+    }
+  }
+
+  for (const projectile of state.skillProjectiles) {
+    if (projectile.resolved) continue;
+    projectile.ageSeconds += deltaSeconds;
+    const previous = { x: projectile.x, y: projectile.y, height: projectile.height };
+    if (projectile.phase === 'ascending') {
+      projectile.height = Math.min(EAGLE_FLIGHT_HEIGHT,
+        EAGLE_FLIGHT_HEIGHT * projectile.ageSeconds / EAGLE_ASCENT_SECONDS);
+      if (projectile.ageSeconds >= EAGLE_ASCENT_SECONDS) {
+        projectile.height = EAGLE_FLIGHT_HEIGHT;
+        projectile.phase = 'flying';
+        const goalX = projectile.team === 'home' ? FIELD.width + BALL_RADIUS + 1 : -BALL_RADIUS - 1;
+        const dx = goalX - projectile.x;
+        const dy = projectile.targetY - projectile.y;
+        const length = Math.hypot(dx, dy) || 1;
+        projectile.vx = dx / length * 650;
+        projectile.vy = dy / length * 650;
+      }
+    } else {
+      projectile.x += projectile.vx * deltaSeconds;
+      projectile.y += projectile.vy * deltaSeconds;
+    }
+
+    const next = { x: projectile.x, y: projectile.y };
+    if (blockedByBarrierSegment(state, previous, next, BALL_RADIUS, projectile.height)) {
+      projectile.resolved = true;
+      projectile.outcome = 'blocked';
+      volley.resolved += 1;
+      volley.lastPosition = { ...next };
+      volley.lastOutcome = projectile.outcome;
+      continue;
+    }
+
+    const goalPlane = projectile.team === 'home' ? FIELD.width + BALL_RADIUS : -BALL_RADIUS;
+    const crossedGoal = projectile.team === 'home'
+      ? previous.x <= goalPlane && next.x > goalPlane
+      : previous.x >= goalPlane && next.x < goalPlane;
+    if (crossedGoal) {
+      const progress = (goalPlane - previous.x) / (next.x - previous.x || 1);
+      const crossingY = previous.y + (next.y - previous.y) * progress;
+      projectile.resolved = true;
+      if (crossingY - BALL_RADIUS >= FIELD.goalTop && crossingY + BALL_RADIUS <= FIELD.goalBottom) {
+        projectile.outcome = 'goal';
+        volley.points += 1;
+        state.score[volley.team] += 1;
+        events.push({ type: 'goal', team: volley.team, points: 1, skillId: 'eagleShot', score: { ...state.score } });
+      } else {
+        projectile.outcome = 'missed';
+      }
+      volley.resolved += 1;
+      volley.lastPosition = { x: goalPlane, y: crossingY };
+      volley.lastOutcome = projectile.outcome;
+      continue;
+    }
+
+    const outsideField = projectile.x < -BALL_RADIUS - 1 || projectile.x > FIELD.width + BALL_RADIUS + 1
+      || projectile.y < -BALL_RADIUS - 1 || projectile.y > FIELD.height + BALL_RADIUS + 1;
+    if (outsideField) {
+      projectile.resolved = true;
+      projectile.outcome = 'missed';
+      volley.resolved += 1;
+      volley.lastPosition = { ...next };
+      volley.lastOutcome = projectile.outcome;
+    }
+  }
+
+  const activeProjectile = state.skillProjectiles.find((projectile) => !projectile.resolved);
+  const displayProjectile = activeProjectile ?? state.skillProjectiles.at(-1);
+  if (displayProjectile) {
+    state.ball.x = displayProjectile.x;
+    state.ball.y = displayProjectile.y;
+    state.ball.height = displayProjectile.height;
+    state.ball.vx = displayProjectile.vx;
+    state.ball.vy = displayProjectile.vy;
+  }
+
+  if (volley.spawned >= volley.level && volley.resolved >= volley.level) {
+    events.push(...finishEagleVolley(state, volley));
+  }
+  return events;
 }
 
 function handleKeeperContact(state) {
@@ -1684,7 +1836,9 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   enforceKickoffCircle(state);
   enforcePowerBarriers(state, frameStartPositions);
 
-  if (state.vacuumEffect) {
+  if (state.eagleVolley) {
+    events.push(...advanceEagleVolley(state, dt));
+  } else if (state.vacuumEffect) {
     events.push(...advanceVacuum(state, dt));
   } else {
     const owner = carrier(state);
@@ -1727,7 +1881,8 @@ function advanceSkillEffects(state, deltaSeconds) {
     if (effect.skillId === 'rainbowReflect' && !effect.cancellationPulse
         && state.rainbowReflection?.playerId !== effect.sourcePlayerId
         && !(state.ball.flightKind === 'skill-shot' && state.ball.skillId === 'rainbowReflect')) return false;
-    if ((effect.skillId === 'eagleShot' || effect.skillId === 'tornadoShot')
+    if (effect.skillId === 'eagleShot' && !state.eagleVolley) return false;
+    if (effect.skillId === 'tornadoShot'
         && (state.ball.flightKind !== 'skill-shot' || state.ball.skillId !== effect.skillId)) return false;
     return true;
   });

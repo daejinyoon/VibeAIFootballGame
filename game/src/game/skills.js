@@ -1,4 +1,4 @@
-import { FIELD, TEAM_SKILL_COOLDOWN_SECONDS } from './constants.js';
+import { BALL_RADIUS, EAGLE_SHOT_INTERVAL_SECONDS, FIELD, TEAM_SKILL_COOLDOWN_SECONDS } from './constants.js';
 
 export const SKILL_IDS = Object.freeze([
   'eagleShot',
@@ -194,7 +194,7 @@ function launchSkillShot(state, player, skillId, level) {
   const dx = attackDirection * FIELD.width;
   const dy = targetY - player.y;
   const length = Math.hypot(dx, dy) || 1;
-  const speed = skillId === 'eagleShot' ? 650 : 520;
+  const speed = 520;
 
   state.ball.x = clamp(player.x + player.facingX * 17, 0, FIELD.width);
   state.ball.y = clamp(player.y + player.facingY * 17, 0, FIELD.height);
@@ -206,12 +206,88 @@ function launchSkillShot(state, player, skillId, level) {
   state.ball.flightSeconds = 0;
   state.ball.skillId = skillId;
   state.ball.skillLevel = level;
-  if (skillId === 'eagleShot') state.ball.scoreValue = level;
   state.ball.lastTouchTeam = player.team;
   state.possessionTeam = player.team;
 
   const onTarget = targetY >= FIELD.goalTop && targetY <= FIELD.goalBottom;
   return [{ type: 'skillUsed', skillId, team: player.team, playerId: player.id }, ...(onTarget ? [{ type: 'shotOnTarget', team: player.team }] : [])];
+}
+
+function eagleTargetYs(level) {
+  const halfGoal = FIELD.goalBottom - FIELD.goalTop;
+  const center = (FIELD.goalTop + FIELD.goalBottom) / 2;
+  const offsets = level === 1 ? [0] : level === 2 ? [-0.22, 0.22] : [-0.22, 0, 0.22];
+  return offsets.map((offset) => clamp(center + halfGoal * offset, FIELD.goalTop + BALL_RADIUS, FIELD.goalBottom - BALL_RADIUS));
+}
+
+function createEagleProjectile(state, volley, targetY) {
+  const id = Number.isInteger(state.nextSkillProjectileId) ? state.nextSkillProjectileId : 1;
+  state.nextSkillProjectileId = id + 1;
+  const source = state.players.find((player) => player.id === volley.sourcePlayerId);
+  const startX = clamp((source?.x ?? state.ball.x) + (source?.facingX ?? (volley.team === 'home' ? 1 : -1)) * 17, 0, FIELD.width);
+  const startY = clamp((source?.y ?? state.ball.y) + (source?.facingY ?? 0) * 17, 0, FIELD.height);
+  state.skillProjectiles.push({
+    id,
+    skillId: 'eagleShot',
+    team: volley.team,
+    sourcePlayerId: volley.sourcePlayerId,
+    x: startX,
+    y: startY,
+    vx: 0,
+    vy: 0,
+    height: 0,
+    verticalVelocity: 0,
+    phase: 'ascending',
+    ageSeconds: 0,
+    targetY,
+    resolved: false,
+    outcome: null,
+  });
+  volley.spawned += 1;
+  return state.skillProjectiles[state.skillProjectiles.length - 1];
+}
+
+export function spawnNextEagleProjectile(state) {
+  const volley = state?.eagleVolley;
+  if (!volley || volley.spawned >= volley.level) return null;
+  return createEagleProjectile(state, volley, volley.targetYs[volley.spawned]);
+}
+
+function launchEagleVolley(state, player, level) {
+  const targetYs = eagleTargetYs(level);
+  const volley = {
+    team: player.team,
+    sourcePlayerId: player.id,
+    level,
+    targetYs,
+    spawned: 0,
+    resolved: 0,
+    nextLaunchSeconds: 0,
+    points: 0,
+    lastPosition: null,
+    lastOutcome: null,
+  };
+  state.eagleVolley = volley;
+  state.skillProjectiles = [];
+  createEagleProjectile(state, volley, targetYs[0]);
+  volley.nextLaunchSeconds = EAGLE_SHOT_INTERVAL_SECONDS;
+
+  state.ball.x = clamp(player.x + player.facingX * 17, 0, FIELD.width);
+  state.ball.y = clamp(player.y + player.facingY * 17, 0, FIELD.height);
+  state.ball.ownerId = null;
+  state.ball.vx = 0;
+  state.ball.vy = 0;
+  state.ball.height = 0;
+  state.ball.verticalVelocity = 0;
+  state.ball.flightKind = 'skill-shot';
+  state.ball.flightSeconds = 0;
+  state.ball.skillId = 'eagleShot';
+  state.ball.skillLevel = level;
+  state.ball.lastTouchTeam = player.team;
+  state.possessionTeam = player.team;
+  const onTarget = targetYs[0] >= FIELD.goalTop && targetYs[0] <= FIELD.goalBottom;
+  return [{ type: 'skillUsed', skillId: 'eagleShot', team: player.team, playerId: player.id },
+    ...(onTarget ? [{ type: 'shotOnTarget', team: player.team }] : [])];
 }
 
 function findEulryongtaTargets(state, player, level) {
@@ -253,7 +329,9 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
     if (state.ball.ownerId !== player.id || state.possessionTeam !== player.team) {
       return result(false, skillId, player.team, 'needBall');
     }
-    events = launchSkillShot(state, player, skillId, level);
+    events = skillId === 'eagleShot'
+      ? launchEagleVolley(state, player, level)
+      : launchSkillShot(state, player, skillId, level);
     if (skillId === 'tornadoShot') {
       const durationSeconds = 4 + level;
       for (const target of state.players) {
@@ -418,6 +496,8 @@ export function applyAutomaticRainbowReflect(state, defendingTeam = 'home') {
     delete state.ball.skillId;
     delete state.ball.skillLevel;
     delete state.ball.scoreValue;
+    state.skillProjectiles = [];
+    state.eagleVolley = null;
     state.ball.x = clamp(state.ball.x, 0, FIELD.width);
     state.ball.y = clamp(state.ball.y, 0, FIELD.height);
   }
