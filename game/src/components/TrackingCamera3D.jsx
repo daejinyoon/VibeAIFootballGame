@@ -43,8 +43,8 @@ export function TrackingCamera3D({ ball, gameStateRef }) {
     const verticalTangent = Math.tan(MathUtils.degToRad(CAMERA_FOV / 2));
     const horizontalTangent = verticalTangent * aspect;
     const halfFrameWidth = zone.current === 'center'
-      ? FIELD.width / (6 * WORLD_SCALE) + 0.35
-      : FIELD.width / (4 * WORLD_SCALE) + 0.45;
+      ? FIELD.width / (4 * WORLD_SCALE) + 0.5
+      : FIELD.width / (3.5 * WORLD_SCALE) + 0.5;
     const halfFrameDepth = FIELD.height / (2 * WORLD_SCALE) + 1.0;
     const distanceForWidth = halfFrameWidth / horizontalTangent;
     const distanceForDepth = (halfFrameDepth * Math.sin(ELEVATION_RADIANS)) / verticalTangent;

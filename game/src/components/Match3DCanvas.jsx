@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { FootballBall3D } from './FootballBall3D.jsx';
 import { FootballPitch3D } from './FootballPitch3D.jsx';
 import { FootballPlayer3D } from './FootballPlayer3D.jsx';
+import { PlayerMotionEffects3D } from './PlayerMotionEffects3D.jsx';
 import { SkillEffects3D } from './SkillEffects3D.jsx';
 import { StadiumBackdrop3D } from './StadiumBackdrop3D.jsx';
 import { TrackingCamera3D } from './TrackingCamera3D.jsx';
@@ -161,6 +162,7 @@ export default function Match3DCanvas({
               <FootballPlayer3D key={player.id} player={player} selected={player.id === selectedPlayerId} actorsRef={actorsRef} gameStateRef={gameStateRef} paused={paused} />
             ))}
             <FootballBall3D ball={ball} actorsRef={actorsRef} />
+            {gameStateRef && <PlayerMotionEffects3D gameStateRef={gameStateRef} paused={paused} />}
             {gameStateRef && <SkillEffects3D gameStateRef={gameStateRef} />}
             {children}
           </Canvas>
