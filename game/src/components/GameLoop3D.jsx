@@ -99,7 +99,11 @@ export function GameLoop3D({
     const ballActor = actorsRef.current.ball;
     if (ballActor) ballActor.position.set(worldX(ball.x), 0, worldZ(ball.y));
     const ballBody = actorsRef.current.ballBody;
-    if (ballBody) ballBody.position.y = Math.max(0, ball.height ?? 0) / 80 + 0.12;
+    if (ballBody) {
+      ballBody.position.y = Math.max(0, ball.height ?? 0) / 80 + 0.12;
+      ballBody.visible = !(state.skillProjectiles ?? []).some((projectile) => projectile.skillId === 'eagleShot'
+        && !projectile.resolved && projectile.phase === 'ascending');
+    }
 
     if (events.length > 0) callbacksRef.current.onGameEvents?.(events);
     framesSinceSnapshotRef.current += 1;

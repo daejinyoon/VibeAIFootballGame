@@ -1,6 +1,6 @@
 # Task: T01 Projectile Skill Visuals
 
-## Status: pending
+## Status: done
 
 ## Goal
 Show the Eagle Shot ascent/transformation/volley and a physically moving Tornado Shot around the actual ball path, while keeping the existing gameplay camera framing.
@@ -47,10 +47,10 @@ Show the Eagle Shot ascent/transformation/volley and a physically moving Tornado
 - Build a stage with a test/development Eagle Shot at each level and inspect that 1/2/3 birds are visible in sequence; trigger Tornado Shot to ensure funnel tracks moving ball and no camera cut occurs.
 
 ## Acceptance Criteria
-- [ ] Eagle Shot visibly rises before transformation and renders the correct number of distinct eagles.
-- [ ] Tornado wraps the moving ball and its width grows by the planned level ratios.
-- [ ] Normal ball returns for restart; regular camera framing remains active.
-- [ ] Effects read simulation coordinates and do not determine gameplay hits.
+- [x] Eagle Shot visibly rises before transformation and renders the correct number of distinct eagles.
+- [x] Tornado wraps the moving ball and its width grows by the planned level ratios.
+- [x] Normal ball returns for restart; regular camera framing remains active.
+- [x] Effects read simulation coordinates and do not determine gameplay hits.
 
 ## Validation
 - `cd game; npm run build` — 3D components compile.
@@ -69,6 +69,6 @@ Task: T01-projectile-skill-visuals
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed (`npm test`, 148/148; `npm run build`)
+- commit: `cd9a14d`

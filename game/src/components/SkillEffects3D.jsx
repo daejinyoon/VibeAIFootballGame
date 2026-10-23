@@ -26,6 +26,24 @@ const BARRIER_GROUND_GEOMETRY = new THREE.BoxGeometry(1, 0.055, 0.34);
 const BARRIER_GLOW_GEOMETRY = new THREE.BoxGeometry(1, 0.035, 0.12);
 const BARRIER_PLATE_GEOMETRY = new THREE.BoxGeometry(0.062, 1.8, 0.24);
 const BARRIER_SHARD_GEOMETRY = new THREE.ConeGeometry(0.3, 0.9, 5, 1);
+const EAGLE_BODY_GEOMETRY = new THREE.SphereGeometry(0.22, 12, 8);
+const EAGLE_HEAD_GEOMETRY = new THREE.SphereGeometry(0.11, 10, 7);
+const EAGLE_BEAK_GEOMETRY = new THREE.ConeGeometry(0.075, 0.2, 5);
+const EAGLE_TAIL_GEOMETRY = new THREE.ConeGeometry(0.13, 0.38, 5);
+const EAGLE_WING_GEOMETRY = (() => {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0);
+  shape.quadraticCurveTo(-0.18, 0.2, -0.42, 0.2);
+  shape.lineTo(-0.78, 0.32);
+  shape.lineTo(-0.61, 0.13);
+  shape.lineTo(-0.87, 0.16);
+  shape.lineTo(-0.56, -0.04);
+  shape.lineTo(-0.75, -0.1);
+  shape.quadraticCurveTo(-0.28, -0.22, 0, 0);
+  return new THREE.ShapeGeometry(shape);
+})();
+const EAGLE_BEAM_GEOMETRY = new THREE.CylinderGeometry(0.08, 0.28, 1, 12, 1, true);
+const TORNADO_TRAIL_POINT_COUNT = 24;
 const BARRIER_GROUND_MATERIAL = new THREE.MeshStandardMaterial({ color: '#17151b', roughness: 1, emissive: '#080609', emissiveIntensity: 0.2, side: THREE.DoubleSide });
 const BARRIER_GLOW_MATERIAL = new THREE.MeshBasicMaterial({ color: '#ff7b31', transparent: true, opacity: 0.92, depthWrite: false, toneMapped: false });
 const BARRIER_PLATE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#8a7357', roughness: 0.94, emissive: '#633113', emissiveIntensity: 0.42 });
@@ -131,7 +149,44 @@ function makeTornadoSlot() {
     root.add(particle);
     return particle;
   });
-  return { root, funnel, rings, particles };
+  const trailGeometry = new THREE.BufferGeometry();
+  trailGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TORNADO_TRAIL_POINT_COUNT * 3), 3));
+  trailGeometry.setDrawRange(0, 0);
+  const trailLine = new THREE.Line(trailGeometry, new THREE.LineBasicMaterial({ color: '#80f4ff', transparent: true, opacity: 0.78, depthWrite: false, toneMapped: false }));
+  return { root, funnel, rings, particles, trailLine, trailPosition: new THREE.Vector3() };
+}
+
+function makeEagleSlot() {
+  const root = new THREE.Group();
+  const bodyMaterial = new THREE.MeshStandardMaterial({ color: '#fff1aa', emissive: '#ff9f32', emissiveIntensity: 1.35, roughness: 0.3, metalness: 0.05 });
+  const wingMaterial = new THREE.MeshStandardMaterial({ color: '#fff4be', emissive: '#ff922d', emissiveIntensity: 1.1, roughness: 0.35, side: THREE.DoubleSide });
+  const beakMaterial = new THREE.MeshStandardMaterial({ color: '#ffcb59', emissive: '#e97323', emissiveIntensity: 0.65, roughness: 0.4 });
+  const body = new THREE.Mesh(EAGLE_BODY_GEOMETRY, bodyMaterial);
+  body.scale.set(0.72, 0.72, 1.55);
+  root.add(body);
+  const head = new THREE.Mesh(EAGLE_HEAD_GEOMETRY, bodyMaterial);
+  head.position.set(0, 0.1, 0.27);
+  root.add(head);
+  const beak = new THREE.Mesh(EAGLE_BEAK_GEOMETRY, beakMaterial);
+  beak.position.set(0, 0.08, 0.42);
+  beak.rotation.x = Math.PI / 2;
+  root.add(beak);
+  const tail = new THREE.Mesh(EAGLE_TAIL_GEOMETRY, wingMaterial);
+  tail.position.set(0, 0, -0.38);
+  tail.rotation.x = -Math.PI / 2;
+  root.add(tail);
+  const wings = [-1, 1].map((side) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.06, 0.02, -0.02);
+    const wing = new THREE.Mesh(EAGLE_WING_GEOMETRY, wingMaterial);
+    wing.scale.x = side;
+    pivot.add(wing);
+    root.add(pivot);
+    return pivot;
+  });
+  const beam = makeMesh(EAGLE_BEAM_GEOMETRY, '#ffe889', 0.62);
+  beam.visible = false;
+  return { root, body, wings, beam, materials: [bodyMaterial, wingMaterial, beakMaterial] };
 }
 
 function worldX(x) {
@@ -153,14 +208,21 @@ export function SkillEffects3D({ gameStateRef }) {
   const airSlots = useMemo(() => Array.from({ length: AIR_SLOT_COUNT }, makeAirSlot), []);
   const barrierSlots = useMemo(() => Array.from({ length: BARRIER_SLOT_COUNT }, makeBarrierSlot), []);
   const tornadoSlots = useMemo(() => Array.from({ length: 2 }, makeTornadoSlot), []);
+  const eagleSlots = useMemo(() => Array.from({ length: 3 }, makeEagleSlot), []);
+  const tornadoHistory = useMemo(() => Array.from({ length: tornadoSlots.length }, () => []), [tornadoSlots.length]);
   const scene = useMemo(() => {
     const group = new THREE.Group();
     for (const slot of slots) group.add(slot.root);
     for (const slot of airSlots) group.add(slot.root);
     for (const slot of barrierSlots) group.add(slot.root);
     for (const slot of tornadoSlots) group.add(slot.root);
+    for (const slot of tornadoSlots) group.add(slot.trailLine);
+    for (const slot of eagleSlots) {
+      group.add(slot.root);
+      group.add(slot.beam);
+    }
     return group;
-  }, [slots, airSlots, barrierSlots, tornadoSlots]);
+  }, [slots, airSlots, barrierSlots, tornadoSlots, eagleSlots]);
 
   useEffect(() => () => {
     for (const slot of slots) {
@@ -175,8 +237,14 @@ export function SkillEffects3D({ gameStateRef }) {
     for (const slot of tornadoSlots) {
       slot.funnel.material.dispose();
       for (const mesh of [...slot.rings, ...slot.particles]) mesh.material.dispose();
+      slot.trailLine.material.dispose();
+      slot.trailLine.geometry.dispose();
     }
-  }, [slots, airSlots, barrierSlots, tornadoSlots]);
+    for (const slot of eagleSlots) {
+      for (const material of slot.materials) material.dispose();
+      slot.beam.material.dispose();
+    }
+  }, [slots, airSlots, barrierSlots, tornadoSlots, eagleSlots]);
 
   useFrame((_, delta) => {
     const state = gameStateRef?.current;
@@ -195,6 +263,12 @@ export function SkillEffects3D({ gameStateRef }) {
         ? state.players.find((player) => player.id === effect.targetPlayerId)
         : null;
       if (!source || source.dismissed || (effect.targetPlayerId && (!target || target.dismissed))) {
+        root.visible = false;
+        continue;
+      }
+
+      if ((effect.skillId === 'eagleShot' && state.eagleVolley)
+          || (effect.skillId === 'tornadoShot' && state.tornadoShotEffect)) {
         root.visible = false;
         continue;
       }
@@ -392,21 +466,75 @@ export function SkillEffects3D({ gameStateRef }) {
     }
 
     const tornadoEffects = effects.filter((effect) => effect.skillId === 'tornadoShot');
+    const projectiles = (state?.skillProjectiles ?? []).filter((projectile) => projectile.skillId === 'eagleShot' && !projectile.resolved);
+    for (let index = 0; index < eagleSlots.length; index += 1) {
+      const slot = eagleSlots[index];
+      const projectile = projectiles[index];
+      if (!projectile || !state.eagleVolley) {
+        slot.root.visible = false;
+        slot.beam.visible = false;
+        continue;
+      }
+      const [primary, secondary] = SKILL_EFFECT_COLORS.eagleShot[projectile.team === 'away' ? 'away' : 'home'];
+      const ascent = projectile.phase === 'ascending';
+      const height = Math.max(0, Number(projectile.height) || 0) / 80;
+      slot.root.visible = true;
+      slot.root.position.set(worldX(projectile.x), height + 0.12, worldZ(projectile.y));
+      slot.root.rotation.y = projectile.team === 'away' ? -Math.PI / 2 : Math.PI / 2;
+      slot.root.scale.setScalar(ascent ? 0.74 + Math.min(0.5, height * 0.12) : 0.86);
+      slot.body.material.color.set(primary);
+      slot.body.material.emissive.set(secondary);
+      slot.wings.forEach((wing, wingIndex) => {
+        const flap = Math.sin((projectile.ageSeconds ?? 0) * 22 + wingIndex * Math.PI) * 0.52;
+        wing.rotation.z = wingIndex === 0 ? flap : -flap;
+        wing.children[0].material.color.set(primary);
+        wing.children[0].material.emissive.set(secondary);
+      });
+      slot.beam.visible = ascent;
+      if (ascent) {
+        slot.beam.position.set(worldX(projectile.x), Math.max(0.06, height * 0.48), worldZ(projectile.y));
+        slot.beam.scale.set(1, Math.max(0.12, height), 1);
+        slot.beam.material.color.set(secondary);
+        slot.beam.material.opacity = 0.38 + Math.sin((projectile.ageSeconds ?? 0) * 25) * 0.14;
+      }
+    }
+
     for (let index = 0; index < tornadoSlots.length; index += 1) {
       const slot = tornadoSlots[index];
-      const effect = tornadoEffects[index];
-      if (!effect) {
+      const effect = index === 0 ? state?.tornadoShotEffect : tornadoEffects[index];
+      if (!effect || !state?.tornadoShotEffect) {
         slot.root.visible = false;
+        slot.trailLine.visible = false;
+        tornadoHistory[index].length = 0;
+        slot.trailLine.geometry.setDrawRange(0, 0);
         continue;
       }
       const ball = state.ball;
       const [primary, secondary] = SKILL_EFFECT_COLORS.tornadoShot[effect.team === 'away' ? 'away' : 'home'];
       const time = effect.elapsedSeconds;
-      const scale = 1 + (Math.max(1, effect.level ?? 1) - 1) * 0.18;
+      const width = Math.max(1, (effect.pathWidth ?? 42) / 42);
+      const position = slot.trailPosition.set(worldX(ball.x), 0.015, worldZ(ball.y));
+      const history = tornadoHistory[index];
+      const last = history[history.length - 1];
+      if (!last || last.distanceToSquared(position) >= 0.0025) {
+        history.push(position.clone());
+        if (history.length > TORNADO_TRAIL_POINT_COUNT) history.shift();
+      }
       slot.root.visible = true;
-      slot.root.position.set(worldX(ball.x), 0.015, worldZ(ball.y));
-      slot.root.scale.setScalar(scale);
+      slot.trailLine.visible = history.length > 1;
+      slot.root.position.copy(position);
+      slot.root.scale.set(width, 1, width);
       slot.root.rotation.y = time * 1.8;
+      const trailPositions = slot.trailLine.geometry.attributes.position.array;
+      history.forEach((point, pointIndex) => {
+        const offset = pointIndex * 3;
+        trailPositions[offset] = point.x;
+        trailPositions[offset + 1] = 0.045 + pointIndex / history.length * 0.08;
+        trailPositions[offset + 2] = point.z;
+      });
+      slot.trailLine.geometry.attributes.position.needsUpdate = true;
+      slot.trailLine.geometry.setDrawRange(0, history.length);
+      slot.trailLine.material.color.set(secondary);
       slot.funnel.material.color.set(primary);
       slot.funnel.material.opacity = 0.22 + Math.sin(time * 8) * 0.045;
       slot.rings.forEach((ring, ringIndex) => {
