@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BALL_RADIUS, FIELD, KICKOFF_CIRCLE_RADIUS, SHOT_ASSIST_DISTANCE, SHOT_ASSIST_MAX, getAiTuning } from './constants.js';
+import { BALL_RADIUS, FIELD, KICKOFF_CIRCLE_RADIUS, PLAYER_BODY_WIDTH, SHOT_ASSIST_DISTANCE, SHOT_ASSIST_MAX, getAiTuning } from './constants.js';
 import { createInitialGameState as createGameState } from './createInitialGameState.js';
-import { stepGame } from './stepGame.js';
+import { applySkill } from './skills.js';
+import { applyTornadoContacts, stepGame } from './stepGame.js';
 
 const frame = ({ moveX = 0, moveY = 0, down = [], pressed = [], released = [] } = {}) => ({
   moveX,
@@ -64,6 +65,91 @@ test('only the opening kickoff taker can start the clock, and later kickoffs pre
   stepGame(state, frame(), 0.05);
   assert.equal(state.hasMatchClockStarted, true);
   assert.ok(state.remainingSeconds < beforeGoalRestart);
+});
+
+test('Tornado path contact lifts both teams and keepers once while skipping the caster and missed players', () => {
+  const state = createInitialGameState();
+  state.players.forEach((player, index) => Object.assign(player, { x: 400 + index * 45, y: 450 }));
+  Object.assign(state.players.find((player) => player.id === 'home-fw'), { x: 100, y: 200 });
+  Object.assign(state.players.find((player) => player.id === 'home-mid-1'), { x: 145, y: 225 });
+  Object.assign(state.players.find((player) => player.id === 'away-def-1'), { x: 150, y: 236 });
+  Object.assign(state.players.find((player) => player.id === 'home-gk'), { x: 155, y: 220 });
+  Object.assign(state.players.find((player) => player.id === 'away-gk'), { x: 155, y: 210 });
+  Object.assign(state.players.find((player) => player.id === 'home-def-1'), { x: 150, y: 239 });
+  Object.assign(state.players.find((player) => player.id === 'away-mid-1'), { x: 160, y: 200, dismissed: true });
+  state.tornadoShotEffect = {
+    team: 'home', sourcePlayerId: 'home-fw', level: 1, pathWidth: 2 * PLAYER_BODY_WIDTH,
+    hitPlayerIds: [], elapsedSeconds: 0, durationSeconds: 5,
+  };
+
+  const events = applyTornadoContacts(state, { x: 100, y: 200 }, { x: 200, y: 200 });
+  assert.deepEqual(new Set(events.map((event) => event.playerId)), new Set(['home-mid-1', 'away-def-1', 'home-gk', 'away-gk']));
+  assert.ok(events.every((event) => event.type === 'tornadoLift' && event.durationSeconds === 5));
+  for (const playerId of ['home-mid-1', 'away-def-1', 'home-gk', 'away-gk']) {
+    assert.equal(state.players.find((player) => player.id === playerId).airborneSecondsRemaining, 5);
+  }
+  assert.equal(state.players.find((player) => player.id === 'home-fw').airborneSecondsRemaining, 0);
+  assert.equal(state.players.find((player) => player.id === 'home-def-1').airborneSecondsRemaining, 0);
+
+  const hitTeammate = state.players.find((player) => player.id === 'home-mid-1');
+  hitTeammate.airborneSecondsRemaining = 2;
+  const repeated = applyTornadoContacts(state, { x: 100, y: 200 }, { x: 200, y: 200 });
+  assert.equal(repeated.length, 0);
+  assert.equal(hitTeammate.airborneSecondsRemaining, 2, 'recontact does not refresh the lift timer');
+});
+
+test('Tornado contact handles missing hit history, invalid positions, and a missing source safely', () => {
+  const state = createInitialGameState();
+  state.players.forEach((player, index) => Object.assign(player, { x: 400 + index * 45, y: 450 }));
+  const source = state.players.find((player) => player.id === 'home-fw');
+  const target = state.players.find((player) => player.id === 'away-def-1');
+  Object.assign(source, { x: 100, y: 200 });
+  Object.assign(target, { x: 150, y: 200 });
+  state.tornadoShotEffect = { team: 'home', sourcePlayerId: source.id, level: 1, pathWidth: 48 };
+
+  assert.deepEqual(applyTornadoContacts(state, { x: Number.NaN, y: 200 }, { x: 200, y: 200 }), []);
+  const events = applyTornadoContacts(state, { x: 100, y: 200 }, { x: 200, y: 200 });
+  assert.equal(events.length, 1);
+  assert.deepEqual(state.tornadoShotEffect.hitPlayerIds, [target.id]);
+
+  state.players = state.players.filter((player) => player.id !== source.id);
+  assert.deepEqual(applyTornadoContacts(state, { x: 100, y: 200 }, { x: 200, y: 200 }), []);
+  assert.equal(state.tornadoShotEffect, null);
+});
+
+test('Tornado integration samples a fast ball segment and World Split blocks the low shot', () => {
+  const state = createInitialGameState();
+  const source = state.players.find((player) => player.id === 'home-fw');
+  const target = state.players.find((player) => player.id === 'home-mid-1');
+  Object.assign(source, { x: 200, y: 270, facingX: 1, facingY: 0 });
+  Object.assign(target, { x: 232, y: 270, knockdownSeconds: 1, motionAction: 'knockdown' });
+  state.controlledPlayerId = source.id;
+  state.ball.ownerId = source.id;
+  state.ball.x = source.x;
+  state.ball.y = source.y;
+  state.possessionTeam = 'home';
+  assert.equal(applySkill(state, { team: 'home', sourcePlayerId: source.id, skillId: 'tornadoShot', level: 1 }).ok, true);
+
+  const hitEvents = stepGame(state, frame(), 0.05);
+  assert.ok(hitEvents.some((event) => event.type === 'tornadoLift' && event.playerId === target.id));
+  assert.equal(target.airborneSecondsRemaining, 5);
+
+  const blocked = createInitialGameState();
+  const blockedSource = blocked.players.find((player) => player.id === 'home-fw');
+  Object.assign(blockedSource, { x: 200, y: 270, facingX: 1, facingY: 0 });
+  blocked.controlledPlayerId = blockedSource.id;
+  blocked.ball.ownerId = blockedSource.id;
+  blocked.ball.x = blockedSource.x;
+  blocked.ball.y = blockedSource.y;
+  blocked.possessionTeam = 'home';
+  assert.equal(applySkill(blocked, { team: 'home', sourcePlayerId: blockedSource.id, skillId: 'tornadoShot', level: 1 }).ok, true);
+  const startX = blocked.ball.x;
+  blocked.powerBarriers.push({ skillId: 'powerTackle', team: 'away', sourcePlayerId: 'away-def-1',
+    x: startX + 43, y: 200, facingX: 0, facingY: 1, length: 140, thickness: 28, height: 72, remainingSeconds: 3 });
+
+  stepGame(blocked, frame(), 0.05);
+  assert.equal(blocked.ball.x, startX, 'the tornado ball cannot cross the barrier');
+  assert.equal(blocked.ball.vx, 0);
 });
 
 test('kickoff circle keeps non-kickers outside until the ball moves clear', () => {

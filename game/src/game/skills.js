@@ -1,4 +1,4 @@
-import { BALL_RADIUS, EAGLE_SHOT_INTERVAL_SECONDS, FIELD, TEAM_SKILL_COOLDOWN_SECONDS } from './constants.js';
+import { BALL_RADIUS, EAGLE_SHOT_INTERVAL_SECONDS, FIELD, PLAYER_BODY_WIDTH, TEAM_SKILL_COOLDOWN_SECONDS } from './constants.js';
 
 export const SKILL_IDS = Object.freeze([
   'eagleShot',
@@ -333,14 +333,17 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
       ? launchEagleVolley(state, player, level)
       : launchSkillShot(state, player, skillId, level);
     if (skillId === 'tornadoShot') {
-      const durationSeconds = 4 + level;
-      for (const target of state.players) {
-        if (target.id === player.id || target.dismissed) continue;
-        target.airborneSecondsRemaining = durationSeconds;
-        target.airborneFromTeam = player.team;
-      }
-      addSkillEffect(state, { skillId, team: player.team, sourcePlayerId: player.id, durationSeconds });
-      events.push({ type: 'tornadoLift', team: player.team, durationSeconds });
+      const durationSeconds = 5;
+      state.tornadoShotEffect = {
+        team: player.team,
+        sourcePlayerId: player.id,
+        level,
+        pathWidth: 2 * PLAYER_BODY_WIDTH * (1 + (level - 1) * 0.25),
+        hitPlayerIds: [],
+        elapsedSeconds: 0,
+        durationSeconds,
+      };
+      addSkillEffect(state, { skillId, team: player.team, sourcePlayerId: player.id, durationSeconds, level });
     }
   } else if (skillId === 'powerTackle') {
     const forward = player.facingX !== 0 || player.facingY !== 0
@@ -490,6 +493,7 @@ export function applyAutomaticRainbowReflect(state, defendingTeam = 'home') {
     }
   }
   if (hasSkillShot) {
+    if (state.ball.skillId === 'tornadoShot') state.tornadoShotEffect = null;
     state.ball.vx = 0;
     state.ball.vy = 0;
     state.ball.flightKind = 'ground';

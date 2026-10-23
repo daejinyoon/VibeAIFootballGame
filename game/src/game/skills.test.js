@@ -180,23 +180,21 @@ test('Eagle Shot stays high across the field, then dives into the goal from abov
   assert.equal(state.score.home, 1);
 });
 
-test('Tornado lifts every other player, including both keepers, and expires by level', () => {
-  for (const level of [1, 2, 3]) {
+test('Tornado Shot starts a five-second contact path with level-scaled width and no global lift', () => {
+  for (const [level, expectedWidth] of [[1, 48], [2, 60], [3, 72]]) {
     const state = createInitialGameState({ teamSkillDeck: teamDeck('tornadoShot', level) });
     carrier(state);
-    activateNextTeamSkill(state, 'home', 'home-fw');
-    assert.equal(state.players.find((player) => player.id === 'home-fw').airborneSecondsRemaining ?? 0, 0);
-    assert.ok(state.players.filter((player) => player.id !== 'home-fw')
-      .every((player) => player.airborneSecondsRemaining === 4 + level));
+    const result = activateNextTeamSkill(state, 'home', 'home-fw');
+
+    assert.equal(state.tornadoShotEffect.level, level);
+    assert.equal(state.tornadoShotEffect.pathWidth, expectedWidth);
+    assert.equal(state.tornadoShotEffect.durationSeconds, 5);
+    assert.deepEqual(state.tornadoShotEffect.hitPlayerIds, []);
+    assert.equal(state.skillEffects.find((effect) => effect.skillId === 'tornadoShot').durationSeconds, 5);
+    assert.ok(result.events.some((event) => event.type === 'skillUsed' && event.skillId === 'tornadoShot'));
+    assert.ok(!result.events.some((event) => event.type === 'tornadoLift'), 'activation does not lift the whole field');
+    assert.ok(state.players.every((player) => (player.airborneSecondsRemaining ?? 0) === 0));
   }
-  const state = createInitialGameState({ teamSkillDeck: teamDeck('tornadoShot', 3) });
-  carrier(state);
-  activateNextTeamSkill(state, 'home', 'home-fw');
-  const keeper = state.players.find((player) => player.id === 'away-gk');
-  const keeperPosition = { x: keeper.x, y: keeper.y };
-  stepGame(state, frame(), 0.05);
-  assert.deepEqual({ x: keeper.x, y: keeper.y }, keeperPosition);
-  assert.equal(keeper.airborneSecondsRemaining, 6.95);
 });
 
 test('Power Tackle creates a level-timed solid barrier and launches intersecting players', () => {
@@ -260,6 +258,8 @@ test('Rainbow Reflect passively cancels opposing global effects and keeps own ef
     { id: 2, skillId: 'powerTackle', team: 'home', sourcePlayerId: 'home-fw', elapsedSeconds: 0, durationSeconds: 3 },
   ];
   state.powerBarriers = [{ team: 'away', sourcePlayerId: 'away-fw', x: 300, y: 200, facingX: 1, facingY: 0, length: 220, thickness: 28, remainingSeconds: 3 }];
+  Object.assign(state.ball, { ownerId: null, flightKind: 'skill-shot', skillId: 'tornadoShot', lastTouchTeam: 'away' });
+  state.tornadoShotEffect = { team: 'away', sourcePlayerId: 'away-fw', level: 1, pathWidth: 48, hitPlayerIds: [] };
   Object.assign(state.players.find((player) => player.id === 'home-mid-1'), { knockdownSeconds: 9, knockdownFromTeam: 'away' });
   state.players.find((player) => player.id === 'away-mid-1').airborneSecondsRemaining = 4;
   state.players.find((player) => player.id === 'away-mid-1').airborneFromTeam = 'away';
@@ -267,6 +267,8 @@ test('Rainbow Reflect passively cancels opposing global effects and keeps own ef
   assert.equal(event.skillId, 'rainbowReflect');
   assert.deepEqual(state.skillEffects.map((effect) => [effect.team, effect.cancellationPulse === true]), [['home', false], ['home', true]]);
   assert.deepEqual(state.powerBarriers, []);
+  assert.equal(state.tornadoShotEffect, null);
+  assert.equal(state.ball.skillId, undefined);
   assert.equal(state.players.find((player) => player.id === 'home-mid-1').knockdownSeconds, 0);
   assert.equal(state.players.find((player) => player.id === 'away-mid-1').airborneSecondsRemaining, 0);
 });
@@ -289,11 +291,13 @@ test('match end clears timed skill states and leaves the deck available for a fr
   state.hasMatchClockStarted = true;
   state.overtimeRemainingSeconds = 0.01;
   state.skillEffects = [{ id: 1, team: 'home', skillId: 'tornadoShot', sourcePlayerId: 'home-fw', elapsedSeconds: 0, durationSeconds: 6 }];
+  state.tornadoShotEffect = { team: 'home', sourcePlayerId: 'home-fw', level: 2, pathWidth: 60, hitPlayerIds: [] };
   state.powerBarriers = [{ team: 'home', sourcePlayerId: 'home-fw', x: 1, y: 1, facingX: 1, facingY: 0, length: 220, thickness: 28, remainingSeconds: 3 }];
   state.players.find((player) => player.id === 'away-fw').airborneSecondsRemaining = 4;
   stepGame(state, frame(), 0.05);
   assert.equal(state.phase, 'finished');
   assert.deepEqual(state.skillEffects, []);
+  assert.equal(state.tornadoShotEffect, null);
   assert.deepEqual(state.powerBarriers, []);
   assert.equal(state.players.find((player) => player.id === 'away-fw').airborneSecondsRemaining, 0);
   assert.deepEqual(state.teamSkillDecks.home, teamDeck('tornadoShot', 2));

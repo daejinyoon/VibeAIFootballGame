@@ -14,6 +14,7 @@ import {
   HEADER_RADIUS,
   LOB_CLEARANCE_DISTANCE,
   LOB_VERTICAL_VELOCITY,
+  PLAYER_BODY_WIDTH,
   SHOT_ASSIST_DISTANCE,
   SHOT_ASSIST_MAX,
   KICKOFF_CIRCLE_RADIUS,
@@ -49,6 +50,38 @@ function segmentProjection(point, start, end) {
 function segmentDistance(point, start, end) {
   const progress = segmentProjection(point, start, end);
   return distance(point, { x: start.x + (end.x - start.x) * progress, y: start.y + (end.y - start.y) * progress });
+}
+
+export function applyTornadoContacts(state, previousBallPosition, currentBallPosition) {
+  const effect = state?.tornadoShotEffect;
+  if (!effect) return [];
+  if (![previousBallPosition?.x, previousBallPosition?.y, currentBallPosition?.x, currentBallPosition?.y]
+    .every(Number.isFinite)) return [];
+
+  const source = state.players.find((player) => player.id === effect.sourcePlayerId);
+  if (!source || source.dismissed) {
+    state.tornadoShotEffect = null;
+    return [];
+  }
+
+  if (!Array.isArray(effect.hitPlayerIds)) effect.hitPlayerIds = [];
+  const level = clamp(Number.isInteger(effect.level) ? effect.level : 1, 1, 3);
+  const fallbackWidth = 2 * PLAYER_BODY_WIDTH * (1 + (level - 1) * 0.25);
+  const pathWidth = Number.isFinite(effect.pathWidth) ? Math.max(0, effect.pathWidth) : fallbackWidth;
+  const contactRadius = pathWidth / 2 + PLAYER_BODY_WIDTH / 2;
+  const events = [];
+
+  for (const player of state.players) {
+    if (player.id === source.id || player.dismissed || effect.hitPlayerIds.includes(player.id)
+        || !Number.isFinite(player.x) || !Number.isFinite(player.y)) continue;
+    if (segmentDistance(player, previousBallPosition, currentBallPosition) > contactRadius) continue;
+    player.airborneSecondsRemaining = 5;
+    player.airborneFromTeam = effect.team;
+    effect.hitPlayerIds.push(player.id);
+    events.push({ type: 'tornadoLift', skillId: 'tornadoShot', team: effect.team,
+      playerId: player.id, level, durationSeconds: 5 });
+  }
+  return events;
 }
 
 function barrierSegment(barrier) {
@@ -236,6 +269,7 @@ function placeKickoffPlayers(state, kickoffTeam) {
 
 function setBallOwner(state, player) {
   if (!player) return;
+  state.tornadoShotEffect = null;
   state.ball.ownerId = player.id;
   state.ball.vx = 0;
   state.ball.vy = 0;
@@ -490,6 +524,7 @@ function clearSkillTransientState(state) {
   state.skillEffects = [];
   state.skillProjectiles = [];
   state.eagleVolley = null;
+  state.tornadoShotEffect = null;
   state.powerBarriers = [];
   state.vacuumEffect = null;
   state.skillCutIn = null;
@@ -505,6 +540,7 @@ function clearSkillTransientState(state) {
 }
 
 function scoreGoal(state, scoringTeam) {
+  state.tornadoShotEffect = null;
   const points = 1;
   state.score[scoringTeam] += points;
   state.restart = null;
@@ -606,6 +642,7 @@ function resolveTackle(state, tackler, ballCarrier, powerTackleActive = false) {
 }
 
 function stopBallAtFieldEdge(state) {
+  state.tornadoShotEffect = null;
   state.ball.x = clamp(state.ball.x, 0, FIELD.width);
   state.ball.y = clamp(state.ball.y, 0, FIELD.height);
   state.ball.ownerId = null;
@@ -1044,6 +1081,7 @@ function integrateLooseBall(state, deltaSeconds) {
     delete ball.flightTarget;
     delete ball.passTarget;
   }
+  const tornadoContactEvents = applyTornadoContacts(state, previousPosition, { x: ball.x, y: ball.y });
   if (passTeam && ball.flightKind === 'ground') {
     const interception = findGroundPassInterceptor(state, passTeam, previousPosition, { x: ball.x, y: ball.y });
     if (interception) {
@@ -1054,12 +1092,13 @@ function integrateLooseBall(state, deltaSeconds) {
       setBallOwner(state, player);
       if (player.team === 'home') state.controlledPlayerId = player.id;
       return [
+        ...tornadoContactEvents,
         { type: 'passIntercepted', team: player.team, playerId: player.id, fromTeam: passTeam, passKind: 'ground' },
         ...(previousTeam !== player.team ? [{ type: 'possessionChange', team: player.team, playerId: player.id }] : []),
       ];
     }
   }
-  return [];
+  return tornadoContactEvents;
 }
 
 function resolveAerialHeader(state) {
@@ -1880,6 +1919,16 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
 
 function advanceSkillEffects(state, deltaSeconds) {
   if (!Array.isArray(state.skillEffects)) state.skillEffects = [];
+  const tornado = state.tornadoShotEffect;
+  if (tornado) {
+    const source = state.players.find((player) => player.id === tornado.sourcePlayerId);
+    if (!source || source.dismissed || state.ball.flightKind !== 'skill-shot' || state.ball.skillId !== 'tornadoShot') {
+      state.tornadoShotEffect = null;
+    } else {
+      tornado.elapsedSeconds = (Number.isFinite(tornado.elapsedSeconds) ? tornado.elapsedSeconds : 0) + deltaSeconds;
+      if (tornado.elapsedSeconds >= (tornado.durationSeconds ?? 5)) state.tornadoShotEffect = null;
+    }
+  }
   const playersById = new Map(state.players.map((player) => [player.id, player]));
   state.skillEffects = state.skillEffects.filter((effect) => {
     const source = playersById.get(effect.sourcePlayerId);

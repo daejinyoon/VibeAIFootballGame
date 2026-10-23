@@ -139,6 +139,7 @@ export function createInitialGameState({
     skillEffects: [],
     skillProjectiles: [],
     eagleVolley: null,
+    tornadoShotEffect: null,
     powerBarriers: [],
     teamSkillDecks: { home: homeDeck, away: awayDeck },
     skillCooldownRemaining: { home: 0, away: 0 },

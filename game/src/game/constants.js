@@ -29,6 +29,7 @@ export const BALL_RADIUS = 11.6;
 export const KICKOFF_CIRCLE_RADIUS = 70;
 export const BALL_GRAVITY = 900;
 export const LOB_VERTICAL_VELOCITY = 360;
+export const PLAYER_BODY_WIDTH = 24;
 export const EAGLE_ASCENT_SECONDS = 0.45;
 export const EAGLE_SHOT_INTERVAL_SECONDS = 0.18;
 export const EAGLE_FLIGHT_HEIGHT = 180;

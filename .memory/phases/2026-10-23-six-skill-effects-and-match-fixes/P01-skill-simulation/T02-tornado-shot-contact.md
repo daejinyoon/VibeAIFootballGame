@@ -1,6 +1,6 @@
 # Task: T02 Tornado Shot Contact
 
-## Status: pending
+## Status: done
 
 ## Goal
 Make Tornado Shot create a moving ground-level tornado around its ball, and lift only players whose positions intersect the tornado path. Lift lasts five seconds at all levels; level scales the path width.
@@ -50,13 +50,14 @@ Make Tornado Shot create a moving ground-level tornado around its ball, and lift
 - Verify width at each level, 5-second duration at each level, caster immunity, both-team/keeper eligibility, no hit outside the path, no duplicate refresh, a fast segment crossing still hits, and wall blockage for the low shot.
 
 ## Acceptance Criteria
-- [ ] Tornado travels with the skill ball and affects only players intersecting its path.
-- [ ] The caster is unaffected; all other roles and both teams can be lifted.
-- [ ] Contact always applies five seconds, and path widths are 48/60/72 game units.
-- [ ] A low tornado shot cannot pass through an intersecting World Split barrier.
+- [x] Tornado travels with the skill ball and affects only players intersecting its path.
+- [x] The caster is unaffected; all other roles and both teams can be lifted.
+- [x] Contact always applies five seconds, and path widths are 48/60/72 game units.
+- [x] A low tornado shot cannot pass through an intersecting World Split barrier.
 
 ## Validation
-- `cd game; npm test -- --test-name-pattern="Tornado|tornado"` — Tornado behavior passes.
+- From `game/`: `node --test --test-name-pattern=Tornado src/game/skills.test.js src/game/stepGame.test.js` — targeted Tornado behavior passes.
+- From `game/`: `npm test` — full test suite passes.
 
 ## Commit Message
 ```text
@@ -71,6 +72,6 @@ Task: T02-tornado-shot-contact
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed
+- commit: specified message used; recorded in Git history.

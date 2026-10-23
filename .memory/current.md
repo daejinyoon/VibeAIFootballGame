@@ -7,11 +7,11 @@
 [P01 Skill Simulation](./phases/2026-10-23-six-skill-effects-and-match-fixes/P01-skill-simulation/phase.md)
 
 ## Active Task
-[T02 Tornado Shot Contact](./phases/2026-10-23-six-skill-effects-and-match-fixes/P01-skill-simulation/T02-tornado-shot-contact.md)
+[T03 World Split Physics](./phases/2026-10-23-six-skill-effects-and-match-fixes/P01-skill-simulation/T03-world-split-physics.md)
 
 ## Status
-- T01 Eagle Shot Volley is implemented and validated.
+- T01 Eagle Shot Volley and T02 Tornado Shot Contact are implemented and validated.
 - Confirmed requirements are recorded in the linked decision documents.
 
 ## Next Step
-Read `T02-tornado-shot-contact.md`, implement only Tornado Shot contact-based lifts, then run its listed validation command before advancing the pointer.
+Read `T03-world-split-physics.md`, implement only World Split barrier physics and its three-second lifetime, then run its listed validation command before advancing the pointer.
