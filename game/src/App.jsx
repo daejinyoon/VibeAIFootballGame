@@ -1,7 +1,7 @@
 import { lazy, Suspense, useRef, useState } from 'react';
 import { createCampaign, finishStage, getUnlockedStage } from './game/campaign.js';
 import { createInitialGameState } from './game/createInitialGameState.js';
-import { SKILLS, awardSkillCard, placeTeamSkill, reorderTeamSkill } from './game/skills.js';
+import { SKILL_IDS, SKILLS, awardSkillCard, placeTeamSkill, reorderTeamSkill } from './game/skills.js';
 import { getTeamBranding } from './game/teamBranding.js';
 import { createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
@@ -24,13 +24,31 @@ function makeMatchState(campaign, teamCustomization) {
   });
 }
 
+function createSkillPreviewCampaign(skillId) {
+  if (!SKILL_IDS.includes(skillId)) return null;
+  const campaign = createCampaign();
+  return {
+    ...campaign,
+    id: `skill-preview-${skillId}-${Date.now()}`,
+    teamSkillDeck: [{ skillId, level: 1 }],
+    isSkillPreview: true,
+  };
+}
+
 export default function App() {
-  const [screen, setScreen] = useState('start');
-  const [campaign, setCampaign] = useState(null);
-  const [selectedStage, setSelectedStage] = useState(1);
-  const [matchState, setMatchState] = useState(null);
-  const [result, setResult] = useState(null);
   const [profile, setProfile] = useState(() => readProfile());
+  const [initial] = useState(() => {
+    const skillId = new URLSearchParams(window.location.search).get('skillPreview');
+    const previewCampaign = createSkillPreviewCampaign(skillId);
+    return previewCampaign
+      ? { screen: 'match', campaign: previewCampaign, matchState: makeMatchState(previewCampaign, profile.teamCustomization) }
+      : { screen: 'start', campaign: null, matchState: null };
+  });
+  const [screen, setScreen] = useState(initial.screen);
+  const [campaign, setCampaign] = useState(initial.campaign);
+  const [selectedStage, setSelectedStage] = useState(1);
+  const [matchState, setMatchState] = useState(initial.matchState);
+  const [result, setResult] = useState(null);
   const [profileError, setProfileError] = useState('');
   const activeMatchInstanceRef = useRef(0);
   const handledTerminalMatchRef = useRef(null);
@@ -127,6 +145,18 @@ export default function App() {
 
     const score = endEvent.score ?? matchState?.score ?? { home: 0, away: 0 };
     const outcome = endEvent.type === 'matchDraw' ? 'draw' : endEvent.type === 'matchLost' ? 'loss' : 'win';
+    if (campaign.isSkillPreview) {
+      setResult({
+        stage: campaign.currentStage,
+        homeGoals: score.home,
+        awayGoals: score.away,
+        outcome,
+        stageReached: campaign.currentStage,
+        goalDifference: score.home - score.away,
+      });
+      setScreen('results');
+      return;
+    }
     const nextCampaign = outcome === 'win' ? finishStage(campaign, { score }) : campaign;
     setCampaign(nextCampaign);
     if (outcome === 'win') setSelectedStage(nextCampaign.currentStage);
@@ -205,6 +235,7 @@ export default function App() {
 
   const saveAndExit = () => {
     if (!campaign) return home();
+    if (campaign.isSkillPreview) return home();
     const nextProfile = { ...profile, campaignSave: createCampaignSave(campaign) };
     try {
       writeProfile(nextProfile);

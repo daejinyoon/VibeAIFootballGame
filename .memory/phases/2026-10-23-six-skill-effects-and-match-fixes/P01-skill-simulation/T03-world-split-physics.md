@@ -1,6 +1,6 @@
-# Task: T03 World Split Physics
+﻿# Task: T03 World Split Physics
 
-## Status: pending
+## Status: done
 
 ## Goal
 Replace the Power Tackle gameplay boost with a forward sliding World Split that raises a solid height-aware fissure wall. Keep the stored skill ID `powerTackle` for saved campaign compatibility while changing all player-facing labels to “세계의 분리”.
@@ -9,6 +9,7 @@ Replace the Power Tackle gameplay boost with a forward sliding World Split that 
 - Slide the user forward; build the barrier sequentially along that real path. It lasts exactly 3 seconds at every level and has lengths 220/275/330 game units at levels 1/2/3.
 - Block player movement, passes, ordinary shots, and skill shots only when the ball's physical height intersects the wall. Launch characters it hits, including keepers and either team, but never launch the caster.
 - A descending Eagle can pass over the wall only when above wall height; a low Tornado shot is blocked.
+- Provide a direct skill-test URL that opens a stage-one match with the requested skill owned at level 1, without saving the test as campaign progress or a leaderboard record.
 
 ## Implementation
 
@@ -34,7 +35,7 @@ Replace the Power Tackle gameplay boost with a forward sliding World Split that 
 - **Data & Schema Fields**:
   - Barrier height is 72 game units; wall thickness stays 28. Keep `powerBarriers` and `powerTackleSeconds` fields to avoid profile migration.
   - World Split lengths are `[220, 275, 330]`; duration is `3` for every level.
-  - Rename `SKILLS.powerTackle.name` to `세계의 분리`, update description and artwork URL to `/images/skills/world-split.png`; internal ID remains `powerTackle`.
+  - Rename `SKILLS.powerTackle.name` to `세계의 분리`, update description and artwork URL to `/images/skills/world-split.svg`; internal ID remains `powerTackle`.
 - **Execution Flow / Logic**:
   1. In `applySkill`, normalize player facing, set `motionAction='tackle'`, give the caster a short forward slide impulse using existing `SLIDE_SPEED`, and create a barrier with level length, fixed duration, and wall height.
   2. Build the wall from the recorded slide start toward its facing direction. Store its start and direction once; do not recenter it on the player's later position.
@@ -45,6 +46,13 @@ Replace the Power Tackle gameplay boost with a forward sliding World Split that 
 - **Error & Exception Handling**: Normalize zero/missing facing to attack direction. Clamp movement to field bounds. Ignore malformed barriers with non-finite endpoints.
 - **State Transition & Return**: Emit `skillUsed` with the existing `powerTackle` ID and `powerBarrierCreated`; shared cooldown and reward deck stay unchanged.
 
+### I03. Direct skill preview entry
+- Related Files:
+  - `game/src/App.jsx` :: initial app state, `handleGameEvents`, `saveAndExit`; modify
+- **URL**: `?skillPreview=<skillId>`; ignore unknown IDs. Initialize directly into a fresh stage-one match with that single skill at level 1 and the user's saved team branding.
+- Mark this temporary campaign as a preview. Match end, pause exit, and retry must not update campaign saves or leaderboard records; retry keeps the preview skill.
+- This is a development preview entry point for each skill task, so future preview links can replace only the skill ID.
+
 ### I02. World Split gameplay coverage
 - Related Files:
   - `game/src/game/skills.test.js` :: Power Tackle cases; rename test descriptions and update expectations
@@ -53,14 +61,16 @@ Replace the Power Tackle gameplay boost with a forward sliding World Split that 
 - Assert length 220/275/330, duration 3 for each level, caster immunity, opposing and friendly player/keeper launch, wall blocks every listed low object class, high projectile clears, low Eagle/Tornado is blocked, and movement cannot cross.
 
 ## Acceptance Criteria
-- [ ] `powerTackle` remains the persisted ID; all displayed skill names use “세계의 분리”.
-- [ ] The slide creates a 3-second wall of level length 220/275/330 and height 72.
-- [ ] Player movement is blocked; all listed ball types collide by actual ball height.
-- [ ] Characters struck are launched regardless of team/role except the caster.
+- [x] `powerTackle` remains the persisted ID; all displayed skill names use “세계의 분리”.
+- [x] The slide creates a 3-second wall of level length 220/275/330 and height 72.
+- [x] Player movement is blocked; all listed ball types collide by actual ball height.
+- [x] Characters struck are launched regardless of team/role except the caster.
+- [x] A valid `?skillPreview=<skillId>` opens immediately with that skill, and preview results do not alter saved progress.
 
 ## Validation
-- `cd game; npm test -- --test-name-pattern="Power Tackle|World Split|barrier"` — wall activation and collision tests pass.
-- `cd game; npm test -- --test-name-pattern="Eagle|Tornado"` — projectile/barrier compatibility tests pass.
+- `cd game; npm test` — 140/140 tests pass.
+- `cd game; npm run build` — production build passes (Vite reports the existing large-chunk advisory).
+- `http://localhost:5174/?skillPreview=powerTackle` — local preview URL returns HTTP 200.
 
 ## Commit Message
 ```text
@@ -75,6 +85,6 @@ Task: T03-world-split-physics
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
+- [x] Implementation complete
+- [x] Validation passed
 - commit: pending

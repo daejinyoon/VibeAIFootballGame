@@ -25,7 +25,7 @@ test('every named skill maps to its own existing transparent PNG artwork', () =>
   const artworks = SKILL_IDS.map((skillId) => SKILLS[skillId].artwork);
   assert.equal(new Set(artworks).size, SKILL_IDS.length);
   for (const artwork of artworks) {
-    assert.match(artwork, /^\/images\/skills\/[a-z-]+\.png$/);
+    assert.match(artwork, /^\/images\/skills\/[a-z-]+\.(png|svg)$/);
     assert.ok(existsSync(new URL(`../../public${artwork}`, import.meta.url)));
   }
 });
@@ -197,16 +197,19 @@ test('Tornado Shot starts a five-second contact path with level-scaled width and
   }
 });
 
-test('Power Tackle creates a level-timed solid barrier and launches intersecting players', () => {
+test('World Split slides forward and creates a three-second level-scaled solid barrier', () => {
   const state = createInitialGameState({ teamSkillDeck: teamDeck('powerTackle', 2) });
   const user = state.players.find((player) => player.id === 'home-fw');
   Object.assign(user, { x: 350, y: 270, facingX: 1, facingY: 0 });
   Object.assign(state.players.find((player) => player.id === 'away-fw'), { x: 390, y: 270 });
   const result = applySkill(state, { team: 'home', sourcePlayerId: user.id, skillId: 'powerTackle', level: 2 });
   assert.equal(result.ok, true);
-  assert.equal(state.powerBarriers[0].length, 220);
+  assert.equal(state.powerBarriers[0].length, 275);
   assert.equal(state.powerBarriers[0].thickness, 28);
-  assert.equal(state.powerBarriers[0].remainingSeconds, 4);
+  assert.equal(state.powerBarriers[0].height, 72);
+  assert.equal(state.powerBarriers[0].remainingSeconds, 3);
+  assert.equal(user.motionAction, 'tackle');
+  assert.ok(user.vx > 0, 'the caster slides forward along the barrier direction');
   assert.ok(state.players.find((player) => player.id === 'away-fw').knockdownSeconds > 0);
   Object.assign(state.ball, { ownerId: null, x: 420, y: 270, vx: -400, vy: 0, flightKind: 'shot' });
   stepGame(state, frame(), 0.05);
@@ -215,11 +218,12 @@ test('Power Tackle creates a level-timed solid barrier and launches intersecting
   Object.assign(crossingPlayer, { x: 450, y: 238, vx: 0, vy: 0 });
   stepGame(state, frame(), 0.05);
   assert.ok(crossingPlayer.y < 256, 'the character remains on the approach side of the wall');
-  for (const level of [1, 2, 3]) {
+  for (const [level, length] of [[1, 220], [2, 275], [3, 330]]) {
     const levelState = createInitialGameState();
     const source = levelState.players.find((player) => player.id === 'home-fw');
     assert.equal(applySkill(levelState, { team: 'home', sourcePlayerId: source.id, skillId: 'powerTackle', level }).ok, true);
-    assert.equal(levelState.powerBarriers[0].remainingSeconds, 2 + level);
+    assert.equal(levelState.powerBarriers[0].length, length);
+    assert.equal(levelState.powerBarriers[0].remainingSeconds, 3);
   }
 });
 

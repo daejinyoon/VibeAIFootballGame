@@ -152,6 +152,25 @@ test('Tornado integration samples a fast ball segment and World Split blocks the
   assert.equal(blocked.ball.vx, 0);
 });
 
+test('World Split blocks a low ball and allows a ball above the wall', () => {
+  const makeBarrierState = (height) => {
+    const state = createInitialGameState();
+    Object.assign(state.ball, { ownerId: null, x: 400, y: 270, vx: 240, vy: 0, height, flightKind: 'shot' });
+    state.powerBarriers.push({ skillId: 'powerTackle', team: 'away', sourcePlayerId: 'away-def-1',
+      x: 410, y: 200, facingX: 0, facingY: 1, length: 140, thickness: 28, height: 72, remainingSeconds: 3 });
+    return state;
+  };
+
+  const low = makeBarrierState(0);
+  stepGame(low, frame(), 0.05);
+  assert.equal(low.ball.x, 400, 'a ground shot collides with the wall');
+  assert.equal(low.ball.vx, 0);
+
+  const high = makeBarrierState(100);
+  stepGame(high, frame(), 0.05);
+  assert.ok(high.ball.x > 400, 'a ball above the wall clears it');
+});
+
 test('kickoff circle keeps non-kickers outside until the ball moves clear', () => {
   const state = createGameState();
   const center = { x: FIELD.width / 2, y: FIELD.height / 2 };

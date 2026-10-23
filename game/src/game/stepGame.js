@@ -1073,7 +1073,7 @@ function integrateLooseBall(state, deltaSeconds) {
     }
   }
 
-  if (blockedByBarrier(state, ball, BALL_RADIUS)) {
+  if (blockedByBarrier(state, ball, BALL_RADIUS, ball.height ?? 0)) {
     ball.x = previousPosition.x;
     ball.y = previousPosition.y;
     ball.vx = 0;
@@ -1807,6 +1807,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   }
   state.powerBarriers = (state.powerBarriers ?? []).map((barrier) => ({
     ...barrier,
+    elapsedSeconds: (barrier.elapsedSeconds ?? 0) + dt,
     remainingSeconds: barrier.remainingSeconds - dt,
   })).filter((barrier) => barrier.remainingSeconds > 0);
   if (state.phase === 'overtime' && state.overtimeRemainingSeconds == null) {
