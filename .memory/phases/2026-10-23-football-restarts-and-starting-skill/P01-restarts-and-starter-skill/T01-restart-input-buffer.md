@@ -1,6 +1,6 @@
 # Task: T01 Restart Input Buffer
 
-## Status: pending
+## Status: done
 
 ## Goal
 
@@ -82,4 +82,4 @@ Task: T01-restart-input-buffer
 
 - [x] Implementation complete
 - [x] Validation passed (`npm test`, `npm run build`)
-- commit: pending
+- commit: 39b2b55

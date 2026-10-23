@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createOpponentSkillSets } from '../game/campaign.js';
+import { createCampaign as createNewCampaign, createOpponentSkillSets } from '../game/campaign.js';
 import { DEFAULT_TEAM_CUSTOMIZATION } from '../game/teamBranding.js';
 import {
   createCampaignSave,
@@ -98,6 +98,21 @@ test('round-trips the ordered team deck without match coordinates or legacy fiel
   assert.equal('ball' in loaded.campaignSave, false);
   assert.ok(profile.campaignSave.savedAt);
   assert.equal(createCampaignSave(createCampaign(5)).currentStage, 5);
+});
+
+test('persists the starter team skill from a new campaign in the existing profile format', () => {
+  const storage = createMemoryStorage();
+  const campaign = createNewCampaign({ rng: () => 0.25 });
+
+  writeProfile({
+    ...createEmptyProfile(),
+    nickname: 'Dex',
+    campaignSave: createCampaignSave(campaign),
+  }, storage);
+
+  const restored = readProfile(storage).campaignSave;
+  assert.deepEqual(restored.teamSkillDeck, campaign.teamSkillDeck);
+  assert.equal(restored.currentStage, 1);
 });
 
 test('round-trips sorted replay results with gaps and rejects malformed result rows', () => {

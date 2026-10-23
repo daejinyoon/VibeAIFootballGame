@@ -27,11 +27,15 @@ export function createOpponentSkillSets(rng = Math.random) {
 }
 
 export function createCampaign({ rng = Math.random } = {}) {
+  const starterSkills = SKILL_IDS.filter((skillId) => skillId !== 'rainbowReflect');
+  const randomValue = Number(rng());
+  const safeValue = Number.isFinite(randomValue) ? Math.min(0.999999, Math.max(0, randomValue)) : 0;
+  const starterSkillId = starterSkills[Math.floor(safeValue * starterSkills.length)];
   return {
     id: `campaign-${Date.now()}-${++campaignCounter}`,
     currentStage: 1,
     clearedStageResults: [],
-    teamSkillDeck: [],
+    teamSkillDeck: [{ skillId: starterSkillId, level: 1 }],
     pendingSkillOffer: null,
     pendingSkillPlacement: null,
     opponentSkillSets: createOpponentSkillSets(rng),

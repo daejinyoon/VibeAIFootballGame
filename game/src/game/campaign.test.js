@@ -10,13 +10,28 @@ import {
   reorderTeamSkill,
 } from './skills.js';
 
-test('starts campaigns with an empty shared team deck', () => {
+test('starts campaigns with one random active skill in the shared team deck', () => {
   const campaign = createCampaign({ rng: () => 0.25 });
+  const otherCampaign = createCampaign({ rng: () => 0.5 });
   assert.equal(campaign.currentStage, 1);
   assert.equal(getUnlockedStage(campaign), 1);
-  assert.deepEqual(campaign.teamSkillDeck, []);
+  assert.equal(campaign.teamSkillDeck.length, 1);
+  assert.ok(SKILL_IDS.includes(campaign.teamSkillDeck[0].skillId));
+  assert.notEqual(campaign.teamSkillDeck[0].skillId, 'rainbowReflect');
+  assert.equal(campaign.teamSkillDeck[0].level, 1);
+  assert.notEqual(campaign.teamSkillDeck[0].skillId, otherCampaign.teamSkillDeck[0].skillId);
+  assert.deepEqual(campaign.opponentSkillSets[1], []);
   assert.equal(campaign.pendingSkillOffer, null);
   assert.equal(campaign.pendingSkillPlacement, null);
+});
+
+test('clamps invalid starter random values to a valid active skill', () => {
+  for (const rng of [() => -1, () => 1, () => Number.NaN]) {
+    const campaign = createCampaign({ rng });
+    assert.equal(campaign.teamSkillDeck.length, 1);
+    assert.ok(SKILL_IDS.includes(campaign.teamSkillDeck[0].skillId));
+    assert.notEqual(campaign.teamSkillDeck[0].skillId, 'rainbowReflect');
+  }
 });
 
 test('creates opponent skill sets for all five stages without duplicates', () => {
@@ -134,6 +149,7 @@ test('a tied stage result leaves campaign progression and rewards unchanged', ()
 
 test('new reward skills enter the ordered team deck and can be placed at any position', () => {
   let campaign = createCampaign({ rng: () => 0.3 });
+  campaign.teamSkillDeck = [];
   campaign = finishStage(campaign, { homeGoals: 1, awayGoals: 0 }, () => 0.4);
   const skillId = campaign.pendingSkillOffer[0];
   const awarded = awardSkillCard(campaign, skillId);
