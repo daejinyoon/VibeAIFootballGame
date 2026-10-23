@@ -2,6 +2,7 @@ import {
   BALL_GRAVITY,
   BALL_RADIUS,
   EAGLE_ASCENT_SECONDS,
+  EAGLE_DIVE_START_PROGRESS,
   EAGLE_FLIGHT_HEIGHT,
   EAGLE_SHOT_INTERVAL_SECONDS,
   FIELD,
@@ -817,6 +818,8 @@ function advanceEagleVolley(state, deltaSeconds) {
         projectile.height = EAGLE_FLIGHT_HEIGHT;
         projectile.phase = 'flying';
         const goalX = projectile.team === 'home' ? FIELD.width + BALL_RADIUS + 1 : -BALL_RADIUS - 1;
+        projectile.flightStartX = projectile.x;
+        projectile.flightGoalX = goalX;
         const dx = goalX - projectile.x;
         const dy = projectile.targetY - projectile.y;
         const length = Math.hypot(dx, dy) || 1;
@@ -826,6 +829,12 @@ function advanceEagleVolley(state, deltaSeconds) {
     } else {
       projectile.x += projectile.vx * deltaSeconds;
       projectile.y += projectile.vy * deltaSeconds;
+      const flightDistance = projectile.flightGoalX - projectile.flightStartX;
+      const progress = Math.max(0, Math.min(1, (projectile.x - projectile.flightStartX) / (flightDistance || 1)));
+      const diveProgress = Math.max(0, Math.min(1,
+        (progress - EAGLE_DIVE_START_PROGRESS) / (1 - EAGLE_DIVE_START_PROGRESS)));
+      const easedDive = diveProgress * diveProgress * (3 - 2 * diveProgress);
+      projectile.height = EAGLE_FLIGHT_HEIGHT * (1 - easedDive);
     }
 
     const next = { x: projectile.x, y: projectile.y };

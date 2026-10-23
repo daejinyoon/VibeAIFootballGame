@@ -32,6 +32,7 @@ export const LOB_VERTICAL_VELOCITY = 360;
 export const EAGLE_ASCENT_SECONDS = 0.45;
 export const EAGLE_SHOT_INTERVAL_SECONDS = 0.18;
 export const EAGLE_FLIGHT_HEIGHT = 180;
+export const EAGLE_DIVE_START_PROGRESS = 0.7;
 export const HEADER_RADIUS = 24;
 export const HEADER_HEIGHT_MIN = 20;
 export const HEADER_HEIGHT_MAX = 72;

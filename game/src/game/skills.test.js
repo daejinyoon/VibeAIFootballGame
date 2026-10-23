@@ -148,6 +148,30 @@ test('Eagle Shot clears a lower wall and is blocked by a wall above its flight h
   assert.ok(!highWall.events.some((event) => event.type === 'goal' && event.skillId === 'eagleShot'));
 });
 
+test('Eagle Shot stays high across the field, then dives into the goal from above', () => {
+  const state = createInitialGameState({ teamSkillDeck: teamDeck('eagleShot', 1) });
+  carrier(state);
+  activateNextTeamSkill(state, 'home', 'home-fw');
+  for (let frameIndex = 0; frameIndex < 20 && state.skillProjectiles[0]?.phase === 'ascending'; frameIndex += 1) {
+    stepGame(state, frame(), 0.05);
+  }
+  for (let frameIndex = 0; frameIndex < 50 && state.skillProjectiles[0]?.height >= 170 && state.eagleVolley; frameIndex += 1) {
+    stepGame(state, frame(), 0.05);
+  }
+
+  const projectile = state.skillProjectiles[0];
+  assert.equal(projectile.phase, 'flying');
+  assert.ok(projectile.height < 180, 'the eagle loses height on its final approach');
+  assert.ok(projectile.height > 0, 'the eagle remains above the ground before entering the goal');
+  assert.ok(projectile.x > projectile.flightStartX + (projectile.flightGoalX - projectile.flightStartX) * 0.7,
+    'the dive begins on the attacking half near the goal');
+
+  for (let frameIndex = 0; frameIndex < 40 && state.phase === 'playing'; frameIndex += 1) {
+    stepGame(state, frame(), 0.05);
+  }
+  assert.equal(state.score.home, 1);
+});
+
 test('Tornado lifts every other player, including both keepers, and expires by level', () => {
   for (const level of [1, 2, 3]) {
     const state = createInitialGameState({ teamSkillDeck: teamDeck('tornadoShot', level) });
