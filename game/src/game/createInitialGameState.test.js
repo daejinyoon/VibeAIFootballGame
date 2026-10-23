@@ -34,6 +34,7 @@ test('starts stage one at a home kickoff with a clean score and no skill gauges'
   assert.ok(state.players.filter((player) => Math.hypot(player.x - center.x, player.y - center.y) < KICKOFF_CIRCLE_RADIUS).every((player) => player.id === state.kickoffTakerId));
   assert.equal('skillGauge' in state, false);
   assert.equal(state.aiRandomSeed, 0x6d2b79f5);
+  assert.ok(state.players.every((player) => player.sprintStamina === 100 && player.sprinting === false));
   assert.ok(state.players.filter((player) => player.team === 'home')
     .every((player) => player.aiTarget === null && player.aiRetargetSeconds >= 1.2 && player.aiRetargetSeconds <= 1.8));
 });

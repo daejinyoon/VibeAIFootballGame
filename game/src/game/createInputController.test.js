@@ -47,6 +47,22 @@ test('reads held movement keys and one-frame press/release edges', () => {
   controller.destroy();
 });
 
+test('tracks held E sprint input with key state cleared on release', () => {
+  const target = createFakeWindow();
+  const controller = createInputController(target);
+  target.emit('keydown', { key: 'E', preventDefault() {} });
+
+  const heldFrame = controller.readFrame();
+  assert.ok(heldFrame.down.has('e'));
+  assert.ok(heldFrame.pressed.has('e'));
+
+  target.emit('keyup', { key: 'e', preventDefault() {} });
+  const releasedFrame = controller.readFrame();
+  assert.ok(!releasedFrame.down.has('e'));
+  assert.ok(releasedFrame.released.has('e'));
+  controller.destroy();
+});
+
 test('reads Space by KeyboardEvent.code as a one-frame jump press', () => {
   const target = createFakeWindow();
   const controller = createInputController(target);

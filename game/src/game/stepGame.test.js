@@ -111,8 +111,40 @@ test('moves the selected player at the intended speed and normalizes diagonals',
 
   assert.ok(player.x > start.x);
   assert.ok(player.y < start.y);
-  assert.ok(Math.abs(Math.hypot(player.vx, player.vy) - 160) < 0.001);
+  assert.ok(Math.abs(Math.hypot(player.vx, player.vy) - 176) < 0.001);
   assert.equal(state.ball.x, player.x + player.facingX * 17);
+});
+
+test('E sprint raises controlled movement speed, drains stamina, and recovers when released', () => {
+  const state = createInitialGameState();
+  const player = state.players.find((candidate) => candidate.id === 'home-fw');
+  state.players.filter((candidate) => candidate.team === 'away')
+    .forEach((candidate, index) => Object.assign(candidate, { x: 900, y: 30 + index * 80 }));
+
+  stepGame(state, frame({ moveX: 1, down: ['e'] }), 0.05);
+
+  assert.equal(player.sprinting, true);
+  assert.ok(Math.abs(Math.hypot(player.vx, player.vy) - 176 * 1.35) < 0.001);
+  assert.ok(Math.abs(player.sprintStamina - 98.4) < 0.001);
+
+  stepGame(state, frame({ moveX: 1 }), 0.05);
+
+  assert.equal(player.sprinting, false);
+  assert.ok(Math.abs(Math.hypot(player.vx, player.vy) - 176) < 0.001);
+  assert.ok(Math.abs(player.sprintStamina - 99.6) < 0.001);
+});
+
+test('field AI sprints toward distant tactical targets while goalkeepers recover stamina', () => {
+  const state = createInitialGameState();
+  const midfielder = state.players.find((player) => player.id === 'home-mid-1');
+  const goalkeeper = state.players.find((player) => player.id === 'home-gk');
+
+  stepGame(state, frame(), 0.05);
+
+  assert.equal(midfielder.sprinting, true);
+  assert.ok(Math.hypot(midfielder.vx, midfielder.vy) > 136);
+  assert.equal(goalkeeper.sprinting, false);
+  assert.equal(goalkeeper.sprintStamina, 100);
 });
 
 test('Space makes a field player jump and goalkeepers stay grounded', () => {
@@ -178,7 +210,7 @@ test('role support movement excludes the controlled player and goalkeeper while 
 
   stepGame(state, frame({ moveX: 1 }), 0.05);
 
-  assert.equal(controlled.x, 488);
+  assert.equal(controlled.x, 488.8);
   assert.deepEqual({ x: goalkeeper.x, y: goalkeeper.y }, goalkeeperStart);
   assert.notDeepEqual({ x: awayPlayer.x, y: awayPlayer.y }, awayStart);
   assert.notDeepEqual({ x: teammate.x, y: teammate.y }, teammateStart);
@@ -1168,7 +1200,7 @@ test('the nearest noncontrolled defender presses while teammates cover separate 
   stepGame(state, frame({ moveY: 1 }), 0.05);
 
   assert.ok(presser.x > 650);
-  assert.equal(controlled.y, 308);
+  assert.equal(controlled.y, 308.8);
   assert.ok(coverer.aiTarget);
   assert.notDeepEqual(coverer.aiTarget, { x: carrier.x, y: carrier.y });
 });
@@ -1312,7 +1344,7 @@ test('clamps frame time and ignores a finished game', () => {
   const player = state.players.find((candidate) => candidate.id === 'home-fw');
   const startX = player.x;
   stepGame(state, frame({ moveX: 1 }), 1);
-  assert.ok(Math.abs(player.x - startX) <= 8.01);
+  assert.ok(Math.abs(player.x - startX) <= 8.81);
 
   state.phase = 'finished';
   const frozenX = player.x;

@@ -28,6 +28,8 @@ function createPlayer({ id, team, role, x, y, skillId = null, skillCopies = 0, a
     x: clamp(x, 0, FIELD.width),
     y: clamp(y, 0, FIELD.height),
     vx: 0, vy: 0,
+    sprintStamina: 100,
+    sprinting: false,
     jumpHeight: 0,
     jumpVelocity: 0,
     jumpCooldownSeconds: 0,

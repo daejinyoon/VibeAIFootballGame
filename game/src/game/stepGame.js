@@ -17,15 +17,20 @@ import {
   SHOT_ASSIST_DISTANCE,
   SHOT_ASSIST_MAX,
   KICKOFF_CIRCLE_RADIUS,
+  SPRINT_DRAIN_PER_SECOND,
+  SPRINT_RECOVERY_PER_SECOND,
+  SPRINT_STAMINA_MAX,
 } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
 import { addSkillEffect, applyAutomaticRainbowReflect, applySkill, SKILL_IDS } from './skills.js';
 
-const PLAYER_SPEED = 160;
-const AI_SPEED = 125;
+const PLAYER_SPEED = 176;
+const FOUL_RECKLESS_APPROACH_SPEED = 120;
+const AI_SPEED = 136;
 const KEEPER_SPEED = 95;
 const PRESSURE_SPEED = 190;
 const SLIDE_SPEED = 160;
+const SPRINT_SPEED_MULTIPLIER = 1.35;
 const MAX_DELTA = 0.05;
 const INTERCEPTION_RADIUS = 16;
 const AI_JUMP_REACH_RADIUS = 88;
@@ -61,14 +66,17 @@ function carrier(state) {
   return byId(state, state.ball.ownerId);
 }
 
-function moveToward(player, target, speed, deltaSeconds) {
+function moveToward(player, target, speed, deltaSeconds, allowSprint = true) {
   if (!player || !target || player.dismissed || player.stunnedSeconds > 0
       || player.knockdownSeconds > 0 || player.motionAction === 'recover') return;
   const direction = unit(target.x - player.x, target.y - player.y);
   const distanceToTarget = distance(player, target);
-  const travel = Math.min(distanceToTarget, speed * deltaSeconds);
-  player.vx = direction.x * speed;
-  player.vy = direction.y * speed;
+  player.sprinting = allowSprint && player.role !== 'goalkeeper' && speed === AI_SPEED
+    && distanceToTarget > 90 && player.sprintStamina > 0;
+  const actualSpeed = speed * (player.sprinting ? SPRINT_SPEED_MULTIPLIER : 1);
+  const travel = Math.min(distanceToTarget, actualSpeed * deltaSeconds);
+  player.vx = direction.x * actualSpeed;
+  player.vy = direction.y * actualSpeed;
   player.x = clamp(player.x + direction.x * travel, 0, FIELD.width);
   player.y = clamp(player.y + direction.y * travel, 0, FIELD.height);
   if (direction.x !== 0 || direction.y !== 0) {
@@ -78,21 +86,32 @@ function moveToward(player, target, speed, deltaSeconds) {
   }
 }
 
-function moveByInput(player, moveX, moveY, speed, deltaSeconds) {
+function moveByInput(player, moveX, moveY, speed, deltaSeconds, sprintRequested = false) {
   if (!player || player.dismissed || player.stunnedSeconds > 0
       || player.knockdownSeconds > 0 || player.motionAction === 'recover') return;
   const direction = unit(
     Number.isFinite(moveX) ? moveX : 0,
     Number.isFinite(moveY) ? moveY : 0,
   );
-  player.vx = direction.x * speed;
-  player.vy = direction.y * speed;
+  player.sprinting = Boolean(sprintRequested && (direction.x !== 0 || direction.y !== 0)
+    && player.sprintStamina > 0);
+  const actualSpeed = speed * (player.sprinting ? SPRINT_SPEED_MULTIPLIER : 1);
+  player.vx = direction.x * actualSpeed;
+  player.vy = direction.y * actualSpeed;
   player.x = clamp(player.x + player.vx * deltaSeconds, 0, FIELD.width);
   player.y = clamp(player.y + player.vy * deltaSeconds, 0, FIELD.height);
   if (direction.x !== 0 || direction.y !== 0) {
     player.facingX = Math.sign(direction.x);
     player.facingY = Math.sign(direction.y);
     player.motionAction = 'run';
+  }
+}
+
+function advanceSprintStamina(players, deltaSeconds) {
+  for (const player of players) {
+    const rate = player.sprinting ? -SPRINT_DRAIN_PER_SECOND : SPRINT_RECOVERY_PER_SECOND;
+    player.sprintStamina = clamp((player.sprintStamina ?? SPRINT_STAMINA_MAX) + rate * deltaSeconds, 0, SPRINT_STAMINA_MAX);
+    if (player.sprintStamina === 0) player.sprinting = false;
   }
 }
 
@@ -480,7 +499,7 @@ function classifyFoulSeverity(contact) {
     return 'excessiveForce';
   }
   if (contact.sliding
-      || (contact.behind && contact.approachSpeed >= PLAYER_SPEED * 0.75)) {
+      || (contact.behind && contact.approachSpeed >= FOUL_RECKLESS_APPROACH_SPEED)) {
     return 'reckless';
   }
   return 'careless';
@@ -1296,7 +1315,7 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
       moveToward(controlled, opponentCarrier, SLIDE_SPEED, deltaSeconds);
       controlled.slideSeconds = Math.max(0, controlled.slideSeconds - deltaSeconds);
     } else {
-      moveByInput(controlled, input.moveX, input.moveY, PLAYER_SPEED, deltaSeconds);
+      moveByInput(controlled, input.moveX, input.moveY, PLAYER_SPEED, deltaSeconds, input.down.has('e'));
     }
   }
 
@@ -1334,7 +1353,9 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
           events.push(...releasePass(state, player, action, pass.receiver));
           state.aiShotCooldownSeconds = getAiTuning(state.stage).thinkIntervalSeconds;
         } else {
-          moveToward(player, goal, AI_SPEED, deltaSeconds);
+          const hasNearbyDefender = activePlayers(state, 'home')
+            .some((candidate) => candidate.role !== 'goalkeeper' && distance(candidate, player) <= 26);
+          moveToward(player, goal, AI_SPEED, deltaSeconds, !hasNearbyDefender);
         }
       }
       continue;
@@ -1579,6 +1600,11 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   const events = [];
 
   if (state.phase === 'finished' || dt === 0) return events;
+  const finishFrame = (frameEvents) => {
+    advanceSprintStamina(state.players, dt);
+    return frameEvents;
+  };
+  for (const player of state.players) player.sprinting = false;
   advanceSkillEffects(state, dt);
   if (state.phase === 'overtime' && state.overtimeRemainingSeconds == null) {
     state.overtimeRemainingSeconds = GOLDEN_GOAL_SECONDS;
@@ -1598,7 +1624,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
       state.overtimeRemainingSeconds = Math.max(0, state.overtimeRemainingSeconds - dt);
       if (state.overtimeRemainingSeconds === 0 && state.score.home === state.score.away) {
         state.phase = 'finished';
-        return [{ type: 'matchDraw', score: { ...state.score } }];
+        return finishFrame([{ type: 'matchDraw', score: { ...state.score } }]);
       }
     } else {
       state.remainingSeconds = Math.max(0, state.remainingSeconds - dt);
@@ -1608,19 +1634,19 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
           if (state.phase === 'playing') state.phase = 'overtime';
           events.push({ type: 'overtime' });
         } else {
-          return finishMatch(state);
+          return finishFrame(finishMatch(state));
         }
       }
     }
   }
 
-  if (state.phase === 'goalPause') return [...events, ...beginKickoff(state, dt)];
+  if (state.phase === 'goalPause') return finishFrame([...events, ...beginKickoff(state, dt)]);
   if (state.restart && ['throwIn', 'cornerKick', 'goalKick'].includes(state.phase)) {
-    return [...events, ...advanceManualRestart(state, input, dt)];
+    return finishFrame([...events, ...advanceManualRestart(state, input, dt)]);
   }
-  if (state.phase === 'goalKick') return [...events, ...beginGoalKick(state, dt)];
-  if (state.phase === 'throwIn' || state.phase === 'cornerKick') return events;
-  if (state.phase === 'freeKick' || state.phase === 'penaltyKick') return [...events, ...beginSetPiece(state, dt)];
+  if (state.phase === 'goalKick') return finishFrame([...events, ...beginGoalKick(state, dt)]);
+  if (state.phase === 'throwIn' || state.phase === 'cornerKick') return finishFrame(events);
+  if (state.phase === 'freeKick' || state.phase === 'penaltyKick') return finishFrame([...events, ...beginSetPiece(state, dt)]);
 
   let controlled = byId(state, state.controlledPlayerId);
   if (!controlled || controlled.dismissed) {
@@ -1644,7 +1670,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
 
   if (state.possessionTeam === 'home') {
     if (controlled && state.rainbowReflection?.playerId !== controlled.id) {
-      moveByInput(controlled, input.moveX, input.moveY, PLAYER_SPEED, dt);
+      moveByInput(controlled, input.moveX, input.moveY, PLAYER_SPEED, dt, input.down.has('e'));
       events.push(...controlBallAction(state, controlled, input));
     }
     updateHomeSupportAi(state, byId(state, state.controlledPlayerId), dt);
@@ -1679,7 +1705,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
 
   releaseKickoffLockIfBallCleared(state);
 
-  return events;
+  return finishFrame(events);
 }
 
 function advanceSkillEffects(state, deltaSeconds) {

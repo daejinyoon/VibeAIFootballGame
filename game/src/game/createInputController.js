@@ -1,6 +1,6 @@
 const GAME_KEYS = new Set([
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-  'a', 's', 'd', 'f', 'Escape', 'Space',
+  'a', 's', 'd', 'f', 'e', 'Escape', 'Space',
 ]);
 
 function normalizeKey(key) {
