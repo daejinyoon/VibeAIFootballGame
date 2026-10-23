@@ -2,6 +2,7 @@
 import Match3DGame from './Match3DGame.jsx';
 import PauseMenu from './PauseMenu.jsx';
 import { SKILLS } from '../game/skills.js';
+import { MatchMiniMap } from './MatchMiniMap.jsx';
 import { SkillCutInOverlay } from './SkillCutInOverlay.jsx';
 
 export function formatMatchTime(seconds) {
@@ -35,6 +36,13 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
   const awaySkillUses = viewState.players
     .filter((player) => player.team === 'away' && player.skillId && player.skillUsesRemaining > 0)
     .reduce((total, player) => total + player.skillUsesRemaining, 0);
+  const homeBranding = viewState.teamBranding?.home ?? {};
+  const awayBranding = viewState.teamBranding?.away ?? {};
+  const homeName = homeBranding.name || 'DEX FC';
+  const awayName = awayBranding.name || 'AI RIVALS';
+  const stamina = Math.max(0, Math.min(100, Number.isFinite(controlledPlayer?.sprintStamina)
+    ? controlledPlayer.sprintStamina
+    : 0));
   const cutInPlayer = cutInCue
     ? viewState.players.find((player) => player.id === cutInCue.playerId)
     : null;
@@ -74,10 +82,10 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
         <span>ACTIVE PLAYERS <b>{activeHome}</b> : <b>{activeAway}</b> · {possession}</span>
       </div>
       <div className="game-canvas-wrap">
-        <div className="match-score-hud" role="group" aria-label={`DEX ${homeScore}, 상대 ${awayScore}, 남은 시간 ${timeLabel}`}>
-          <div className="score-team score-team-home"><span className="score-team-mark">DEX</span><span className="score-team-name">DEX FC</span><b>{homeScore}</b></div>
+        <div className="match-score-hud" style={{ '--home-team-accent': homeBranding.kit?.jersey || '#1ab6d1' }} role="group" aria-label={`${homeName} ${homeScore}, ${awayName} ${awayScore}, 남은 시간 ${timeLabel}`}>
+          <div className="score-team score-team-home"><span className="score-team-mark" aria-hidden="true">{homeBranding.logoUrl ? <img src={homeBranding.logoUrl} alt="" /> : 'DEX'}</span><span className="score-team-name">{homeName}</span><b>{homeScore}</b></div>
           <div className="score-clock"><small>{isOvertime ? 'GOLDEN GOAL' : 'MATCH TIME'}</small><strong>{timeLabel}</strong></div>
-          <div className="score-team score-team-away"><b>{awayScore}</b><span className="score-team-name">AI RIVALS</span><span className="score-team-mark">AI</span></div>
+          <div className="score-team score-team-away"><b>{awayScore}</b><span className="score-team-name">{awayName}</span><span className="score-team-mark" aria-hidden="true">{awayBranding.logoUrl ? <img src={awayBranding.logoUrl} alt="" /> : 'AI'}</span></div>
         </div>
         <Match3DGame initialState={gameState} paused={paused} onGameEvents={handleGameEvents} onStateChange={(next) => {
         const now = performance.now();
@@ -86,9 +94,14 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
           setViewState(next);
         }
         }} />
+        <MatchMiniMap players={viewState.players} ball={viewState.ball} controlledPlayerId={viewState.controlledPlayerId} homeAccent={homeBranding.kit?.jersey || '#1ab6d1'} />
         <SkillCutInOverlay cue={cutInCue} player={cutInPlayer} teamBranding={viewState.teamBranding} />
       </div>
       <div className="game-bottomline">
+        <div className="sprint-meter" aria-label={`스프린트 스태미나 ${Math.round(stamina)}%`}>
+          <div className="sprint-meter-label"><span>SPRINT STAMINA</span><b>{Math.round(stamina)}%</b></div>
+          <progress max="100" value={stamina} aria-label="조작 선수 스프린트 스태미나" />
+        </div>
         <div className="skill-stock"><span>조작 선수 스킬</span><b>{controlledPlayer?.skillId ? SKILLS[controlledPlayer.skillId]?.name : '장착된 스킬 없음'}</b><small>{controlledPlayer?.skillId === 'rainbowReflect' ? '자동 발동' : `F · 남은 사용 ${controlledPlayer?.skillUsesRemaining ?? 0}회`}</small></div>
         <div className="skill-stock away-skill-stock"><span>상대 팀 스킬</span><b>남은 사용 횟수</b><small>{awaySkillUses}회</small></div>
         <p>{restartControls}</p>
