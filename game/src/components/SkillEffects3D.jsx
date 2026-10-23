@@ -17,10 +17,14 @@ export const SKILL_EFFECT_COLORS = {
   rainbowReflect: { home: ['#85efff', '#e2ff8e'], away: ['#ffb08a', '#ffe68d'] },
 };
 const RAINBOW = ['#ff5c66', '#ffad4d', '#fff06c', '#6ce999', '#59c9ff', '#b28aff'];
+const RAINBOW_RIBBON_SEGMENTS = 18;
 const RING_GEOMETRY = new THREE.TorusGeometry(0.38, 0.035, 8, 40);
 const PARTICLE_GEOMETRY = new THREE.TetrahedronGeometry(0.09, 0);
 const BEAM_GEOMETRY = new THREE.CylinderGeometry(0.045, 0.12, 1, 10, 1, true);
 const RAINBOW_GEOMETRIES = RAINBOW.map(() => new THREE.TorusGeometry(0.53, 0.025, 6, 24, Math.PI));
+const RAINBOW_SHIELD_GEOMETRIES = RAINBOW.map((_, index) => new THREE.SphereGeometry(
+  1, 10, 12, (index / RAINBOW.length) * Math.PI * 2, Math.PI * 2 / RAINBOW.length, 0.12, Math.PI - 0.24,
+));
 const AIR_RING_GEOMETRY = new THREE.TorusGeometry(0.3, 0.025, 6, 28);
 const AIR_PARTICLE_GEOMETRY = new THREE.TetrahedronGeometry(0.06, 0);
 function makeFissureGeometry(halfWidth, jitterScale) {
@@ -64,6 +68,25 @@ function makeMesh(geometry, color = '#ffffff', opacity = 0.8) {
   return new THREE.Mesh(geometry, material);
 }
 
+function makeRibbon(color) {
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array((RAINBOW_RIBBON_SEGMENTS + 1) * 2 * 3);
+  const indices = [];
+  for (let index = 0; index <= RAINBOW_RIBBON_SEGMENTS; index += 1) {
+    if (index < RAINBOW_RIBBON_SEGMENTS) {
+      const vertex = index * 2;
+      indices.push(vertex, vertex + 1, vertex + 2, vertex + 1, vertex + 3, vertex + 2);
+    }
+  }
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+  geometry.setIndex(indices);
+  const material = new THREE.MeshBasicMaterial({
+    color, transparent: true, opacity: 0.92, depthWrite: false, toneMapped: false,
+    side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+  });
+  return { mesh: new THREE.Mesh(geometry, material), positions };
+}
+
 function makeSlot() {
   const root = new THREE.Group();
   const rings = [0, 1, 2].map(() => {
@@ -80,9 +103,9 @@ function makeSlot() {
   const beam = makeMesh(BEAM_GEOMETRY, '#9dffec', 0.45);
   root.add(beam);
   const rainbowStrands = RAINBOW.map((color) => {
-    const mesh = makeMesh(BEAM_GEOMETRY, color, 0.88);
-    root.add(mesh);
-    return mesh;
+    const ribbon = makeRibbon(color);
+    root.add(ribbon.mesh);
+    return ribbon;
   });
   const rainbowPulse = makeMesh(RAINBOW_PULSE_GEOMETRY, '#ffffff', 0.98);
   root.add(rainbowPulse);
@@ -91,7 +114,16 @@ function makeSlot() {
     root.add(mesh);
     return mesh;
   });
-  return { root, rings, particles, beam, rainbowStrands, rainbowPulse, arcs };
+  const shieldSegments = RAINBOW.map((color, index) => {
+    const material = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0.34, depthWrite: false,
+      toneMapped: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+    });
+    const mesh = new THREE.Mesh(RAINBOW_SHIELD_GEOMETRIES[index], material);
+    root.add(mesh);
+    return mesh;
+  });
+  return { root, rings, particles, beam, rainbowStrands, rainbowPulse, arcs, shieldSegments };
 }
 
 function makeAirSlot() {
@@ -185,7 +217,8 @@ export function SkillEffects3D({ gameStateRef }) {
 
   useEffect(() => () => {
     for (const slot of slots) {
-      for (const mesh of [...slot.rings, ...slot.particles, slot.beam, ...slot.rainbowStrands, slot.rainbowPulse, ...slot.arcs]) mesh.material.dispose();
+      for (const mesh of [...slot.rings, ...slot.particles, slot.beam, ...slot.rainbowStrands.map(({ mesh }) => mesh), slot.rainbowPulse, ...slot.arcs, ...slot.shieldSegments]) mesh.material.dispose();
+      for (const { mesh } of slot.rainbowStrands) mesh.geometry.dispose();
     }
     for (const slot of airSlots) {
       for (const mesh of [...slot.rings, ...slot.particles]) mesh.material.dispose();
@@ -239,7 +272,7 @@ export function SkillEffects3D({ gameStateRef }) {
       root.visible = true;
       root.position.set(worldX(anchor.x), (Number(anchor.height) || 0) / 80 + 0.12, worldZ(anchor.y));
       root.rotation.set(0, 0, 0);
-      root.scale.set(1.65, 1.15, 1.65);
+      root.scale.setScalar(effect.skillId === 'rainbowReflect' ? 1 : 1.65);
 
       const levelScale = effect.skillId === 'eagleShot' ? 1 + (Math.max(1, effect.level ?? 1) - 1) * 0.18 : 1;
       const radius = (effect.skillId === 'powerTackle' || effect.skillId === 'eulryongta' ? 0.48 : 0.36) * levelScale;
@@ -296,7 +329,7 @@ export function SkillEffects3D({ gameStateRef }) {
       });
 
       slot.beam.visible = false;
-      slot.rainbowStrands.forEach((strand) => { strand.visible = false; });
+      slot.rainbowStrands.forEach(({ mesh }) => { mesh.visible = false; });
       slot.rainbowPulse.visible = false;
       if (effect.skillId === 'vacuumCleaner' || (effect.skillId === 'rainbowReflect' && !effect.cancellationPulse)) {
         const start = source;
@@ -316,28 +349,40 @@ export function SkillEffects3D({ gameStateRef }) {
         if (effect.skillId === 'rainbowReflect' && target) {
           const unitDirection = direction.lengthSq() ? direction.clone().normalize() : WORLD_UP;
           const side = new THREE.Vector3(-unitDirection.z, 0, unitDirection.x).normalize();
-          slot.rainbowStrands.forEach((strand, strandIndex) => {
-            const offset = (strandIndex - (slot.rainbowStrands.length - 1) / 2) * 0.035;
-            const strandStart = startPoint.clone().addScaledVector(side, offset);
-            const strandEnd = endPoint.clone().addScaledVector(side, offset);
-            const strandDirection = strandEnd.clone().sub(strandStart);
-            strand.position.copy(strandStart).addScaledVector(strandDirection, 0.5);
-            strand.quaternion.setFromUnitVectors(WORLD_UP, strandDirection.lengthSq() ? strandDirection.clone().normalize() : WORLD_UP);
-            strand.scale.set(0.34, strandDirection.length(), 0.34);
-            strand.material.opacity = fade * (0.66 + Math.sin(now * 22 + strandIndex) * 0.18);
-            strand.visible = length > 0.08;
+          slot.rainbowStrands.forEach(({ mesh, positions }, strandIndex) => {
+            const laneOffset = (strandIndex - (slot.rainbowStrands.length - 1) / 2) * 0.052;
+            const halfWidth = 0.018 + Math.sin(now * 20 + strandIndex) * 0.004;
+            for (let pointIndex = 0; pointIndex <= RAINBOW_RIBBON_SEGMENTS; pointIndex += 1) {
+              const t = pointIndex / RAINBOW_RIBBON_SEGMENTS;
+              const wave = Math.sin(t * Math.PI * 2.4 - now * 12 + strandIndex * 0.65);
+              const center = startPoint.clone().lerp(endPoint, t)
+                .addScaledVector(side, laneOffset + wave * 0.075)
+                .add(new THREE.Vector3(0, Math.sin(t * Math.PI) * 0.22 + Math.sin(t * Math.PI * 4 - now * 10 + strandIndex) * 0.045, 0));
+              const vertex = pointIndex * 6;
+              positions[vertex] = center.x;
+              positions[vertex + 1] = center.y - halfWidth;
+              positions[vertex + 2] = center.z;
+              positions[vertex + 3] = center.x;
+              positions[vertex + 4] = center.y + halfWidth;
+              positions[vertex + 5] = center.z;
+            }
+            mesh.geometry.attributes.position.needsUpdate = true;
+            mesh.geometry.boundingSphere = new THREE.Sphere(startPoint.clone().lerp(endPoint, 0.5), length * 0.6 + 0.5);
+            mesh.material.opacity = fade * (0.82 + Math.sin(now * 22 + strandIndex) * 0.12);
+            mesh.visible = length > 0.08;
           });
           slot.rainbowPulse.position.copy(startPoint).lerp(endPoint, progress);
           slot.rainbowPulse.material.color.set(RAINBOW[Math.floor(now * 16) % RAINBOW.length]);
-          slot.rainbowPulse.scale.setScalar(0.9 + Math.sin(now * 35) * 0.26);
+          slot.rainbowPulse.scale.setScalar(1.55 + Math.sin(now * 35) * 0.35);
           slot.rainbowPulse.material.opacity = fade;
           slot.rainbowPulse.visible = true;
-          if ((effect.transferredStatuses ?? []).some((status) => status.type === 'stunned') && progress > 0.68) {
+          if ((effect.transferredStatuses ?? []).length > 0 && progress > 0.68) {
             const arrival = Math.min(1, (progress - 0.68) / 0.24);
             const ring = slot.rings[0];
+            ring.visible = true;
             ring.position.copy(endPoint).add(new THREE.Vector3(0, -0.5, 0));
             ring.scale.setScalar(0.55 + arrival * 1.1);
-            ring.material.color.set('#fff07a');
+            ring.material.color.set(RAINBOW[(Math.floor(now * 10) + 2) % RAINBOW.length]);
             setOpacity(ring, fade * (1 - arrival * 0.35));
             slot.particles.slice(0, 4).forEach((particle, particleIndex) => {
               const angle = particleIndex / 4 * Math.PI * 2 + now * 18;
@@ -345,6 +390,15 @@ export function SkillEffects3D({ gameStateRef }) {
               particle.material.color.set(particleIndex % 2 ? '#fff8b0' : '#a7f6ff');
               setOpacity(particle, fade * arrival);
             });
+          }
+          if (effect.transferredStatuses?.length && progress < 0.22) {
+            const departure = 1 - progress / 0.22;
+            const ring = slot.rings[2];
+            ring.visible = true;
+            ring.position.copy(startPoint).add(new THREE.Vector3(0, -0.5, 0));
+            ring.scale.setScalar(0.3 + (1 - departure) * 0.86);
+            ring.material.color.set('#ffffff');
+            setOpacity(ring, fade * departure * 0.9);
           }
         } else {
           slot.beam.position.copy(startPoint).addScaledVector(direction, 0.5);
@@ -369,6 +423,17 @@ export function SkillEffects3D({ gameStateRef }) {
         const returnPulse = effect.cancellationPulse ? 1 + progress * 0.55 : 0.75;
         arc.scale.set((0.75 + arcIndex * 0.035) * returnPulse, (0.82 + arcIndex * 0.035) * returnPulse, 1);
         setOpacity(arc, rainbowActive ? fade * 0.82 : 0);
+      });
+      slot.shieldSegments.forEach((segment, segmentIndex) => {
+        const shieldActive = effect.skillId === 'rainbowReflect';
+        const shieldRise = THREE.MathUtils.clamp(progress * 8, 0, 1);
+        const shieldFade = Math.max(0, 1 - progress * 3.6);
+        const shimmer = 0.88 + Math.sin(now * 30 + segmentIndex * 0.9) * 0.12;
+        segment.position.set(0, 0.76, 0);
+        segment.scale.set(0.54 + shieldRise * 0.11, 0.77 + shieldRise * 0.14, 0.32 + shieldRise * 0.06);
+        segment.rotation.y = segmentIndex * 0.008;
+        segment.material.opacity = shieldActive ? (0.28 + Math.sin(now * 24 + segmentIndex) * 0.09) * shieldFade * shimmer : 0;
+        segment.visible = shieldActive && shieldFade > 0.02;
       });
       if (effect.skillId === 'rainbowReflect' && effect.cancellationPulse) {
         const pulse = Math.min(1, progress * 5);

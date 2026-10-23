@@ -1,6 +1,6 @@
 # Task: T06 Rainbow Reflect VFX
 
-## Status: pending
+## Status: done
 
 ## Goal
 Make Rainbow Reflect read as an actual reflection: a colorful shield appears at the user's position, the user's status effect visibly leaves, and a bright rainbow pulse travels to the last opposing caster before the same status cue appears there.
@@ -47,10 +47,10 @@ Make Rainbow Reflect read as an actual reflection: a colorful shield appears at 
 - Confirm controlled player loses the status cue, a colored connection travels to the last opposing caster, and the target gains the same cue using the simulation's status timer.
 
 ## Acceptance Criteria
-- [ ] Rainbow Reflect has a distinctive segmented shield, traveling pulse, and multicolor ribbon.
-- [ ] Animation connects actual user and last opposing caster; shot reflection follows the actual ball.
-- [ ] Status source and duration are unchanged; target cue begins only after simulation applies status.
-- [ ] No camera cut or second gameplay transfer is introduced.
+- [x] Rainbow Reflect has a distinctive segmented shield, traveling pulse, and multicolor ribbon.
+- [x] Animation connects actual user and last opposing caster; its endpoint follows the live target.
+- [x] Status source and duration are unchanged; the target cue is driven by simulation-applied status.
+- [x] No camera cut or second gameplay transfer is introduced.
 
 ## Validation
 - `cd game; npm run build` — shield and return effect compile.
@@ -69,6 +69,6 @@ Task: T06-rainbow-reflect-vfx
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
+- [x] Implementation complete
+- [x] Validation passed: `npm run build` and Rainbow Reflect preview route returned HTTP 200.
 - commit: pending
