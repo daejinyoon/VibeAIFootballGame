@@ -58,4 +58,4 @@ Task: T02-camera-speed-effects
 - [x] Implementation complete
 - [x] Production build passed; source reviewed for pause, dismissal, ball occlusion, and team color updates.
 - Manual browser preview unavailable in this session (no browser executable or automation tool).
-- commit: `86e14fd`
+- commit: `a383ade`
