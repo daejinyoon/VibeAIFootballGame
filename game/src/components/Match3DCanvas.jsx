@@ -149,7 +149,7 @@ export default function Match3DCanvas({
         >
           <Canvas
             camera={{ position: [0, 12, 18], fov: 42, near: 0.1, far: 100 }}
-            dpr={[1, 1.75]}
+            dpr={[1, 1.25]}
             gl={{ antialias: true, alpha: false }}
             shadows="basic"
             onCreated={handleRendererCreated}
