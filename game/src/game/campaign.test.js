@@ -6,7 +6,8 @@ import {
   SKILL_IDS,
   SKILL_MAX_LEVELS,
   awardSkillCard,
-  placeTeamSkill,
+  equipTeamSkill,
+  unequipTeamSkill,
   reorderTeamSkill,
 } from './skills.js';
 
@@ -15,22 +16,22 @@ test('starts campaigns with one random active skill in the shared team deck', ()
   const otherCampaign = createCampaign({ rng: () => 0.5 });
   assert.equal(campaign.currentStage, 1);
   assert.equal(getUnlockedStage(campaign), 1);
-  assert.equal(campaign.teamSkillDeck.length, 1);
-  assert.ok(SKILL_IDS.includes(campaign.teamSkillDeck[0].skillId));
-  assert.notEqual(campaign.teamSkillDeck[0].skillId, 'rainbowReflect');
-  assert.equal(campaign.teamSkillDeck[0].level, 1);
-  assert.notEqual(campaign.teamSkillDeck[0].skillId, otherCampaign.teamSkillDeck[0].skillId);
+  assert.equal(campaign.ownedTeamSkills.length, 1);
+  assert.ok(SKILL_IDS.includes(campaign.ownedTeamSkills[0].skillId));
+  assert.notEqual(campaign.ownedTeamSkills[0].skillId, 'rainbowReflect');
+  assert.equal(campaign.ownedTeamSkills[0].level, 1);
+  assert.deepEqual(campaign.equippedTeamSkillIds, [campaign.ownedTeamSkills[0].skillId]);
+  assert.notEqual(campaign.ownedTeamSkills[0].skillId, otherCampaign.ownedTeamSkills[0].skillId);
   assert.deepEqual(campaign.opponentSkillSets[1], []);
   assert.equal(campaign.pendingSkillOffer, null);
-  assert.equal(campaign.pendingSkillPlacement, null);
 });
 
 test('clamps invalid starter random values to a valid active skill', () => {
   for (const rng of [() => -1, () => 1, () => Number.NaN]) {
     const campaign = createCampaign({ rng });
-    assert.equal(campaign.teamSkillDeck.length, 1);
-    assert.ok(SKILL_IDS.includes(campaign.teamSkillDeck[0].skillId));
-    assert.notEqual(campaign.teamSkillDeck[0].skillId, 'rainbowReflect');
+    assert.equal(campaign.ownedTeamSkills.length, 1);
+    assert.ok(SKILL_IDS.includes(campaign.ownedTeamSkills[0].skillId));
+    assert.notEqual(campaign.ownedTeamSkills[0].skillId, 'rainbowReflect');
   }
 });
 
@@ -46,12 +47,14 @@ test('creates opponent skill sets for all five stages without duplicates', () =>
 
 test('a lost stage retains the shared team deck and can be retried', () => {
   const campaign = createCampaign({ rng: () => 0.4 });
-  campaign.teamSkillDeck = [{ skillId: 'eagleShot', level: 2 }];
+  campaign.ownedTeamSkills = [{ skillId: 'eagleShot', level: 2 }];
+  campaign.equippedTeamSkillIds = ['eagleShot'];
   const lost = finishStage(campaign, { homeGoals: 1, awayGoals: 2 }, () => 0.2);
   assert.equal(lost.currentStage, 1);
   assert.equal(lost.status, 'active');
   assert.deepEqual(lost.clearedStageResults, []);
-  assert.deepEqual(lost.teamSkillDeck, campaign.teamSkillDeck);
+  assert.deepEqual(lost.ownedTeamSkills, campaign.ownedTeamSkills);
+  assert.deepEqual(lost.equippedTeamSkillIds, campaign.equippedTeamSkillIds);
   assert.equal(lost.pendingSkillOffer, null);
 });
 
@@ -104,7 +107,8 @@ test('winning a replay replaces its stage record and offers eligible team skills
   campaign = {
     ...campaign,
     currentStage: 2,
-    teamSkillDeck: [{ skillId: 'eagleShot', level: 2 }],
+    ownedTeamSkills: [{ skillId: 'eagleShot', level: 2 }],
+    equippedTeamSkillIds: ['eagleShot'],
     pendingSkillOffer: ['eagleShot', 'tornadoShot', 'powerTackle'],
   };
 
@@ -120,7 +124,8 @@ test('winning a replay replaces its stage record and offers eligible team skills
   assert.equal(replayed.status, 'active');
   assert.equal(replayed.pendingSkillOffer.length, 3);
   assert.notDeepEqual(replayed.pendingSkillOffer, campaign.pendingSkillOffer);
-  assert.deepEqual(replayed.teamSkillDeck, campaign.teamSkillDeck);
+  assert.deepEqual(replayed.ownedTeamSkills, campaign.ownedTeamSkills);
+  assert.deepEqual(replayed.equippedTeamSkillIds, campaign.equippedTeamSkillIds);
   assert.deepEqual(replayed.opponentSkillSets, campaign.opponentSkillSets);
 });
 
@@ -147,26 +152,25 @@ test('a tied stage result leaves campaign progression and rewards unchanged', ()
   assert.deepEqual(drawn, campaign);
 });
 
-test('new reward skills enter the ordered team deck and can be placed at any position', () => {
+test('new reward skills enter the bag and can be equipped at any position', () => {
   let campaign = createCampaign({ rng: () => 0.3 });
-  campaign.teamSkillDeck = [];
+  campaign.ownedTeamSkills = [];
+  campaign.equippedTeamSkillIds = [];
   campaign = finishStage(campaign, { homeGoals: 1, awayGoals: 0 }, () => 0.4);
   const skillId = campaign.pendingSkillOffer[0];
   const awarded = awardSkillCard(campaign, skillId);
   assert.equal(awarded.ok, true);
   campaign = awarded.campaign;
-  assert.deepEqual(campaign.teamSkillDeck, [{ skillId, level: 1 }]);
-  assert.equal(campaign.pendingSkillPlacement, skillId);
+  assert.deepEqual(campaign.ownedTeamSkills, [{ skillId, level: 1 }]);
+  assert.deepEqual(campaign.equippedTeamSkillIds, []);
   assert.equal(campaign.pendingSkillOffer, null);
 
-  const placed = placeTeamSkill(campaign, skillId, 0);
-  assert.equal(placed.ok, true);
-  assert.equal(placed.campaign.pendingSkillPlacement, null);
-  assert.deepEqual(placed.campaign.teamSkillDeck, [{ skillId, level: 1 }]);
-
-  const pendingPlacement = { ...campaign, pendingSkillPlacement: skillId };
-  assert.deepEqual(placeTeamSkill(pendingPlacement, skillId, -1), { ok: false, reason: 'invalidPosition' });
-  assert.deepEqual(placeTeamSkill(pendingPlacement, skillId, 2), { ok: false, reason: 'invalidPosition' });
+  const equipped = equipTeamSkill(campaign, skillId, 0);
+  assert.equal(equipped.ok, true);
+  assert.deepEqual(equipped.campaign.equippedTeamSkillIds, [skillId]);
+  assert.deepEqual(equipTeamSkill(campaign, skillId, -1), { ok: false, reason: 'invalidPosition' });
+  assert.deepEqual(equipTeamSkill(campaign, skillId, 2), { ok: false, reason: 'invalidPosition' });
+  assert.deepEqual(unequipTeamSkill(equipped.campaign, skillId).campaign.equippedTeamSkillIds, []);
 });
 
 test('rejects a skill that was not offered without changing the campaign', () => {
@@ -181,24 +185,24 @@ test('rejects a skill that was not offered without changing the campaign', () =>
 
 test('duplicate rewards upgrade in place up to the skill max level', () => {
   let campaign = createCampaign();
-  campaign.teamSkillDeck = [
+  campaign.ownedTeamSkills = [
     { skillId: 'tornadoShot', level: 1 },
     { skillId: 'eagleShot', level: 1 },
   ];
+  campaign.equippedTeamSkillIds = ['tornadoShot', 'eagleShot'];
   campaign.pendingSkillOffer = ['eagleShot'];
   let awarded = awardSkillCard(campaign, 'eagleShot');
   assert.equal(awarded.ok, true);
   assert.equal(awarded.upgradedLevel, 2);
   campaign = awarded.campaign;
-  assert.deepEqual(campaign.teamSkillDeck, [
+  assert.deepEqual(campaign.ownedTeamSkills, [
     { skillId: 'tornadoShot', level: 1 },
     { skillId: 'eagleShot', level: 2 },
   ]);
-  assert.equal(campaign.pendingSkillPlacement, null);
 
   campaign.pendingSkillOffer = ['eagleShot'];
   campaign = awardSkillCard(campaign, 'eagleShot').campaign;
-  assert.equal(campaign.teamSkillDeck[1].level, 3);
+  assert.equal(campaign.ownedTeamSkills[1].level, 3);
   campaign.pendingSkillOffer = ['eagleShot'];
   assert.deepEqual(awardSkillCard(campaign, 'eagleShot'), { ok: false, reason: 'maxLevel' });
   assert.equal(SKILL_MAX_LEVELS.vacuumCleaner, 1);
@@ -206,26 +210,23 @@ test('duplicate rewards upgrade in place up to the skill max level', () => {
 
 test('offers exclude owned non-upgradeable and max-level skills and stop when exhausted', () => {
   const campaign = createCampaign();
-  campaign.teamSkillDeck = SKILL_IDS.map((skillId) => ({ skillId, level: SKILL_MAX_LEVELS[skillId] }));
+  campaign.ownedTeamSkills = SKILL_IDS.map((skillId) => ({ skillId, level: SKILL_MAX_LEVELS[skillId] }));
+  campaign.equippedTeamSkillIds = SKILL_IDS.slice(0, 3);
   const won = finishStage(campaign, { homeGoals: 1, awayGoals: 0 });
   assert.equal(won.pendingSkillOffer, null);
 });
 
 test('reorders team skills without changing levels and rejects invalid positions', () => {
   const campaign = createCampaign();
-  campaign.teamSkillDeck = [
+  campaign.ownedTeamSkills = [
     { skillId: 'eagleShot', level: 2 },
     { skillId: 'powerTackle', level: 1 },
   ];
+  campaign.equippedTeamSkillIds = ['eagleShot', 'powerTackle'];
   const moved = reorderTeamSkill(campaign, 0, 1);
-  assert.deepEqual(moved.campaign.teamSkillDeck, [
-    { skillId: 'powerTackle', level: 1 },
-    { skillId: 'eagleShot', level: 2 },
-  ]);
+  assert.deepEqual(moved.campaign.equippedTeamSkillIds, ['powerTackle', 'eagleShot']);
   assert.deepEqual(reorderTeamSkill(campaign, -1, 0), { ok: false, reason: 'invalidPosition' });
-  assert.deepEqual(placeTeamSkill({ ...campaign, pendingSkillPlacement: null }, 'eagleShot', 0), {
-    ok: false, reason: 'placementNotPending',
-  });
+  assert.deepEqual(equipTeamSkill(campaign, 'rainbowReflect'), { ok: false, reason: 'skillNotOwned' });
 });
 
 test('assigns opponent skills only to the three away field players', () => {

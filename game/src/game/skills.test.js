@@ -5,7 +5,8 @@ import { FIELD, PLAYER_BODY_WIDTH } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
 import {
   SKILL_IDS, SKILL_MAX_LEVELS, SKILLS, activateNextTeamSkill,
-  applyAutomaticRainbowReflect, applySkill, createSkillCardOffer, validateTeamSkillDeck,
+  applyAutomaticRainbowReflect, applySkill, createSkillCardOffer,
+  validateTeamSkillInventory, validateTeamSkillLoadout,
 } from './skills.js';
 import { stepGame } from './stepGame.js';
 
@@ -37,10 +38,16 @@ test('draft offers only include new skills or upgradeable skills below their max
   assert.equal(createSkillCardOffer(() => 0.2, SKILL_IDS.map((skillId) => ({ skillId, level: SKILL_MAX_LEVELS[skillId] }))).length, 0);
 });
 
-test('validates ordered team decks, duplicate IDs, and level caps', () => {
-  assert.deepEqual(validateTeamSkillDeck(teamDeck('eagleShot', 3)), { valid: true, errors: [] });
-  assert.equal(validateTeamSkillDeck([{ skillId: 'eagleShot', level: 4 }]).valid, false);
-  assert.equal(validateTeamSkillDeck([{ skillId: 'eagleShot', level: 1 }, { skillId: 'eagleShot', level: 2 }]).valid, false);
+test('validates owned inventory levels and the unique three-skill equipment subset', () => {
+  const inventory = ['eagleShot', 'tornadoShot', 'powerTackle', 'eulryongta']
+    .map((skillId) => ({ skillId, level: 1 }));
+  assert.deepEqual(validateTeamSkillInventory(teamDeck('eagleShot', 3)), { valid: true, errors: [] });
+  assert.equal(validateTeamSkillInventory([{ skillId: 'eagleShot', level: 4 }]).valid, false);
+  assert.equal(validateTeamSkillInventory([{ skillId: 'eagleShot', level: 1 }, { skillId: 'eagleShot', level: 2 }]).valid, false);
+  assert.equal(validateTeamSkillLoadout(inventory, ['eagleShot', 'tornadoShot', 'powerTackle']).valid, true);
+  assert.equal(validateTeamSkillLoadout(inventory, ['eagleShot', 'tornadoShot', 'powerTackle', 'eulryongta']).valid, false);
+  assert.equal(validateTeamSkillLoadout(inventory, ['eagleShot', 'eagleShot']).valid, false);
+  assert.equal(validateTeamSkillLoadout(inventory, ['rainbowReflect']).valid, false);
 });
 
 test('F activates the first usable team skill, shares its ten-second cooldown, and wraps in deck order', () => {

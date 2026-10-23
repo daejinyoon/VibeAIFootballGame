@@ -1,7 +1,7 @@
 import { lazy, Suspense, useRef, useState } from 'react';
 import { createCampaign, finishStage, getUnlockedStage } from './game/campaign.js';
 import { createInitialGameState } from './game/createInitialGameState.js';
-import { SKILL_IDS, SKILLS, awardSkillCard, placeTeamSkill, reorderTeamSkill } from './game/skills.js';
+import { SKILL_IDS, SKILLS, awardSkillCard, reorderTeamSkill } from './game/skills.js';
 import { getTeamBranding } from './game/teamBranding.js';
 import { createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
@@ -15,9 +15,12 @@ import TeamCustomizationScreen from './components/TeamCustomizationScreen.jsx';
 const GameScreen = lazy(() => import('./components/GameScreen.jsx'));
 
 function makeMatchState(campaign, teamCustomization) {
+  const ownedSkills = new Map((campaign.ownedTeamSkills ?? []).map((entry) => [entry.skillId, entry]));
   return createInitialGameState({
     stage: campaign.currentStage,
-    teamSkillDeck: campaign.teamSkillDeck,
+    teamSkillDeck: (campaign.equippedTeamSkillIds ?? [])
+      .map((skillId) => ownedSkills.get(skillId))
+      .filter(Boolean),
     opponentSkillDeck: (campaign.opponentSkillSets[campaign.currentStage] ?? [])
       .map((skillId) => ({ skillId, level: 1 })),
     teamBranding: getTeamBranding(campaign.currentStage, teamCustomization),
@@ -30,7 +33,8 @@ function createSkillPreviewCampaign(skillId) {
   return {
     ...campaign,
     id: `skill-preview-${skillId}-${Date.now()}`,
-    teamSkillDeck: [{ skillId, level: 1 }],
+    ownedTeamSkills: [{ skillId, level: 1 }],
+    equippedTeamSkillIds: [skillId],
     isSkillPreview: true,
   };
 }
@@ -188,16 +192,7 @@ export default function App() {
     if (!awarded.ok) return null;
     setCampaign(awarded.campaign);
     persistCampaign(awarded.campaign);
-    return awarded.upgradedLevel ? { upgradedLevel: awarded.upgradedLevel } : { pendingPlacement: true };
-  };
-
-  const placeRewardSkill = (insertionIndex) => {
-    if (!campaign?.pendingSkillPlacement) return;
-    const placed = placeTeamSkill(campaign, campaign.pendingSkillPlacement, insertionIndex);
-    if (!placed.ok) return;
-    setCampaign(placed.campaign);
-    persistCampaign(placed.campaign);
-    setScreen('stageSelect');
+    return awarded.upgradedLevel ? { upgradedLevel: awarded.upgradedLevel } : { addedToBag: true };
   };
 
   const moveTeamSkill = (fromIndex, toIndex) => {
@@ -221,16 +216,16 @@ export default function App() {
       id: `resume-${Date.now()}`,
       currentStage: saved.currentStage,
       clearedStageResults: saved.clearedStageResults,
-      teamSkillDeck: saved.teamSkillDeck,
+      ownedTeamSkills: saved.ownedTeamSkills,
+      equippedTeamSkillIds: saved.equippedTeamSkillIds,
       pendingSkillOffer: saved.pendingSkillOffer ?? null,
-      pendingSkillPlacement: saved.pendingSkillPlacement ?? null,
       opponentSkillSets: saved.opponentSkillSets,
       status: saved.status === 'complete' ? 'complete' : 'active',
     };
     setCampaign(resumed);
     setSelectedStage(resumed.currentStage);
     setResult(null);
-    setScreen(resumed.pendingSkillOffer || resumed.pendingSkillPlacement ? 'skillReward' : 'stageSelect');
+    setScreen(resumed.pendingSkillOffer ? 'skillReward' : 'stageSelect');
   };
 
   const saveAndExit = () => {
@@ -312,17 +307,17 @@ export default function App() {
       />}
       {screen === 'skillReward' && campaign && <SkillRewardScreen
         offer={campaign.pendingSkillOffer}
-        teamSkillDeck={campaign.teamSkillDeck}
-        pendingSkillPlacement={campaign.pendingSkillPlacement}
+        teamSkillDeck={campaign.ownedTeamSkills}
         skills={SKILLS}
         onChoose={chooseSkill}
-        onPlace={placeRewardSkill}
         onContinue={() => setScreen('stageSelect')}
         onHome={home}
       />}
       {screen === 'loadout' && campaign && <LoadoutScreen
         stage={selectedStage}
-        teamSkillDeck={campaign.teamSkillDeck}
+        teamSkillDeck={(campaign.equippedTeamSkillIds ?? [])
+          .map((skillId) => campaign.ownedTeamSkills.find((entry) => entry.skillId === skillId))
+          .filter(Boolean)}
         skills={SKILLS}
         onMove={moveTeamSkill}
         onConfirm={() => setScreen('stageSelect')}

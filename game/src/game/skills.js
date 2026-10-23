@@ -60,23 +60,23 @@ function shuffledSkills(rng) {
   return items;
 }
 
-export function isSkillRewardEligible(skillId, teamSkillDeck = []) {
+export function isSkillRewardEligible(skillId, ownedTeamSkills = []) {
   if (!SKILL_IDS.includes(skillId)) return false;
-  const owned = Array.isArray(teamSkillDeck) ? teamSkillDeck.find((entry) => entry?.skillId === skillId) : null;
+  const owned = Array.isArray(ownedTeamSkills) ? ownedTeamSkills.find((entry) => entry?.skillId === skillId) : null;
   return !owned || (Number.isInteger(owned.level) && owned.level < SKILL_MAX_LEVELS[skillId]);
 }
 
-export function createSkillCardOffer(rng = Math.random, teamSkillDeck = []) {
+export function createSkillCardOffer(rng = Math.random, ownedTeamSkills = []) {
   return shuffledSkills(rng)
-    .filter((skillId) => isSkillRewardEligible(skillId, teamSkillDeck))
+    .filter((skillId) => isSkillRewardEligible(skillId, ownedTeamSkills))
     .slice(0, 3);
 }
 
-export function validateTeamSkillDeck(teamSkillDeck) {
+export function validateTeamSkillInventory(ownedTeamSkills) {
   const errors = [];
-  if (!Array.isArray(teamSkillDeck)) return { valid: false, errors: [{ reason: 'invalidDeck' }] };
+  if (!Array.isArray(ownedTeamSkills)) return { valid: false, errors: [{ reason: 'invalidInventory' }] };
   const seen = new Set();
-  for (const entry of teamSkillDeck) {
+  for (const entry of ownedTeamSkills) {
     if (!entry || !SKILL_IDS.includes(entry.skillId)
         || !Number.isInteger(entry.level) || entry.level < 1
         || entry.level > SKILL_MAX_LEVELS[entry.skillId]) {
@@ -85,6 +85,23 @@ export function validateTeamSkillDeck(teamSkillDeck) {
     }
     if (seen.has(entry.skillId)) errors.push({ skillId: entry.skillId, reason: 'duplicateSkill' });
     seen.add(entry.skillId);
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+export function validateTeamSkillLoadout(ownedTeamSkills, equippedTeamSkillIds) {
+  const errors = [...validateTeamSkillInventory(ownedTeamSkills).errors];
+  if (!Array.isArray(equippedTeamSkillIds)) {
+    errors.push({ reason: 'invalidEquipment' });
+    return { valid: false, errors };
+  }
+  if (equippedTeamSkillIds.length > 3) errors.push({ reason: 'tooManyEquipped' });
+  const ownedIds = new Set(Array.isArray(ownedTeamSkills) ? ownedTeamSkills.map((entry) => entry?.skillId) : []);
+  const seen = new Set();
+  for (const skillId of equippedTeamSkillIds) {
+    if (!SKILL_IDS.includes(skillId) || !ownedIds.has(skillId)) errors.push({ skillId, reason: 'notOwned' });
+    if (seen.has(skillId)) errors.push({ skillId, reason: 'duplicateEquippedSkill' });
+    seen.add(skillId);
   }
   return { valid: errors.length === 0, errors };
 }
@@ -109,57 +126,64 @@ export function validateSkillAssignments(playerSkillStacks, fieldPlayerIds = FIE
 
 export function awardSkillCard(campaign, skillId) {
   if (!SKILL_IDS.includes(skillId)) return { ok: false, reason: 'invalidSkill' };
-  if (campaign?.pendingSkillPlacement) return { ok: false, reason: 'placementPending' };
   if (!Array.isArray(campaign?.pendingSkillOffer) || !campaign.pendingSkillOffer.includes(skillId)) {
     return { ok: false, reason: 'notOffered' };
   }
-  const teamSkillDeck = Array.isArray(campaign.teamSkillDeck) ? campaign.teamSkillDeck.map((entry) => ({ ...entry })) : [];
-  const index = teamSkillDeck.findIndex((entry) => entry.skillId === skillId);
+  const ownedTeamSkills = Array.isArray(campaign.ownedTeamSkills) ? campaign.ownedTeamSkills.map((entry) => ({ ...entry })) : [];
+  const index = ownedTeamSkills.findIndex((entry) => entry.skillId === skillId);
   if (index >= 0) {
-    const current = teamSkillDeck[index];
+    const current = ownedTeamSkills[index];
     if (!Number.isInteger(current.level) || current.level >= SKILL_MAX_LEVELS[skillId]) {
       return { ok: false, reason: 'maxLevel' };
     }
-    teamSkillDeck[index] = { ...current, level: current.level + 1 };
+    ownedTeamSkills[index] = { ...current, level: current.level + 1 };
     return {
       ok: true,
-      upgradedLevel: teamSkillDeck[index].level,
-      campaign: { ...campaign, teamSkillDeck, pendingSkillOffer: null, pendingSkillPlacement: null },
+      upgradedLevel: ownedTeamSkills[index].level,
+      campaign: { ...campaign, ownedTeamSkills, pendingSkillOffer: null },
     };
   }
-  if (!isSkillRewardEligible(skillId, teamSkillDeck)) return { ok: false, reason: 'notEligible' };
-  teamSkillDeck.push({ skillId, level: 1 });
+  if (!isSkillRewardEligible(skillId, ownedTeamSkills)) return { ok: false, reason: 'notEligible' };
+  ownedTeamSkills.push({ skillId, level: 1 });
   return {
     ok: true,
     upgradedLevel: null,
-    campaign: { ...campaign, teamSkillDeck, pendingSkillOffer: null, pendingSkillPlacement: skillId },
+    campaign: { ...campaign, ownedTeamSkills, pendingSkillOffer: null },
   };
 }
 
-export function placeTeamSkill(campaign, skillId, insertionIndex) {
-  const deck = Array.isArray(campaign?.teamSkillDeck) ? campaign.teamSkillDeck : [];
-  if (!skillId || campaign?.pendingSkillPlacement !== skillId) return { ok: false, reason: 'placementNotPending' };
-  const currentIndex = deck.findIndex((entry) => entry.skillId === skillId);
-  if (currentIndex < 0) return { ok: false, reason: 'skillNotOwned' };
-  const withoutSkill = deck.filter((entry) => entry.skillId !== skillId);
-  if (!Number.isInteger(insertionIndex) || insertionIndex < 0 || insertionIndex > withoutSkill.length) {
+export function equipTeamSkill(campaign, skillId, insertionIndex = campaign?.equippedTeamSkillIds?.length ?? 0) {
+  const ownedTeamSkills = Array.isArray(campaign?.ownedTeamSkills) ? campaign.ownedTeamSkills : [];
+  const current = Array.isArray(campaign?.equippedTeamSkillIds) ? campaign.equippedTeamSkillIds : [];
+  if (!SKILL_IDS.includes(skillId) || !ownedTeamSkills.some((entry) => entry.skillId === skillId)) {
+    return { ok: false, reason: 'skillNotOwned' };
+  }
+  if (current.includes(skillId)) return { ok: false, reason: 'alreadyEquipped' };
+  if (current.length >= 3) return { ok: false, reason: 'equipmentFull' };
+  if (!Number.isInteger(insertionIndex) || insertionIndex < 0 || insertionIndex > current.length) {
     return { ok: false, reason: 'invalidPosition' };
   }
-  const teamSkillDeck = [...withoutSkill];
-  teamSkillDeck.splice(insertionIndex, 0, deck[currentIndex]);
-  return { ok: true, campaign: { ...campaign, teamSkillDeck, pendingSkillPlacement: null } };
+  const equippedTeamSkillIds = [...current];
+  equippedTeamSkillIds.splice(insertionIndex, 0, skillId);
+  return { ok: true, campaign: { ...campaign, equippedTeamSkillIds } };
+}
+
+export function unequipTeamSkill(campaign, skillId) {
+  const current = Array.isArray(campaign?.equippedTeamSkillIds) ? campaign.equippedTeamSkillIds : [];
+  if (!current.includes(skillId)) return { ok: false, reason: 'notEquipped' };
+  return { ok: true, campaign: { ...campaign, equippedTeamSkillIds: current.filter((entry) => entry !== skillId) } };
 }
 
 export function reorderTeamSkill(campaign, fromIndex, toIndex) {
-  const deck = Array.isArray(campaign?.teamSkillDeck) ? campaign.teamSkillDeck : [];
+  const deck = Array.isArray(campaign?.equippedTeamSkillIds) ? campaign.equippedTeamSkillIds : [];
   if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex)
       || fromIndex < 0 || toIndex < 0 || fromIndex >= deck.length || toIndex >= deck.length) {
     return { ok: false, reason: 'invalidPosition' };
   }
-  const teamSkillDeck = deck.map((entry) => ({ ...entry }));
-  const [moved] = teamSkillDeck.splice(fromIndex, 1);
-  teamSkillDeck.splice(toIndex, 0, moved);
-  return { ok: true, campaign: { ...campaign, teamSkillDeck } };
+  const equippedTeamSkillIds = [...deck];
+  const [moved] = equippedTeamSkillIds.splice(fromIndex, 1);
+  equippedTeamSkillIds.splice(toIndex, 0, moved);
+  return { ok: true, campaign: { ...campaign, equippedTeamSkillIds } };
 }
 
 export function assignSkillCard(campaign, playerId, skillId) {

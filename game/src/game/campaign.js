@@ -35,9 +35,9 @@ export function createCampaign({ rng = Math.random } = {}) {
     id: `campaign-${Date.now()}-${++campaignCounter}`,
     currentStage: 1,
     clearedStageResults: [],
-    teamSkillDeck: [{ skillId: starterSkillId, level: 1 }],
+    ownedTeamSkills: [{ skillId: starterSkillId, level: 1 }],
+    equippedTeamSkillIds: [starterSkillId],
     pendingSkillOffer: null,
-    pendingSkillPlacement: null,
     opponentSkillSets: createOpponentSkillSets(rng),
     status: 'active',
   };
@@ -65,7 +65,7 @@ export function finishStage(campaign, result, rng = Math.random) {
     stageResult,
   ].sort((left, right) => left.stage - right.stage);
   const isFinal = campaign.currentStage === STAGE_COUNT;
-  const pendingSkillOffer = createSkillCardOffer(rng, campaign.teamSkillDeck);
+  const pendingSkillOffer = createSkillCardOffer(rng, campaign.ownedTeamSkills);
   return {
     ...campaign,
     clearedStageResults,

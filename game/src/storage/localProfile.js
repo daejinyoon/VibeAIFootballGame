@@ -5,12 +5,12 @@ import {
   SKILL_IDS,
   SKILL_MAX_LEVELS,
   isSkillRewardEligible,
-  validateTeamSkillDeck,
+  validateTeamSkillLoadout,
 } from '../game/skills.js';
 import { DEFAULT_TEAM_CUSTOMIZATION, normalizeTeamCustomization } from '../game/teamBranding.js';
 
 export const STORAGE_KEY = 'dex-pixel-football:v1';
-const PROFILE_VERSION = 4;
+const PROFILE_VERSION = 5;
 
 export function createEmptyProfile() {
   return {
@@ -51,7 +51,7 @@ function isOpponentSkillSets(value) {
 function isCampaignSave(value) {
   if (!value || !Number.isInteger(value.currentStage) || value.currentStage < 1 || value.currentStage > STAGE_COUNT
       || !Array.isArray(value.clearedStageResults) || !isOpponentSkillSets(value.opponentSkillSets)
-      || !validateTeamSkillDeck(value.teamSkillDeck).valid) return false;
+      || !validateTeamSkillLoadout(value.ownedTeamSkills, value.equippedTeamSkillIds).valid) return false;
   if (!value.clearedStageResults.every((item, index, results) => (
     isStageResult(item) && (index === 0 || results[index - 1].stage < item.stage)
   ))) return false;
@@ -61,12 +61,9 @@ function isCampaignSave(value) {
       && value.pendingSkillOffer.length <= 3
       && new Set(value.pendingSkillOffer).size === value.pendingSkillOffer.length
       && value.pendingSkillOffer.every((skillId) => SKILL_IDS.includes(skillId)
-        && isSkillRewardEligible(skillId, value.teamSkillDeck)));
-  const validPlacement = value.pendingSkillPlacement == null
-    || (SKILL_IDS.includes(value.pendingSkillPlacement)
-      && value.teamSkillDeck.some(({ skillId }) => skillId === value.pendingSkillPlacement));
+        && isSkillRewardEligible(skillId, value.ownedTeamSkills)));
   const validStatus = value.status == null || ['active', 'complete'].includes(value.status);
-  return validOffer && validPlacement && !(value.pendingSkillOffer && value.pendingSkillPlacement) && validStatus;
+  return validOffer && validStatus;
 }
 
 function isBestRecord(value) {
@@ -103,27 +100,25 @@ function migrateLegacyCampaign(campaignSave) {
     for (const skillId of Object.values(campaignSave.homeLoadout)) addLegacySkill(totals, skillId, 1);
   }
 
-  const teamSkillDeck = [...totals].map(([skillId, copies]) => ({
+  const ownedTeamSkills = [...totals].map(([skillId, copies]) => ({
     skillId,
     level: Math.min(SKILL_MAX_LEVELS[skillId], SKILL_MAX_LEVELS[skillId] === 1 ? 1 : copies),
   }));
+  const pendingSkillPlacementCandidate = campaignSave.pendingSkillPlacement ?? campaignSave.pendingSkillAssignment ?? null;
+  const legacyPlacementWasApplied = SKILL_IDS.includes(pendingSkillPlacementCandidate)
+    && ownedTeamSkills.some(({ skillId }) => skillId === pendingSkillPlacementCandidate);
   const pendingSkillOffer = Array.isArray(campaignSave.pendingSkillOffer)
     ? [...new Set(campaignSave.pendingSkillOffer.filter((skillId) => SKILL_IDS.includes(skillId)
-      && isSkillRewardEligible(skillId, teamSkillDeck)))].slice(0, 3)
+      && isSkillRewardEligible(skillId, ownedTeamSkills)))].slice(0, 3)
     : [];
-  const pendingSkillPlacementCandidate = campaignSave.pendingSkillPlacement ?? campaignSave.pendingSkillAssignment ?? null;
-  const pendingSkillPlacement = SKILL_IDS.includes(pendingSkillPlacementCandidate)
-    && teamSkillDeck.some(({ skillId }) => skillId === pendingSkillPlacementCandidate)
-    ? pendingSkillPlacementCandidate
-    : null;
 
   return {
     savedAt: campaignSave.savedAt,
     currentStage: campaignSave.currentStage,
     clearedStageResults,
-    teamSkillDeck,
-    pendingSkillOffer: pendingSkillOffer.length && !pendingSkillPlacement ? pendingSkillOffer : null,
-    pendingSkillPlacement,
+    ownedTeamSkills,
+    equippedTeamSkillIds: ownedTeamSkills.slice(0, 3).map(({ skillId }) => skillId),
+    pendingSkillOffer: pendingSkillOffer.length && !legacyPlacementWasApplied ? pendingSkillOffer : null,
     status: campaignSave.status === 'complete' ? 'complete' : 'active',
     opponentSkillSets: isOpponentSkillSets(campaignSave.opponentSkillSets)
       ? campaignSave.opponentSkillSets
@@ -173,6 +168,55 @@ export function migrateProfileV3(parsedProfile) {
   };
 }
 
+function migrateV4Campaign(campaignSave) {
+  if (!campaignSave || !Number.isInteger(campaignSave.currentStage)
+      || campaignSave.currentStage < 1 || campaignSave.currentStage > STAGE_COUNT
+      || !Array.isArray(campaignSave.clearedStageResults)
+      || !campaignSave.clearedStageResults.every((item, index, results) => (
+        isStageResult(item) && (index === 0 || results[index - 1].stage < item.stage)
+      ))) return null;
+
+  const ownedTeamSkills = [];
+  const seen = new Set();
+  for (const entry of Array.isArray(campaignSave.teamSkillDeck) ? campaignSave.teamSkillDeck : []) {
+    if (!entry || !SKILL_IDS.includes(entry.skillId) || seen.has(entry.skillId)
+        || !Number.isInteger(entry.level) || entry.level < 1 || entry.level > SKILL_MAX_LEVELS[entry.skillId]) continue;
+    seen.add(entry.skillId);
+    ownedTeamSkills.push({ skillId: entry.skillId, level: entry.level });
+  }
+  const equippedTeamSkillIds = ownedTeamSkills.slice(0, 3).map(({ skillId }) => skillId);
+  const pendingSkillOffer = Array.isArray(campaignSave.pendingSkillOffer)
+    ? [...new Set(campaignSave.pendingSkillOffer.filter((skillId) => SKILL_IDS.includes(skillId)
+      && isSkillRewardEligible(skillId, ownedTeamSkills)))].slice(0, 3)
+    : [];
+
+  return {
+    savedAt: campaignSave.savedAt,
+    currentStage: campaignSave.currentStage,
+    clearedStageResults: campaignSave.clearedStageResults.map((item) => ({ ...item })),
+    ownedTeamSkills,
+    equippedTeamSkillIds,
+    pendingSkillOffer: pendingSkillOffer.length ? pendingSkillOffer : null,
+    status: campaignSave.status === 'complete' ? 'complete' : 'active',
+    opponentSkillSets: isOpponentSkillSets(campaignSave.opponentSkillSets)
+      ? campaignSave.opponentSkillSets
+      : createOpponentSkillSets(() => 0.25),
+  };
+}
+
+export function migrateProfileV4(parsedProfile) {
+  if (!parsedProfile || parsedProfile.schemaVersion !== 4 || typeof parsedProfile.nickname !== 'string') {
+    return createEmptyProfile();
+  }
+  return {
+    schemaVersion: PROFILE_VERSION,
+    nickname: parsedProfile.nickname,
+    campaignSave: migrateV4Campaign(parsedProfile.campaignSave),
+    bestRecord: isBestRecord(parsedProfile.bestRecord) ? { ...parsedProfile.bestRecord } : null,
+    teamCustomization: normalizeTeamCustomization(parsedProfile.teamCustomization),
+  };
+}
+
 export function readProfile(storage = getDefaultStorage()) {
   if (!storage) return createEmptyProfile();
   try {
@@ -183,6 +227,7 @@ export function readProfile(storage = getDefaultStorage()) {
     if (parsed.schemaVersion === 1) return migrateProfileV1(parsed);
     if (parsed.schemaVersion === 2) return migrateProfileV2(parsed);
     if (parsed.schemaVersion === 3) return migrateProfileV3(parsed);
+    if (parsed.schemaVersion === 4) return migrateProfileV4(parsed);
     if (parsed.schemaVersion !== PROFILE_VERSION) return createEmptyProfile();
     return {
       schemaVersion: PROFILE_VERSION,
@@ -228,9 +273,9 @@ export function createCampaignSave(campaign) {
     savedAt: new Date().toISOString(),
     currentStage: campaign.currentStage,
     clearedStageResults: campaign.clearedStageResults.map((item) => ({ ...item })),
-    teamSkillDeck: campaign.teamSkillDeck.map((entry) => ({ ...entry })),
+    ownedTeamSkills: campaign.ownedTeamSkills.map((entry) => ({ ...entry })),
+    equippedTeamSkillIds: [...campaign.equippedTeamSkillIds],
     pendingSkillOffer: Array.isArray(campaign.pendingSkillOffer) ? [...campaign.pendingSkillOffer] : null,
-    pendingSkillPlacement: campaign.pendingSkillPlacement ?? null,
     status: campaign.status === 'complete' ? 'complete' : 'active',
     opponentSkillSets: Object.fromEntries(Object.entries(campaign.opponentSkillSets).map(([stage, skills]) => [stage, [...skills]])),
   };
