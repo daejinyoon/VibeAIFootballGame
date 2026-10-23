@@ -1,7 +1,7 @@
 # Current Context
 
 ## Active Plan
-[Skill Loadout, Visuals, and Match Fixes](./plans/2026-10-23-skill-loadout-visuals-and-match-fixes.md)
+[Football Game Overhaul](./plans/2026-10-23-football-game-overhaul.md) — complete
 
 ## Status
 - P01-T01 complete: all six skill previews have legal activation setups; `applySkill` returned `ok` for all six.
@@ -14,6 +14,7 @@
 - P02-T02 complete: home and away skill cut-ins queue in order and timers clear on match lifecycle changes.
 - P03-T01 complete: 3D players read current match branding and rebuild kit materials when palette colors change.
 - Skill Loadout, Visuals, and Match Fixes plan complete: P01–P03 are done.
+- Football Game Overhaul plan complete: all five phases are done.
 
 ## Next Step
-No active task remains in this plan.
+No active task remains in the completed football-game-overhaul or skill-loadout plans.
