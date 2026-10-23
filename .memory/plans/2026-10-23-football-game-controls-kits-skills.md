@@ -28,7 +28,7 @@ Update the existing desktop 3D football game to provide nine clear home kit pres
 
 1. T01 updates kit choices, kickoff control, and the keyboard guide.
 2. T02 replaces per-player/inventory ownership with an ordered team deck and migrates saved campaigns.
-3. T03 implements the shared activation queue, cooldown, AI behavior, and skill gameplay effects.
+3. T03 implements the shared activation queue, cooldown, AI behavior, and skill gameplay effects (complete).
 4. T04 connects the effects to the 3D presentation, skill cut-in, and sound.
 
 This stays in one phase because all four tasks change one feature area and share one campaign-to-match flow. The task boundary separates independently reviewable presentation, persistent data, deterministic simulation, and renderer/audio work while preserving a strict dependency order.
@@ -52,4 +52,5 @@ This stays in one phase because all four tasks change one feature area and share
 
 - T01 kits, kickoff, and controls implemented and validated.
 - T02 shared team deck, reward/setup flow, and profile v4 migration implemented and validated.
-- `.memory/current.md` points to P01-T03.
+- T03 shared activation, team cooldown, AI behavior, and skill simulation implemented and validated.
+- `.memory/current.md` points to P01-T04.

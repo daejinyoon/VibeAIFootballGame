@@ -35,9 +35,20 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
   const activeHome = viewState.players.filter((player) => player.team === 'home' && !player.dismissed).length;
   const activeAway = viewState.players.filter((player) => player.team === 'away' && !player.dismissed).length;
   const controlledPlayer = viewState.players.find((player) => player.id === viewState.controlledPlayerId);
-  const awaySkillUses = viewState.players
-    .filter((player) => player.team === 'away' && player.skillId && player.skillUsesRemaining > 0)
-    .reduce((total, player) => total + player.skillUsesRemaining, 0);
+  const nextTeamSkill = (team) => {
+    const deck = viewState.teamSkillDecks?.[team] ?? [];
+    if (!deck.length) return null;
+    const start = (viewState.skillQueueIndex?.[team] ?? 0) % deck.length;
+    for (let offset = 0; offset < deck.length; offset += 1) {
+      const entry = deck[(start + offset) % deck.length];
+      if (entry.skillId !== 'rainbowReflect') return entry;
+    }
+    return null;
+  };
+  const homeNextSkill = nextTeamSkill('home');
+  const awayNextSkill = nextTeamSkill('away');
+  const homeCooldown = Math.max(0, viewState.skillCooldownRemaining?.home ?? 0);
+  const awayCooldown = Math.max(0, viewState.skillCooldownRemaining?.away ?? 0);
   const homeBranding = viewState.teamBranding?.home ?? {};
   const awayBranding = viewState.teamBranding?.away ?? {};
   const homeName = homeBranding.displayName || 'DEX';
@@ -106,8 +117,8 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
           <div className="sprint-meter-label"><span>SPRINT STAMINA</span><b>{Math.round(stamina)}%</b></div>
           <progress max="100" value={stamina} aria-label="조작 선수 스프린트 스태미나" />
         </div>
-        <div className="skill-stock"><span>조작 선수 스킬</span><b>{controlledPlayer?.skillId ? SKILLS[controlledPlayer.skillId]?.name : '장착된 스킬 없음'}</b><small>{controlledPlayer?.skillId === 'rainbowReflect' ? '자동 발동' : `F · 남은 사용 ${controlledPlayer?.skillUsesRemaining ?? 0}회`}</small></div>
-        <div className="skill-stock away-skill-stock"><span>상대 팀 스킬</span><b>남은 사용 횟수</b><small>{awaySkillUses}회</small></div>
+        <div className="skill-stock"><span>다음 팀 스킬</span><b>{homeNextSkill ? `${SKILLS[homeNextSkill.skillId]?.name} · Lv.${homeNextSkill.level}` : '사용 가능한 스킬 없음'}</b><small>{homeCooldown > 0 ? `팀 재사용 대기 ${homeCooldown.toFixed(1)}초` : 'F · 팀 공용 스킬'}</small></div>
+        <div className="skill-stock away-skill-stock"><span>상대 팀 다음 스킬</span><b>{awayNextSkill ? `${SKILLS[awayNextSkill.skillId]?.name} · Lv.${awayNextSkill.level}` : '사용 가능한 스킬 없음'}</b><small>{awayCooldown > 0 ? `재사용 대기 ${awayCooldown.toFixed(1)}초` : '발동 준비'}</small></div>
         <p>{restartControls}</p>
       </div>
       {errorMessage && <p className="profile-error" role="alert">{errorMessage}</p>}

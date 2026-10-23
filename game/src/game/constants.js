@@ -17,6 +17,7 @@ export const ROLES = Object.freeze({
 export const REGULATION_SECONDS = 60;
 export const GOLDEN_GOAL_SECONDS = 30;
 export const STAGE_COUNT = 5;
+export const TEAM_SKILL_COOLDOWN_SECONDS = 10;
 export const SPRINT_STAMINA_MAX = 100;
 export const SPRINT_DRAIN_PER_SECOND = 32;
 export const SPRINT_RECOVERY_PER_SECOND = 24;

@@ -43,31 +43,28 @@ test('starts stage one at a home kickoff with a clean score and no skill gauges'
     .every((player) => player.aiTarget === null && player.aiRetargetSeconds >= 1.2 && player.aiRetargetSeconds <= 1.8));
 });
 
-test('clamps stages to one through five and never equips the goalkeeper', () => {
+test('clamps stage and sanitizes both shared skill decks', () => {
   const state = createInitialGameState({
     stage: 5,
-    loadout: { 'home-fw': 'eagleShot', 'home-gk': 'vacuumCleaner' },
-    opponentSkillIds: ['vacuumCleaner', 'rainbowReflect'],
-    playerSkillStacks: { 'home-mid-1': { skillId: 'eagleShot', copies: 2 }, 'home-gk': { skillId: 'vacuumCleaner', copies: 3 } },
+    teamSkillDeck: [
+      { skillId: 'eagleShot', level: 2 }, { skillId: 'bad', level: 1 },
+      { skillId: 'eagleShot', level: 1 }, { skillId: 'vacuumCleaner', level: 3 },
+      { skillId: 'powerTackle', level: 3 },
+    ],
+    opponentSkillDeck: [{ skillId: 'rainbowReflect', level: 1 }, { skillId: 'tornadoShot', level: 0 }],
   });
   const invalidStage = createInitialGameState({ stage: 9 });
-  const homeForward = state.players.find((player) => player.id === 'home-fw');
-  const homeMidfielder = state.players.find((player) => player.id === 'home-mid-1');
-  const homeKeeper = state.players.find((player) => player.id === 'home-gk');
-  const awayKeeper = state.players.find((player) => player.id === 'away-gk');
   assert.equal(state.stage, 5);
   assert.equal(state.teamBranding.away.logoId, 'apple');
   assert.equal(state.teamBranding.away.kit.id, 'boss-black');
   assert.equal(invalidStage.stage, 1);
-  assert.equal(homeForward.skillId, 'eagleShot');
-  assert.equal(homeForward.skillUsesRemaining, 1);
-  assert.equal(homeMidfielder.skillCopies, 2);
-  assert.equal(homeMidfielder.skillUsesRemaining, 2);
-  assert.equal(homeKeeper.skillId, null);
-  assert.equal(homeKeeper.skillCopies, 0);
-  assert.equal(awayKeeper.skillId, null);
-  assert.equal(awayKeeper.skillUsesRemaining, 0);
-  assert.equal(state.players.find((player) => player.id === 'away-def-1').skillId, 'vacuumCleaner');
+  assert.deepEqual(state.teamSkillDecks, {
+    home: [{ skillId: 'eagleShot', level: 2 }, { skillId: 'powerTackle', level: 3 }],
+    away: [{ skillId: 'rainbowReflect', level: 1 }],
+  });
+  assert.deepEqual(state.skillCooldownRemaining, { home: 0, away: 0 });
+  assert.deepEqual(state.skillQueueIndex, { home: 0, away: 0 });
+  assert.ok(state.players.every((player) => !('skillUsesRemaining' in player)));
   assert.ok(state.players.every((player) => player.x >= 0 && player.x <= FIELD.width));
   assert.ok(state.players.every((player) => player.y >= 0 && player.y <= FIELD.height));
 });

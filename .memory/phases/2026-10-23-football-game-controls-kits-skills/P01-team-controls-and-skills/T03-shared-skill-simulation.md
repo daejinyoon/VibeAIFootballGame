@@ -1,6 +1,6 @@
 # Task: T03 Shared Skill Simulation
 
-## Status: pending
+## Status: done
 
 ## Goal
 
@@ -68,10 +68,10 @@ Make ordered team skills usable by every team member and AI under one 10-second 
 
 ## Acceptance Criteria
 
-- [ ] Home and away teams share the same activation/cooldown semantics and can use the ordered deck indefinitely after each 10-second cooldown.
-- [ ] F selects the next usable active skill and only advances on success; the passive reflect never occupies an active-use action.
-- [ ] All six skill outcomes match the confirmed decisions at levels 1–3 or, for non-upgradeable skills, base level.
-- [ ] Player/ball collision with a power wall and airborne/knockdown recovery are stable across normal ticks, goals, and match end.
+- [x] Home and away teams share the same activation/cooldown semantics and can use the ordered deck indefinitely after each 10-second cooldown.
+- [x] F selects the next usable active skill and only advances on success; the passive reflect never occupies an active-use action.
+- [x] All six skill outcomes match the confirmed decisions at levels 1–3 or, for non-upgradeable skills, base level.
+- [x] Player/ball collision with a power wall and airborne/knockdown recovery are stable across normal ticks, goals, and match end.
 
 ## Validation
 
@@ -93,5 +93,5 @@ Task: T03-shared-skill-simulation
 
 ## Progress
 
-- [ ] Implementation complete
-- [ ] Validation passed
+- [x] Implementation complete
+- [x] Validation passed

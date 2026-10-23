@@ -1,5 +1,6 @@
 import { FIELD, KICKOFF_CIRCLE_RADIUS, REGULATION_SECONDS, STAGE_COUNT } from './constants.js';
 import { getTeamBranding } from './teamBranding.js';
+import { SKILL_IDS, SKILL_MAX_LEVELS } from './skills.js';
 
 const homeFormation = [
   { id: 'home-gk', role: 'goalkeeper', x: 55, y: 270 },
@@ -10,20 +11,8 @@ const homeFormation = [
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-function stackFor(stacks, playerId) {
-  const stack = stacks && typeof stacks === 'object' ? stacks[playerId] : null;
-  if (typeof stack === 'string') return { skillId: stack, copies: 1 };
-  if (!stack || typeof stack !== 'object') return null;
-  const copies = Number.isInteger(stack.copies) && stack.copies > 0 ? Math.min(3, stack.copies) : 0;
-  return { skillId: typeof stack.skillId === 'string' ? stack.skillId : null, copies };
-}
-
-function createPlayer({ id, team, role, x, y, skillId = null, skillCopies = 0, aiRetargetSeconds = 1.2 }) {
+function createPlayer({ id, team, role, x, y, aiRetargetSeconds = 1.2 }) {
   const homeDirection = team === 'home' ? 1 : -1;
-  const isGoalkeeper = role === 'goalkeeper';
-  const copies = isGoalkeeper ? 0 : Math.max(0, skillCopies);
-  const equippedSkill = isGoalkeeper ? null : (typeof skillId === 'string' ? skillId : null);
-
   return {
     id, team, role,
     x: clamp(x, 0, FIELD.width),
@@ -35,6 +24,8 @@ function createPlayer({ id, team, role, x, y, skillId = null, skillCopies = 0, a
     facingY: 0,
     stunnedSeconds: 0,
     knockdownSeconds: 0,
+    airborneSecondsRemaining: 0,
+    launchSecondsRemaining: 0,
     knockdownDirectionX: 0,
     knockdownDirectionY: 0,
     motionAction: 'idle',
@@ -43,9 +34,6 @@ function createPlayer({ id, team, role, x, y, skillId = null, skillCopies = 0, a
     aiTackleCooldownSeconds: 0,
     aiTarget: null,
     aiRetargetSeconds,
-    skillId: equippedSkill,
-    skillCopies: equippedSkill ? copies : 0,
-    skillUsesRemaining: equippedSkill ? copies : 0,
   };
 }
 
@@ -75,43 +63,40 @@ function positionForKickoff(players, kickoffTeam, kickoffTakerId) {
 /** Create a fresh 4v4 kickoff state without depending on browser APIs. */
 export function createInitialGameState({
   stage = 1,
-  loadout,
   opponentSkillIds = [],
-  playerSkillStacks = {},
-  opponentSkillStacks = {},
+  teamSkillDeck = [],
+  opponentSkillDeck,
   teamBranding,
 } = {}) {
   const safeStage = Number.isInteger(stage) && stage >= 1 && stage <= STAGE_COUNT ? stage : 1;
-  const safeLoadout = loadout && typeof loadout === 'object' ? loadout : {};
   const safeOpponentSkills = Array.isArray(opponentSkillIds)
     ? opponentSkillIds.filter((skillId) => typeof skillId === 'string')
     : [];
 
-  const homePlayers = homeFormation.map((player, index) => {
-    const stack = stackFor(playerSkillStacks, player.id);
-    const legacySkill = safeLoadout[player.id];
-    const skillId = stack?.skillId ?? legacySkill ?? null;
-    const copies = stack ? stack.copies : (skillId ? 1 : 0);
-    return createPlayer({
-      ...player,
-      team: 'home',
-      aiRetargetSeconds: 1.2 + index * 0.2,
-      skillId,
-      skillCopies: copies,
-    });
-  });
+  const sanitizeDeck = (deck) => {
+    if (!Array.isArray(deck)) return [];
+    const seen = new Set();
+    return deck.filter((entry) => {
+      if (!entry || !SKILL_IDS.includes(entry.skillId) || seen.has(entry.skillId)) return false;
+      const maxLevel = SKILL_MAX_LEVELS[entry.skillId];
+      if (!Number.isInteger(entry.level) || entry.level < 1 || entry.level > maxLevel) return false;
+      seen.add(entry.skillId);
+      return true;
+    }).map(({ skillId, level }) => ({ skillId, level }));
+  };
+  const homeDeck = sanitizeDeck(teamSkillDeck);
+  const awayDeck = sanitizeDeck(Array.isArray(opponentSkillDeck)
+    ? opponentSkillDeck
+    : safeOpponentSkills.map((skillId) => ({ skillId, level: 1 })));
+
+  const homePlayers = homeFormation.map((player, index) => createPlayer({
+    ...player,
+    team: 'home',
+    aiRetargetSeconds: 1.2 + index * 0.2,
+  }));
 
   const awayFormation = createAwayFormation();
-  const awayPlayers = awayFormation.map((player, index) => {
-    const stack = stackFor(opponentSkillStacks, player.id);
-    const legacySkill = player.role === 'goalkeeper' ? null : safeOpponentSkills[index - 1] ?? null;
-    return createPlayer({
-      ...player,
-      team: 'away',
-      skillId: stack?.skillId ?? legacySkill,
-      skillCopies: stack ? stack.copies : (legacySkill ? 1 : 0),
-    });
-  });
+  const awayPlayers = awayFormation.map((player) => createPlayer({ ...player, team: 'away' }));
 
   const players = [...homePlayers, ...awayPlayers];
   positionForKickoff(players, 'home', 'home-fw');
@@ -152,6 +137,10 @@ export function createInitialGameState({
     aiObservedCarrierId: null,
     aiControlledCarrierId: null,
     skillEffects: [],
+    powerBarriers: [],
+    teamSkillDecks: { home: homeDeck, away: awayDeck },
+    skillCooldownRemaining: { home: 0, away: 0 },
+    skillQueueIndex: { home: 0, away: 0 },
     skillCutIn: null,
     nextSkillEffectId: 1,
     restart: null,
