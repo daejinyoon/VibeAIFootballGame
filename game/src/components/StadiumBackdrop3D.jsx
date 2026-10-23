@@ -1,9 +1,39 @@
+import { useLayoutEffect, useRef } from 'react';
+import * as THREE from 'three';
+
 const SEAT_COLORS = ['#58c9f2', '#e1f477', '#ff9b79', '#c4a3ff', '#81ddad'];
+const STAND_TIERS = 4;
+const SEATS_PER_TIER = 23;
 
 function SideStand({ side }) {
-  const tiers = Array.from({ length: 4 }, (_, index) => index);
-  const seats = Array.from({ length: 23 }, (_, index) => index);
+  const seatsRef = useRef(null);
+  const tiers = Array.from({ length: STAND_TIERS }, (_, index) => index);
+  const seats = Array.from({ length: SEATS_PER_TIER }, (_, index) => index);
   const accent = side < 0 ? '#3fb8e4' : '#ff8b63';
+
+  useLayoutEffect(() => {
+    const mesh = seatsRef.current;
+    if (!mesh) return;
+
+    const transform = new THREE.Object3D();
+    const color = new THREE.Color();
+    let instance = 0;
+    tiers.forEach((tier) => {
+      const rise = 0.35 + tier * 0.38;
+      const setback = side * tier * 0.48;
+      seats.forEach((seat) => {
+        transform.position.set(-8.8 + seat * 0.8, rise + 0.12, setback + side * 0.1);
+        transform.updateMatrix();
+        mesh.setMatrixAt(instance, transform.matrix);
+        color.set(SEAT_COLORS[(seat + tier + (side > 0 ? 2 : 0)) % SEAT_COLORS.length]);
+        mesh.setColorAt(instance, color);
+        instance += 1;
+      });
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.computeBoundingSphere();
+  }, [side]);
 
   return (
     <group position={[0, 0, side * 4.15]}>
@@ -16,19 +46,14 @@ function SideStand({ side }) {
               <boxGeometry args={[19, 0.22, 0.5]} />
               <meshStandardMaterial color={tier % 2 ? '#76b5c4' : '#91cbd0'} roughness={0.78} />
             </mesh>
-            {seats.map((seat) => {
-              const x = -8.8 + seat * 0.8;
-              const color = SEAT_COLORS[(seat + tier + (side > 0 ? 2 : 0)) % SEAT_COLORS.length];
-              return (
-                <mesh key={`seat-${tier}-${seat}`} position={[x, 0.12, side * 0.1]} castShadow>
-                  <boxGeometry args={[0.42, 0.28, 0.3]} />
-                  <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.09} roughness={0.7} />
-                </mesh>
-              );
-            })}
           </group>
         );
       })}
+
+      <instancedMesh ref={seatsRef} args={[undefined, undefined, STAND_TIERS * SEATS_PER_TIER]}>
+        <boxGeometry args={[0.42, 0.28, 0.3]} />
+        <meshStandardMaterial color="white" roughness={0.7} />
+      </instancedMesh>
 
       <mesh position={[0, 0.78, -side * 0.1]}>
         <boxGeometry args={[18, 0.07, 0.07]} />
@@ -90,7 +115,6 @@ export function StadiumBackdrop3D() {
             <boxGeometry args={[1.25, 0.3, 0.3]} />
             <meshStandardMaterial color="#fff8dc" emissive={zSide < 0 ? '#b6edff' : '#ffe5c2'} emissiveIntensity={0.35} />
           </mesh>
-          <pointLight position={[0, 5.1, -zSide * 0.6]} color={zSide < 0 ? '#e8fbff' : '#fff3d6'} intensity={5} distance={14} decay={2} />
         </group>
       )))}
 
