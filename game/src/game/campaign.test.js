@@ -173,6 +173,15 @@ test('new reward skills enter the bag and can be equipped at any position', () =
   assert.deepEqual(unequipTeamSkill(equipped.campaign, skillId).campaign.equippedTeamSkillIds, []);
 });
 
+test('a fourth owned skill stays in the bag when all three match slots are occupied', () => {
+  const campaign = createCampaign();
+  campaign.ownedTeamSkills = SKILL_IDS.slice(0, 4).map((skillId) => ({ skillId, level: 1 }));
+  campaign.equippedTeamSkillIds = SKILL_IDS.slice(0, 3);
+  const before = structuredClone(campaign);
+  assert.deepEqual(equipTeamSkill(campaign, SKILL_IDS[3]), { ok: false, reason: 'equipmentFull' });
+  assert.deepEqual(campaign, before);
+});
+
 test('rejects a skill that was not offered without changing the campaign', () => {
   const campaign = {
     ...createCampaign(),

@@ -133,22 +133,22 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
           <div className="team-skill-list">
             {homeDeck.map((entry, index) => (
               <span key={`${entry.skillId}-${index}`} className={index === homeQueueIndex && entry.skillId !== 'rainbowReflect' ? 'team-skill-item is-next' : 'team-skill-item'}>
-                {index + 1}. {SKILLS[entry.skillId]?.name ?? entry.skillId}{entry.skillId === 'rainbowReflect' ? ' · 패시브' : ` · Lv.${entry.level}`}
+                {index + 1}. {SKILLS[entry.skillId]?.name ?? entry.skillId} · Lv.{entry.level}
               </span>
             ))}
             {!homeDeck.length && <span className="team-skill-item">아직 보유한 필살기가 없습니다</span>}
           </div>
-          <small>{homeNextSkill ? `다음 사용: ${SKILLS[homeNextSkill.skillId]?.name} · F` : 'F · 팀 공용 필살기'}</small>
-          <div className="cooldown-track" role="progressbar" aria-label="우리 팀 필살기 재사용 대기시간" aria-valuemin="0" aria-valuemax="10" aria-valuenow={Math.max(0, 10 - homeCooldown)}>
+          <small>{homeNextSkill ? `다음 사용: ${SKILLS[homeNextSkill.skillId]?.name} · F` : 'F · 장착한 스킬 순서대로 사용'}</small>
+          <div className="cooldown-track" role="progressbar" aria-label="필살기 재사용 대기시간" aria-valuemin="0" aria-valuemax="10" aria-valuenow={Math.max(0, 10 - homeCooldown)}>
             <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, (10 - homeCooldown) / 10))})` }} />
           </div>
-          <b>{homeCooldown > 0 ? `팀 재사용 대기 ${homeCooldown.toFixed(1)}초` : '팀 필살기 사용 가능'}</b>
+          <b>{homeCooldown > 0 ? `${homeCooldown.toFixed(1)}초 후 사용 가능` : '필살기 사용 가능'}</b>
         </div>
         <div className="skill-stock away-skill-stock">
-          <span>상대 팀 필살기</span>
-          <b>{awayCooldown > 0 ? '팀 재사용 대기 중' : '발동 준비'}</b>
-          <small>{awayCooldown > 0 ? `${awayCooldown.toFixed(1)}초 후 다시 사용 가능` : '상대 팀 쿨타임'}</small>
-          <div className="cooldown-track" role="progressbar" aria-label="상대 팀 필살기 재사용 대기시간" aria-valuemin="0" aria-valuemax="10" aria-valuenow={Math.max(0, 10 - awayCooldown)}>
+          <span>상대 필살기</span>
+          <b>{awayCooldown > 0 ? '재사용 대기 중' : '발동 준비'}</b>
+          <small>{awayCooldown > 0 ? `${awayCooldown.toFixed(1)}초 후 다시 사용 가능` : '다음 발동 대기 중'}</small>
+          <div className="cooldown-track" role="progressbar" aria-label="상대 필살기 재사용 대기시간" aria-valuemin="0" aria-valuemax="10" aria-valuenow={Math.max(0, 10 - awayCooldown)}>
             <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, (10 - awayCooldown) / 10))})` }} />
           </div>
         </div>

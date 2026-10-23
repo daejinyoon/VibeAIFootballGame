@@ -1,7 +1,7 @@
 import { lazy, Suspense, useRef, useState } from 'react';
 import { createCampaign, finishStage, getUnlockedStage } from './game/campaign.js';
 import { createInitialGameState } from './game/createInitialGameState.js';
-import { SKILL_IDS, SKILLS, awardSkillCard, reorderTeamSkill } from './game/skills.js';
+import { SKILL_IDS, SKILLS, awardSkillCard, equipTeamSkill, reorderTeamSkill, unequipTeamSkill } from './game/skills.js';
 import { getTeamBranding } from './game/teamBranding.js';
 import { createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
@@ -203,6 +203,22 @@ export default function App() {
     persistCampaign(moved.campaign);
   };
 
+  const equipCampaignSkill = (skillId, insertionIndex) => {
+    if (!campaign) return;
+    const equipped = equipTeamSkill(campaign, skillId, insertionIndex);
+    if (!equipped.ok) return;
+    setCampaign(equipped.campaign);
+    persistCampaign(equipped.campaign);
+  };
+
+  const unequipCampaignSkill = (skillId) => {
+    if (!campaign) return;
+    const unequipped = unequipTeamSkill(campaign, skillId);
+    if (!unequipped.ok) return;
+    setCampaign(unequipped.campaign);
+    persistCampaign(unequipped.campaign);
+  };
+
   const home = () => {
     setScreen('start');
     setCampaign(null);
@@ -307,7 +323,7 @@ export default function App() {
       />}
       {screen === 'skillReward' && campaign && <SkillRewardScreen
         offer={campaign.pendingSkillOffer}
-        teamSkillDeck={campaign.ownedTeamSkills}
+        ownedTeamSkills={campaign.ownedTeamSkills}
         skills={SKILLS}
         onChoose={chooseSkill}
         onContinue={() => setScreen('stageSelect')}
@@ -315,11 +331,12 @@ export default function App() {
       />}
       {screen === 'loadout' && campaign && <LoadoutScreen
         stage={selectedStage}
-        teamSkillDeck={(campaign.equippedTeamSkillIds ?? [])
-          .map((skillId) => campaign.ownedTeamSkills.find((entry) => entry.skillId === skillId))
-          .filter(Boolean)}
+        ownedTeamSkills={campaign.ownedTeamSkills}
+        equippedTeamSkillIds={campaign.equippedTeamSkillIds}
         skills={SKILLS}
         onMove={moveTeamSkill}
+        onEquip={equipCampaignSkill}
+        onUnequip={unequipCampaignSkill}
         onConfirm={() => setScreen('stageSelect')}
         onBack={() => setScreen('stageSelect')}
       />}
