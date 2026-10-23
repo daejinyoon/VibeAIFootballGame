@@ -37,6 +37,12 @@ const INTERCEPTION_RADIUS = 16;
 const AI_MIN_PASS_DISTANCE = 48;
 const AI_MAX_PASS_DISTANCE = 330;
 const KNOCKDOWN_SECONDS = 1;
+const KEEPER_REACH_Y = 44;
+const KEEPER_REACTION_SECONDS = 0.12;
+const KEEPER_MAX_DIVE_DISTANCE = 68;
+const KEEPER_DIVE_SECONDS = 0.42;
+const KEEPER_RECOVER_SECONDS = 0.24;
+const KEEPER_MAX_SAVE_HEIGHT = 56;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -489,6 +495,35 @@ function shotCanReachGoal(player) {
   if (!Number.isFinite(distanceToGoal) || distanceToGoal <= 0) return false;
   const targetY = start.y + direction.y * distanceToGoal;
   return targetY >= FIELD.goalTop && targetY <= FIELD.goalBottom;
+}
+
+function predictGoalCrossing(ball, goalX) {
+  if (!ball || !['shot', 'skill-shot'].includes(ball.flightKind)
+      || ball.skillId === 'eagleShot'
+      || ![ball.x, ball.y, ball.vx, ball.vy, goalX].every(Number.isFinite)
+      || Math.abs(ball.vx) < 1e-6) return null;
+  const seconds = (goalX - ball.x) / ball.vx;
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  const y = ball.y + ball.vy * seconds;
+  const verticalVelocity = Number.isFinite(ball.verticalVelocity) ? ball.verticalVelocity : 0;
+  const height = Math.max(0, (ball.height ?? 0) + verticalVelocity * seconds - 0.5 * BALL_GRAVITY * seconds * seconds);
+  if (!Number.isFinite(y) || !Number.isFinite(height)) return null;
+  return { seconds, y, height };
+}
+
+function keeperThreat(state, keeper) {
+  const ball = state.ball;
+  if (!keeper || ball.lastTouchTeam === keeper.team || !['home', 'away'].includes(ball.lastTouchTeam)) return null;
+  const goalX = keeper.team === 'home' ? -BALL_RADIUS : FIELD.width + BALL_RADIUS;
+  const crossing = predictGoalCrossing(ball, goalX);
+  if (!crossing || crossing.y < FIELD.goalTop + BALL_RADIUS || crossing.y > FIELD.goalBottom - BALL_RADIUS
+      || crossing.height > KEEPER_MAX_SAVE_HEIGHT) return null;
+  const movementBudget = Math.min(KEEPER_MAX_DIVE_DISTANCE,
+    KEEPER_SPEED * Math.max(0, crossing.seconds - KEEPER_REACTION_SECONDS) + KEEPER_REACH_Y);
+  return {
+    ...crossing,
+    reachable: Math.abs(crossing.y - keeper.y) <= movementBudget,
+  };
 }
 
 function resetForKickoff(state, kickoffTeam) {
@@ -1035,16 +1070,30 @@ function advanceEagleVolley(state, deltaSeconds) {
   return events;
 }
 
-function handleKeeperContact(state) {
+function handleKeeperContact(state, previousPosition) {
   const { ball } = state;
-  if (ball.ownerId || !['shot', 'skill-shot'].includes(ball.flightKind) || ball.height > 8) return [];
+  if (ball.ownerId || !['shot', 'skill-shot'].includes(ball.flightKind) || ball.skillId === 'eagleShot') return [];
 
   for (const keeper of state.players.filter((player) => player.role === 'goalkeeper'
       && !player.dismissed && player.knockdownSeconds <= 0 && (player.airborneSecondsRemaining ?? 0) <= 0)) {
-    if (Math.abs(ball.x - keeper.x) > 12 || Math.abs(ball.y - keeper.y) > 14) continue;
+    const threat = keeperThreat(state, keeper);
+    if (!threat?.reachable || ball.height > KEEPER_MAX_SAVE_HEIGHT) continue;
 
-    if (ball.lastTouchTeam === keeper.team) continue;
-    if (ball.skillId === 'eagleShot') continue;
+    let contact = { x: ball.x, y: ball.y };
+    if (previousPosition && [previousPosition.x, previousPosition.y, ball.x, ball.y].every(Number.isFinite)) {
+      const progress = segmentProjection(keeper, previousPosition, ball);
+      contact = {
+        x: previousPosition.x + (ball.x - previousPosition.x) * progress,
+        y: previousPosition.y + (ball.y - previousPosition.y) * progress,
+      };
+    }
+    if (Math.abs(contact.x - keeper.x) > BALL_RADIUS + 14
+        || Math.abs(contact.y - keeper.y) > KEEPER_REACH_Y) continue;
+
+    const direction = Math.sign(threat.y - keeper.y) || Math.sign(contact.y - keeper.y) || 1;
+    keeper.keeperDiveDirection = direction;
+    keeper.keeperAction = direction < 0 ? 'diveLeft' : 'diveRight';
+    keeper.keeperActionSeconds = KEEPER_DIVE_SECONDS;
     setBallOwner(state, keeper);
     resetActivePlayersToBaseFormation(state.players);
     keeper.x = keeper.team === 'home' ? 70 : FIELD.width - 70;
@@ -1053,7 +1102,10 @@ function handleKeeperContact(state) {
     state.phase = 'goalKick';
     state.phaseSeconds = 1;
     putBallAtPlayer(state, keeper);
-    return [{ type: 'keeperCatch', team: keeper.team, keeperId: keeper.id }];
+    return [
+      { type: 'keeperSave', team: keeper.team, keeperId: keeper.id, direction, interceptY: contact.y },
+      { type: 'keeperCatch', team: keeper.team, keeperId: keeper.id },
+    ];
   }
   return [];
 }
@@ -1257,7 +1309,8 @@ function collectLooseBall(state) {
   if (ball.flightKind === 'skill-shot' && ['eagleShot', 'tornadoShot'].includes(ball.skillId)) return [];
   const candidates = state.players
     .filter((player) => !player.dismissed && player.knockdownSeconds <= 0 && player.motionAction !== 'recover'
-      && (player.airborneSecondsRemaining ?? 0) <= 0)
+      && (player.airborneSecondsRemaining ?? 0) <= 0
+      && !(player.role === 'goalkeeper' && ['shot', 'skill-shot'].includes(ball.flightKind)))
     .map((player) => ({ player, distance: distance(player, ball) }))
     .filter(({ distance: playerDistance }) => playerDistance <= 18)
     .sort((a, b) => a.distance - b.distance);
@@ -1465,7 +1518,9 @@ function updateKeeperPosition(state, defendingTeam, opposingCarrier, deltaSecond
   const homeKeepsLeft = defendingTeam === 'home';
   const goalLineX = homeKeepsLeft ? 48 : FIELD.width - 48;
   const goalX = homeKeepsLeft ? 0 : FIELD.width;
-  const goalY = clamp(state.ball.y, 224, 316);
+  const shotThreat = keeperThreat(state, keeper);
+  const targetY = shotThreat?.reachable ? shotThreat.y : state.ball.y;
+  const goalY = clamp(targetY, 224, 316);
   const closeThreat = opposingCarrier && distance(opposingCarrier, { x: goalX, y: goalY }) <= 150;
   const hasClearLane = closeThreat && !activePlayers(state, defendingTeam)
     .some((player) => player.role !== 'goalkeeper' && player.id !== opposingCarrier.id
@@ -1479,6 +1534,30 @@ function updateKeeperPosition(state, defendingTeam, opposingCarrier, deltaSecond
   };
   keeper.aiTarget = target;
   moveToward(keeper, target, KEEPER_SPEED, deltaSeconds, false);
+
+  if (shotThreat?.reachable && shotThreat.seconds <= KEEPER_DIVE_SECONDS + KEEPER_REACTION_SECONDS
+      && !['diveLeft', 'diveRight', 'recover'].includes(keeper.keeperAction)) {
+    keeper.keeperDiveDirection = Math.sign(shotThreat.y - keeper.y) || 1;
+    keeper.keeperAction = keeper.keeperDiveDirection < 0 ? 'diveLeft' : 'diveRight';
+    keeper.keeperActionSeconds = KEEPER_DIVE_SECONDS;
+  }
+}
+
+function advanceKeeperAction(player, deltaSeconds) {
+  if (player.role !== 'goalkeeper') return;
+  if (['diveLeft', 'diveRight'].includes(player.keeperAction)) {
+    player.keeperActionSeconds = Math.max(0, (player.keeperActionSeconds ?? 0) - deltaSeconds);
+    if (player.keeperActionSeconds === 0) {
+      player.keeperAction = 'recover';
+      player.keeperActionSeconds = KEEPER_RECOVER_SECONDS;
+    }
+  } else if (player.keeperAction === 'recover') {
+    player.keeperActionSeconds = Math.max(0, (player.keeperActionSeconds ?? 0) - deltaSeconds);
+    if (player.keeperActionSeconds === 0) {
+      player.keeperAction = 'idle';
+      player.keeperDiveDirection = 0;
+    }
+  }
 }
 
 function updateAutomaticHomeDefender(state) {
@@ -1933,6 +2012,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
       else delete player.statusDurationSeconds;
     }
     advancePlayerRecovery(player, dt);
+    advanceKeeperAction(player, dt);
     player.powerTackleSeconds = Math.max(0, (player.powerTackleSeconds ?? 0) - dt);
     player.aiTackleCooldownSeconds = Math.max(0, (player.aiTackleCooldownSeconds ?? 0) - dt);
   }
@@ -2016,9 +2096,10 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
       owner.facingX = direction.x;
       updateOwnedBall(state);
     } else {
+      const previousBallPosition = { x: state.ball.x, y: state.ball.y };
       events.push(...integrateLooseBall(state, dt));
+      events.push(...handleKeeperContact(state, previousBallPosition));
       events.push(...resolveAerialHeader(state));
-      events.push(...handleKeeperContact(state));
       events.push(...checkBallBoundary(state));
       if (!['goalPause', 'goalKick', 'finished'].includes(state.phase)) {
         events.push(...collectLooseBall(state));

@@ -1,7 +1,13 @@
 # Current Context
 
 ## Active Plan
-[Football Game Overhaul](./plans/2026-10-23-football-game-overhaul.md) — complete
+[Unified 3D Arcade Football](./plans/2026-10-22-unified-3d-arcade-football.md)
+
+## Active Phase
+Complete
+
+## Active Task
+None
 
 ## Status
 - P01-T01 complete: all six skill previews have legal activation setups; `applySkill` returned `ok` for all six.
@@ -11,10 +17,11 @@
 - P01-T05 complete: Vacuum Cleaner renders a dedicated nozzle, spiral stream, and continuous visual ball cue using simulation-owned positions.
 - P01-T06 complete: Rainbow Reflect has a segmented shield, source-cleansing flash, and animated multicolor ribbons to the live target.
 - Remaining Skill 3D VFX plan complete: all tasks in P01 passed the production build.
-- P02-T02 complete: home and away skill cut-ins queue in order and timers clear on match lifecycle changes.
+- P02-T02 complete: predictive goalkeeper saves check trajectory, reach, and height, emit save/catch events, and play directional dive/recovery poses.
 - P03-T01 complete: 3D players read current match branding and rebuild kit materials when palette colors change.
 - Skill Loadout, Visuals, and Match Fixes plan complete: P01–P03 are done.
 - Football Game Overhaul plan complete: all five phases are done.
+- P02-T01 and T03 from the older unified plan are satisfied by the later no-jump player-motion and phase-aware HUD/draw implementations.
 
 ## Next Step
-No active task remains in the completed football-game-overhaul or skill-loadout plans.
+All tasks in the active plan are complete.

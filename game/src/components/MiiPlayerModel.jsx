@@ -118,6 +118,23 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
       body.current.position.y = sliding ? -0.08 : displayAction === 'knockdown' ? 0.34 : 0;
       if (knocked && torso.current) torso.current.position.y = 0.31;
     }
+    if (isKeeper && ['diveLeft', 'diveRight', 'recover'].includes(livePlayer.keeperAction)) {
+      const diving = livePlayer.keeperAction !== 'recover';
+      const actionDuration = diving ? 0.42 : 0.24;
+      const progress = diving
+        ? 1 - Math.min(1, (livePlayer.keeperActionSeconds ?? actionDuration) / actionDuration)
+        : Math.min(1, 1 - (livePlayer.keeperActionSeconds ?? 0) / actionDuration);
+      const direction = livePlayer.keeperDiveDirection || (livePlayer.keeperAction === 'diveLeft' ? -1 : 1);
+      if (body.current) {
+        body.current.rotation.z = direction * (diving ? 0.48 + progress * 0.62 : 1.1 * (1 - progress));
+        body.current.position.y = diving ? -0.06 - progress * 0.2 : -0.26 * (1 - progress);
+      }
+      if (leftArm.current) leftArm.current.rotation.set(-0.52, 0, -0.92 + direction * 0.24);
+      if (rightArm.current) rightArm.current.rotation.set(-0.52, 0, 0.92 + direction * 0.24);
+      if (leftLeg.current) leftLeg.current.rotation.z = -direction * 0.28;
+      if (rightLeg.current) rightLeg.current.rotation.z = -direction * 0.18;
+      if (torso.current) torso.current.rotation.x = -0.12;
+    }
     if (pose === 'cutIn') {
       phase.current += delta * 3;
       const pulse = Math.sin(phase.current) * 0.08;

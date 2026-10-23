@@ -35,6 +35,11 @@ function createPlayer({ id, team, role, x, y, aiRetargetSeconds = 1.2 }) {
     aiTackleCooldownSeconds: 0,
     aiTarget: null,
     aiRetargetSeconds,
+    ...(role === 'goalkeeper' ? {
+      keeperAction: 'idle',
+      keeperActionSeconds: 0,
+      keeperDiveDirection: 0,
+    } : {}),
   };
 }
 
