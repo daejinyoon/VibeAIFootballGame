@@ -7,7 +7,7 @@ export { TEAM_KITS, getPlayerKit } from '../game/playerKit.js';
 export function FootballPlayer3D({ player, selected = false, actorsRef, gameStateRef, teamBranding, paused = false }) {
   if (!player || player.dismissed) return null;
 
-  const branding = teamBranding ?? gameStateRef?.current?.teamBranding;
+  const branding = gameStateRef?.current?.teamBranding ?? teamBranding;
   const kit = getPlayerKit(player, branding);
   const logoId = branding?.[player.team]?.logoId ?? (player.team === 'away' ? 'samsung' : 'dex');
   const isKeeper = player.role === 'goalkeeper';

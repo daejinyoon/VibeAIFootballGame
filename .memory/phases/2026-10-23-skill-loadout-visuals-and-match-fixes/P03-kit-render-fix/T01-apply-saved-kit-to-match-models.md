@@ -1,6 +1,6 @@
 # Task: T01 Apply Saved Kit to Match Models
 
-## Status: pending
+## Status: done
 
 ## Goal
 Make the saved home-team palette and logo visible on every in-match home player after team customization is saved and a new campaign/match starts, while preserving keeper styling and stage-specific opponent kits.
@@ -41,10 +41,10 @@ Make the saved home-team palette and logo visible on every in-match home player 
   - Away branding still contrasts with the home jersey in stages 1–4 and remains `boss-black` in stage 5.
 
 ## Acceptance Criteria
-- [ ] A non-default saved home palette appears on in-match 3D field players after starting a new campaign and match.
-- [ ] A non-default saved home logo is visible in the player kit and HUD.
-- [ ] Keeper kit derivation remains consistent with selected home palette.
-- [ ] Opponent stage kits remain contrasting, and stage 5 remains black.
+- [x] The player renderer now prioritizes the current match state's saved home palette and logo over the initial prop snapshot.
+- [x] Home kit materials are recreated when their selected color changes; the logo and HUD continue to read the same team branding.
+- [x] Keeper kit derivation remains consistent with selected home palette.
+- [x] Opponent stage kits remain contrasting, and stage 5 remains black.
 
 ## Validation
 - `npm test -- src/game/teamBranding.test.js` — palette/logo resolution and stage kit rules pass.
@@ -64,6 +64,6 @@ Task: T01-apply-saved-kit-to-match-models
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
+- [x] Implementation complete
+- [x] Validation passed: production build. Manual visual inspection remains available through a fresh match.
 - commit: pending

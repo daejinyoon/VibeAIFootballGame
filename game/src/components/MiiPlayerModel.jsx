@@ -27,7 +27,7 @@ function LimbMesh({ color, length = 0.16, radius = 0.045 }) {
   return (
     <mesh position={[0, -length / 2, 0]} castShadow>
       <capsuleGeometry args={[radius, length, 3, 8]} />
-      <meshStandardMaterial color={color} roughness={0.62} />
+      <meshStandardMaterial key={`limb-${color}`} color={color} roughness={0.62} />
     </mesh>
   );
 }
@@ -140,11 +140,11 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
       <group ref={torso} position={[0, 0.31, 0]}>
         <mesh castShadow>
           <capsuleGeometry args={[0.125, 0.15, 4, 10]} />
-          <meshStandardMaterial color={kit.jersey} roughness={0.58} />
+          <meshStandardMaterial key={`jersey-${kit.jersey}`} color={kit.jersey} roughness={0.58} />
         </mesh>
         <mesh position={[0, 0.085, 0.103]}>
           <boxGeometry args={[0.105, 0.11, 0.018]} />
-          <meshStandardMaterial color={kit.trim} roughness={0.5} />
+          <meshStandardMaterial key={`trim-${kit.trim}`} color={kit.trim} roughness={0.5} />
         </mesh>
         <mesh position={[0, 0.085, 0.116]}>
           <planeGeometry args={[0.082, 0.044]} />
@@ -160,14 +160,14 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
         <LimbMesh color={kit.jersey} length={0.18} radius={0.043} />
         <mesh position={[0, -0.19, 0.015]}>
           <sphereGeometry args={[0.052, 10, 8]} />
-          <meshStandardMaterial color={isKeeper ? kit.glove : variant.skin} roughness={0.68} />
+          <meshStandardMaterial key={`hand-${isKeeper ? kit.glove : variant.skin}`} color={isKeeper ? kit.glove : variant.skin} roughness={0.68} />
         </mesh>
       </group>
       <group ref={rightArm} position={[0.17, 0.39, 0]} rotation={[0, 0, 0.15]}>
         <LimbMesh color={kit.jersey} length={0.18} radius={0.043} />
         <mesh position={[0, -0.19, 0.015]}>
           <sphereGeometry args={[0.052, 10, 8]} />
-          <meshStandardMaterial color={isKeeper ? kit.glove : variant.skin} roughness={0.68} />
+          <meshStandardMaterial key={`hand-${isKeeper ? kit.glove : variant.skin}`} color={isKeeper ? kit.glove : variant.skin} roughness={0.68} />
         </mesh>
       </group>
 
@@ -175,14 +175,14 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
         <LimbMesh color={kit.shorts} length={0.16} radius={0.042} />
         <mesh position={[0, -0.18, 0.035]}>
           <boxGeometry args={[0.09, 0.055, 0.17]} />
-          <meshStandardMaterial color={kit.boots} roughness={0.45} />
+          <meshStandardMaterial key={`boots-${kit.boots}`} color={kit.boots} roughness={0.45} />
         </mesh>
       </group>
       <group ref={rightLeg} position={[0.07, 0.22, 0]}>
         <LimbMesh color={kit.shorts} length={0.16} radius={0.042} />
         <mesh position={[0, -0.18, 0.035]}>
           <boxGeometry args={[0.09, 0.055, 0.17]} />
-          <meshStandardMaterial color={kit.boots} roughness={0.45} />
+          <meshStandardMaterial key={`boots-${kit.boots}`} color={kit.boots} roughness={0.45} />
         </mesh>
       </group>
 
