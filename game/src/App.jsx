@@ -9,6 +9,7 @@ import LoadoutScreen from './components/LoadoutScreen.jsx';
 import SkillRewardScreen from './components/SkillRewardScreen.jsx';
 import StartScreen from './components/StartScreen.jsx';
 import StageSelectScreen from './components/StageSelectScreen.jsx';
+import TeamCustomizationScreen from './components/TeamCustomizationScreen.jsx';
 
 const GameScreen = lazy(() => import('./components/GameScreen.jsx'));
 
@@ -93,6 +94,22 @@ export default function App() {
       setProfileError('');
     } catch (error) {
       setProfileError(error.message || '별명을 저장하지 못했습니다.');
+    }
+  };
+
+  const openTeamCustomization = () => {
+    setProfileError('');
+    setScreen('teamCustomization');
+  };
+
+  const handleTeamCustomizationSave = (teamCustomization) => {
+    try {
+      const written = writeProfile({ ...profile, teamCustomization });
+      setProfile(written);
+      setProfileError('');
+      setScreen('start');
+    } catch (error) {
+      setProfileError(error.message || '팀 설정 저장에 실패했습니다. 다시 시도해 주세요.');
     }
   };
 
@@ -249,7 +266,13 @@ export default function App() {
         <span className="local-badge"><span /> 로컬 캠페인</span>
       </header>
 
-      {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} />}
+      {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} onOpenTeamCustomization={openTeamCustomization} />}
+      {screen === 'teamCustomization' && <TeamCustomizationScreen
+        customization={profile.teamCustomization}
+        onSave={handleTeamCustomizationSave}
+        onBack={() => { setProfileError(''); setScreen('start'); }}
+        errorMessage={profileError}
+      />}
       {screen === 'stageSelect' && campaign && <StageSelectScreen
         campaign={campaign}
         stageResults={campaign.clearedStageResults}

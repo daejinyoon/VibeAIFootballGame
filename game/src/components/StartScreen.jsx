@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function StartScreen({ hasSave, nickname, profileError, onNicknameSave, onStart, onContinue, onOpenLeaderboard }) {
+export default function StartScreen({ hasSave, nickname, profileError, onNicknameSave, onStart, onContinue, onOpenLeaderboard, onOpenTeamCustomization }) {
   const [draftNickname, setDraftNickname] = useState(nickname);
 
   return (
@@ -20,6 +20,7 @@ export default function StartScreen({ hasSave, nickname, profileError, onNicknam
         </form>
         {profileError && <p className="profile-error" role="alert">{profileError}</p>}
         <div className="actions">
+          <button className="secondary-button team-customization-entry" type="button" onClick={onOpenTeamCustomization}>팀 꾸미기 <span aria-hidden="true">→</span></button>
           <button className="primary-button" disabled={!nickname} onClick={onStart}>새 캠페인 시작 <span aria-hidden="true">→</span></button>
           {hasSave && <button className="secondary-button" disabled={!nickname} onClick={onContinue}>이어 하기 <span aria-hidden="true">↗</span></button>}
           <button className="secondary-button" disabled={!nickname} onClick={onOpenLeaderboard}>기록 보기 <span aria-hidden="true">↗</span></button>
