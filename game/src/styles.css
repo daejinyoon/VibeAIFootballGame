@@ -552,3 +552,17 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
   .result-score b { font-size: 34px; }
   .result-score span { font-size: 9px; }
 }
+.skill-cut-in { position: absolute; z-index: 4; inset: 0; overflow: hidden; isolation: isolate; pointer-events: none; background: radial-gradient(ellipse at 31% 48%, color-mix(in srgb, var(--cut-in-primary) 44%, transparent), transparent 42%), linear-gradient(112deg, color-mix(in srgb, var(--cut-in-primary) 34%, #091426), #10152b 55%, color-mix(in srgb, var(--cut-in-secondary) 30%, #151a2a)); animation: skill-cut-in-entry var(--cut-in-duration, .72s) cubic-bezier(.16,.82,.25,1) both; }
+.skill-cut-in::before { position: absolute; z-index: -1; inset: -35%; background: repeating-conic-gradient(from -18deg at 37% 50%, transparent 0deg 8deg, color-mix(in srgb, var(--cut-in-primary) 30%, transparent) 8.5deg 10deg, transparent 10.5deg 18deg); content: ''; animation: skill-cut-in-rays 1.8s linear infinite; }
+.skill-cut-in::after { position: absolute; z-index: -1; inset: 0; background: linear-gradient(90deg, transparent 35%, rgb(4 12 25 / 55%) 55%, rgb(4 12 25 / 15%)); content: ''; }
+.skill-cut-in-rays { position: absolute; inset: 0; background: radial-gradient(ellipse at 39% 50%, transparent 0 19%, rgb(255 255 255 / 10%) 20%, transparent 46%), linear-gradient(100deg, transparent 39%, color-mix(in srgb, var(--cut-in-secondary) 40%, transparent) 40%, transparent 43%); opacity: .82; }
+.skill-cut-in-character { position: absolute; inset: 0 auto 0 7%; width: 42%; filter: drop-shadow(0 8px 14px rgb(0 0 0 / 40%)); }
+.skill-cut-in-character canvas { width: 100%; height: 100%; pointer-events: none; }
+.skill-cut-in-copy { position: absolute; right: 7%; bottom: 16%; width: min(54%, 660px); color: white; text-align: right; text-shadow: 0 4px 0 rgb(5 14 29 / 88%), 0 9px 28px rgb(0 0 0 / 65%); }
+.skill-cut-in-label, .skill-cut-in-type { display: inline-block; padding: 5px 10px; border: 1px solid color-mix(in srgb, var(--cut-in-secondary) 75%, white); background: color-mix(in srgb, var(--cut-in-primary) 32%, #10172b); color: #fff; font: 800 10px Consolas, monospace; letter-spacing: .16em; }
+.skill-cut-in-copy h2 { margin: 10px 0 8px; color: #fff8e8; font-size: clamp(32px, 7vw, 76px); font-weight: 1000; line-height: .98; letter-spacing: -.055em; text-transform: uppercase; -webkit-text-stroke: 1px color-mix(in srgb, var(--cut-in-primary) 80%, #fff); }
+.skill-cut-in-type { color: var(--cut-in-secondary); }
+.skill-cut-in-art { position: absolute; top: 10%; right: 7%; width: clamp(64px, 12vw, 132px); aspect-ratio: 1; object-fit: contain; filter: drop-shadow(0 0 18px color-mix(in srgb, var(--cut-in-secondary) 75%, transparent)); }
+.skill-cut-in-defense { background: radial-gradient(ellipse at 31% 48%, color-mix(in srgb, var(--cut-in-primary) 48%, transparent), transparent 43%), linear-gradient(112deg, color-mix(in srgb, var(--cut-in-secondary) 24%, #07192b), #10172d 58%, color-mix(in srgb, var(--cut-in-primary) 28%, #101a2b)); }
+@keyframes skill-cut-in-entry { 0% { opacity: 0; transform: scale(.94); } 12% { opacity: 1; transform: scale(1); } 70% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.035); } }
+@keyframes skill-cut-in-rays { to { transform: rotate(360deg); } }

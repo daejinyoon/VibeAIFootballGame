@@ -47,9 +47,17 @@ export function GameLoop3D({
   }, [focused, paused]);
 
   useFrame((_, delta) => {
-    if (paused) return;
     const state = gameStateRef.current;
-    const events = stepGame(state, inputRef.current?.readFrame(), Math.min(delta, 0.05));
+    if (state.skillCutIn) {
+      state.skillCutIn.elapsedSeconds += Math.max(0, delta);
+      if (state.skillCutIn.elapsedSeconds >= state.skillCutIn.durationSeconds) {
+        state.skillCutIn = null;
+      }
+    }
+    if (paused) return;
+    const presentationScale = state.skillCutIn ? 0.4 : 1;
+    const simulationDelta = Math.min(delta, 0.05) * presentationScale;
+    const events = stepGame(state, inputRef.current?.readFrame(), simulationDelta);
 
     for (const player of state.players) {
       const actor = actorsRef.current.players.get(player.id);

@@ -73,6 +73,7 @@ test('a player can use a stacked skill only its remaining number of times', () =
 test('new matches start with an empty transient skill-effect list and fresh stable IDs', () => {
   const state = createInitialGameState();
   assert.deepEqual(state.skillEffects, []);
+  assert.equal(state.skillCutIn, null);
   assert.equal(state.nextSkillEffectId, 1);
 });
 
@@ -82,11 +83,24 @@ test('F activates the controlled player skill and spends one use only after succ
   assert.equal(state.ball.skillId, 'eagleShot');
   assert.equal(state.ball.flightKind, 'skill-shot');
   assert.equal(state.players.find((player) => player.id === 'home-fw').skillUsesRemaining, 1);
-  assert.ok(events.some((event) => event.type === 'skillUsed' && event.skillId === 'eagleShot'));
+  const skillEvent = events.find((event) => event.type === 'skillUsed' && event.skillId === 'eagleShot');
+  assert.equal(skillEvent.playerId, 'home-fw');
+  assert.deepEqual(state.skillCutIn, {
+    playerId: 'home-fw', team: 'home', skillId: 'eagleShot', elapsedSeconds: 0, durationSeconds: 0.72,
+  });
   assert.equal(state.skillEffects[0].sourcePlayerId, 'home-fw');
   state.ball.flightKind = 'ground';
   stepGame(state, {}, 0.05);
   assert.equal(state.skillEffects.length, 0, 'shot cue expires when the skill shot ends');
+
+  const activeState = createInitialGameState({ playerSkillStacks: { 'home-fw': { skillId: 'eagleShot', copies: 2 } } });
+  activeState.skillCutIn = {
+    playerId: 'away-fw', team: 'away', skillId: 'powerTackle', elapsedSeconds: 0.1, durationSeconds: 0.72,
+  };
+  const activeCue = activeState.skillCutIn;
+  const secondEvents = stepGame(activeState, { down: new Set(['f']), pressed: new Set(['f']), released: new Set() }, 0.01);
+  assert.ok(secondEvents.some((event) => event.type === 'skillUsed' && event.playerId === 'home-fw'));
+  assert.equal(activeState.skillCutIn, activeCue, 'an active cut-in is not replaced by another skill');
 });
 
 test('Eagle Shot ignores the ordinary goalkeeper catch', () => {
@@ -110,7 +124,10 @@ test('opponent AI uses an equipped skill once when its conditions are met', () =
   const events = stepGame(state, {}, 0.01);
   assert.equal(state.ball.skillId, 'eagleShot');
   assert.equal(state.players.find((player) => player.id === 'away-def-1').skillUsesRemaining, 0);
-  assert.ok(events.some((event) => event.type === 'skillUsed' && event.team === 'away'));
+  assert.ok(events.some((event) => event.type === 'skillUsed' && event.team === 'away' && event.playerId === 'away-def-1'));
+  assert.deepEqual(state.skillCutIn, {
+    playerId: 'away-def-1', team: 'away', skillId: 'eagleShot', elapsedSeconds: 0, durationSeconds: 0.72,
+  });
   assert.ok(state.skillEffects.some((effect) => effect.team === 'away' && effect.skillId === 'eagleShot'));
 });
 
@@ -194,4 +211,20 @@ test('rainbow reflection consumes one use when the automatic save starts', () =>
   assert.ok(state.ball.vx > 0);
   assert.equal(state.ball.lastTouchTeam, 'home');
   assert.equal(state.skillEffects.length, 2, 'reflection start and return each create a cue');
+});
+
+test('automatic rainbow reflection never starts a manual skill cut-in', () => {
+  const state = createInitialGameState({ playerSkillStacks: { 'home-def-1': { skillId: 'rainbowReflect', copies: 1 } } });
+  const reflector = state.players.find((player) => player.id === 'home-def-1');
+  Object.assign(reflector, { x: 300, y: 270 });
+  Object.assign(state.ball, {
+    ownerId: null, x: 310, y: 270, vx: -500, vy: 0,
+    flightKind: 'skill-shot', skillId: 'eagleShot', lastTouchTeam: 'away',
+  });
+  state.rainbowReflection = { playerId: reflector.id, team: 'home', remainingSeconds: 1 };
+
+  const events = stepGame(state, {}, 0.05);
+
+  assert.ok(events.some((event) => event.type === 'skillUsed' && event.automatic && event.playerId === reflector.id));
+  assert.equal(state.skillCutIn, null);
 });

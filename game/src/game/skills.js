@@ -134,7 +134,7 @@ function launchSkillShot(state, player, skillId) {
   state.possessionTeam = player.team;
 
   const onTarget = targetY >= FIELD.goalTop && targetY <= FIELD.goalBottom;
-  return [{ type: 'skillUsed', skillId, team: player.team }, ...(onTarget ? [{ type: 'shotOnTarget', team: player.team }] : [])];
+  return [{ type: 'skillUsed', skillId, team: player.team, playerId: player.id }, ...(onTarget ? [{ type: 'shotOnTarget', team: player.team }] : [])];
 }
 
 function findEulryongtaTarget(state, player) {
@@ -179,7 +179,7 @@ export function applySkill(state, playerId) {
   } else if (skillId === 'powerTackle') {
     if (!opponentCarrier) return result(false, skillId, player.team, 'noOpponentCarrier');
     player.powerTackleSeconds = 4;
-    events = [{ type: 'skillUsed', skillId, team: player.team }];
+    events = [{ type: 'skillUsed', skillId, team: player.team, playerId: player.id }];
   } else if (skillId === 'eulryongta') {
     const target = findEulryongtaTarget(state, player);
     if (!target) return result(false, skillId, player.team, 'noTargetInFront');
@@ -195,7 +195,7 @@ export function applySkill(state, playerId) {
     target.vx = 0;
     target.vy = 0;
     events = [
-      { type: 'skillUsed', skillId, team: player.team, targetId: target.id },
+      { type: 'skillUsed', skillId, team: player.team, playerId: player.id, targetId: target.id },
       { type: 'playerKnockedDown', team: target.team, playerId: target.id, durationSeconds, direction },
     ];
   } else if (skillId === 'vacuumCleaner') {
@@ -203,7 +203,7 @@ export function applySkill(state, playerId) {
     state.ball.ownerId = null;
     state.vacuumEffect = { playerId, team: player.team, remainingSeconds: 0.5 };
     state.possessionTeam = null;
-    events = [{ type: 'skillUsed', skillId, team: player.team }];
+    events = [{ type: 'skillUsed', skillId, team: player.team, playerId: player.id }];
   }
 
   player.skillUsesRemaining -= 1;

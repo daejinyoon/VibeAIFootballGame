@@ -5,7 +5,7 @@ import { FIELD } from '../game/constants.js';
 
 const SLOT_COUNT = 32;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const COLORS = {
+export const SKILL_EFFECT_COLORS = {
   eagleShot: { home: ['#fff2a0', '#ff8b35'], away: ['#ffe28d', '#fa5f59'] },
   tornadoShot: { home: ['#a9f5ff', '#53d7e8'], away: ['#ffe39a', '#ff8b68'] },
   powerTackle: { home: ['#dfff75', '#64e6ce'], away: ['#ffd47a', '#ff756c'] },
@@ -104,7 +104,7 @@ export function SkillEffects3D({ gameStateRef }) {
 
       const ball = state.ball;
       const team = effect.team === 'away' ? 'away' : 'home';
-      const [primary, secondary] = COLORS[effect.skillId]?.[team] ?? COLORS.eagleShot.home;
+      const [primary, secondary] = SKILL_EFFECT_COLORS[effect.skillId]?.[team] ?? SKILL_EFFECT_COLORS.eagleShot.home;
       const duration = Math.max(0.001, effect.durationSeconds);
       const progress = THREE.MathUtils.clamp(effect.elapsedSeconds / duration, 0, 1);
       const fade = Math.min(1, progress * 12 + 0.08, (1 - progress) * (effect.durationSeconds > 1 ? 3 : 2.2));

@@ -1,7 +1,8 @@
-﻿import { useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import Match3DGame from './Match3DGame.jsx';
 import PauseMenu from './PauseMenu.jsx';
 import { SKILLS } from '../game/skills.js';
+import { SkillCutInOverlay } from './SkillCutInOverlay.jsx';
 
 export function formatMatchTime(seconds) {
   if (!Number.isFinite(seconds)) return '00:00';
@@ -13,6 +14,9 @@ export function formatMatchTime(seconds) {
 
 export default function GameScreen({ gameState, paused, errorMessage, onPause, onResume, onSaveAndExit, onGameEvents }) {
   const [viewState, setViewState] = useState(gameState);
+  const [cutInCue, setCutInCue] = useState(null);
+  const cutInRef = useRef(null);
+  const cutInTimerRef = useRef(null);
   const lastUpdate = useRef(0);
   const stage = gameState.stage;
   const isOvertime = viewState.phase === 'overtime';
@@ -31,6 +35,37 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
   const awaySkillUses = viewState.players
     .filter((player) => player.team === 'away' && player.skillId && player.skillUsesRemaining > 0)
     .reduce((total, player) => total + player.skillUsesRemaining, 0);
+  const cutInPlayer = cutInCue
+    ? viewState.players.find((player) => player.id === cutInCue.playerId)
+    : null;
+
+  useEffect(() => () => {
+    if (cutInTimerRef.current !== null) window.clearTimeout(cutInTimerRef.current);
+  }, []);
+
+  const handleGameEvents = (events) => {
+    for (const event of events) {
+      if (event.type !== 'skillUsed' || event.automatic || !event.playerId || cutInRef.current) continue;
+      const cue = {
+        id: `${event.playerId}-${event.skillId}-${performance.now()}`,
+        playerId: event.playerId,
+        team: event.team,
+        skillId: event.skillId,
+        durationSeconds: 0.72,
+      };
+      cutInRef.current = cue;
+      setCutInCue(cue);
+      cutInTimerRef.current = window.setTimeout(() => {
+        if (cutInRef.current === cue) {
+          cutInRef.current = null;
+          setCutInCue(null);
+        }
+        cutInTimerRef.current = null;
+      }, cue.durationSeconds * 1000);
+      break;
+    }
+    onGameEvents?.(events);
+  };
 
   return (
     <section className="game-panel" aria-label="축구 경기">
@@ -44,13 +79,14 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
           <div className="score-clock"><small>{isOvertime ? 'GOLDEN GOAL' : 'MATCH TIME'}</small><strong>{timeLabel}</strong></div>
           <div className="score-team score-team-away"><b>{awayScore}</b><span className="score-team-name">AI RIVALS</span><span className="score-team-mark">AI</span></div>
         </div>
-        <Match3DGame initialState={gameState} paused={paused} onGameEvents={onGameEvents} onStateChange={(next) => {
+        <Match3DGame initialState={gameState} paused={paused} onGameEvents={handleGameEvents} onStateChange={(next) => {
         const now = performance.now();
         if (now - lastUpdate.current > 100) {
           lastUpdate.current = now;
           setViewState(next);
         }
         }} />
+        <SkillCutInOverlay cue={cutInCue} player={cutInPlayer} teamBranding={viewState.teamBranding} />
       </div>
       <div className="game-bottomline">
         <div className="skill-stock"><span>조작 선수 스킬</span><b>{controlledPlayer?.skillId ? SKILLS[controlledPlayer.skillId]?.name : '장착된 스킬 없음'}</b><small>{controlledPlayer?.skillId === 'rainbowReflect' ? '자동 발동' : `F · 남은 사용 ${controlledPlayer?.skillUsesRemaining ?? 0}회`}</small></div>

@@ -1484,6 +1484,18 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
 
   if (state.phase === 'finished' || dt === 0) return events;
   const finishFrame = (frameEvents) => {
+    if (!state.skillCutIn) {
+      const skillEvent = frameEvents.find((event) => event.type === 'skillUsed' && !event.automatic && event.playerId);
+      if (skillEvent) {
+        state.skillCutIn = {
+          playerId: skillEvent.playerId,
+          team: skillEvent.team,
+          skillId: skillEvent.skillId,
+          elapsedSeconds: 0,
+          durationSeconds: 0.72,
+        };
+      }
+    }
     advanceSprintStamina(state.players, dt);
     return frameEvents;
   };

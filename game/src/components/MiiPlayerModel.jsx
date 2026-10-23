@@ -111,6 +111,20 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
         : displayAction === 'recover' ? (livePlayer.knockdownDirectionX < 0 ? -1 : 1) * 0.24 : 0;
       if (knocked && torso.current) torso.current.position.y = 0.31;
     }
+    if (pose === 'cutIn') {
+      phase.current += delta * 3;
+      const pulse = Math.sin(phase.current) * 0.08;
+      if (leftArm.current) leftArm.current.rotation.set(-1.2 + pulse, 0, -0.7);
+      if (rightArm.current) rightArm.current.rotation.set(-1.2 - pulse, 0, 0.7);
+      if (leftLeg.current) leftLeg.current.rotation.x = -0.12;
+      if (rightLeg.current) rightLeg.current.rotation.x = 0.12;
+      if (torso.current) {
+        torso.current.position.y = 0.31 + Math.abs(pulse) * 0.3;
+        torso.current.rotation.x = -0.22;
+      }
+      if (head.current) head.current.rotation.x = -0.06;
+      if (body.current) body.current.rotation.z = Math.sin(phase.current * 0.5) * 0.035;
+    }
   });
 
   return (

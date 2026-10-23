@@ -1,15 +1,26 @@
 import { FIELD } from '../game/constants.js';
 import { MiiPlayerModel } from './MiiPlayerModel.jsx';
 
-const KITS = {
+export const TEAM_KITS = {
   home: { jersey: '#12a9bd', trim: '#d7ff74', shorts: '#f4fff7', boots: '#f5ff81', keeper: '#d7f26b', glove: '#f0ffab' },
   away: { jersey: '#f36d62', trim: '#ffe083', shorts: '#fff3e5', boots: '#ffe083', keeper: '#ffcf70', glove: '#fff2a5' },
 };
 
+export function getPlayerKit(player, teamBranding) {
+  const team = player?.team === 'away' ? 'away' : 'home';
+  const kit = TEAM_KITS[team];
+  const palette = teamBranding?.[team]?.kit ?? {};
+  return {
+    ...kit,
+    ...palette,
+    jersey: player?.role === 'goalkeeper' ? palette.keeper ?? kit.keeper : palette.jersey ?? kit.jersey,
+  };
+}
+
 export function FootballPlayer3D({ player, selected = false, actorsRef, gameStateRef, paused = false }) {
   if (!player || player.dismissed) return null;
 
-  const kit = KITS[player.team === 'away' ? 'away' : 'home'];
+  const kit = getPlayerKit(player, gameStateRef?.current?.teamBranding);
   const isKeeper = player.role === 'goalkeeper';
   const facing = player.team === 'away' ? -Math.PI / 2 : Math.PI / 2;
   const x = (Number(player.x) || 0) / 80 - FIELD.width / 160;
@@ -33,7 +44,7 @@ export function FootballPlayer3D({ player, selected = false, actorsRef, gameStat
         <ringGeometry args={[0.21, 0.28, 32]} />
         <meshStandardMaterial color="#dfff75" emissive="#b9ef4d" emissiveIntensity={0.8} />
       </mesh>
-      <MiiPlayerModel player={player} gameStateRef={gameStateRef} paused={paused} kit={{ ...kit, jersey: isKeeper ? kit.keeper : kit.jersey }} isKeeper={isKeeper} />
+      <MiiPlayerModel player={player} gameStateRef={gameStateRef} paused={paused} kit={kit} isKeeper={isKeeper} />
     </group>
   );
 }

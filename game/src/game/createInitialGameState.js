@@ -149,6 +149,7 @@ export function createInitialGameState({
     aiObservedCarrierId: null,
     aiControlledCarrierId: null,
     skillEffects: [],
+    skillCutIn: null,
     nextSkillEffectId: 1,
     restart: null,
     aiRandomSeed: 0x6d2b79f5,
