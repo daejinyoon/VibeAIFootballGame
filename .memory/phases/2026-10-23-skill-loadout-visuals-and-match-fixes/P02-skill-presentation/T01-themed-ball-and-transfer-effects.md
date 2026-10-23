@@ -9,6 +9,10 @@ Make ball-related skill activity readable at gameplay speed: Eagle Shot visibly 
 - The ordinary soccer-ball appearance returns when a ball skill ends. Tornado keeps the soccer ball visible inside a moving tornado. Vacuum keeps the recognizable ball and uses an accelerating spiral suction path.
 - Preserve the existing cycloidal Eagle Shot, World Split terrain, Eulryongta stars, and skill audio; this task adds or corrects presentation, not their established gameplay rules.
 
+## Visual Reference Follow-up
+- Increase VFX readability to match the requested six-panel concept sheet: a bright eagle trail toward goal, a tall moving tornado with a visible wrapped ball, long twin World Split walls with glowing cracks and flying debris, unmistakable dizzy stars on Eulryongta targets, a continuous spiral suction route for Vacuum Cleaner, and a rainbow transfer beam with an arrival cue.
+- These are 3D gameplay effects; do not display the static concept sheet as an in-game overlay.
+
 ## Implementation
 
 ### I01. Ball mesh and travel visualization

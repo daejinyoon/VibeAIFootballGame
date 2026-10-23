@@ -71,7 +71,7 @@ function makePool() {
     const stars = Array.from({ length: 3 }, (_, index) => {
       const material = new THREE.MeshBasicMaterial({ color: index % 2 ? '#9df7ff' : '#ffe979', transparent: true, opacity: 0.96, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
       const mesh = new THREE.Mesh(DIZZY_STAR_GEOMETRY, material);
-      mesh.scale.setScalar(0.17 + (index % 2) * 0.035);
+      mesh.scale.setScalar(0.24 + (index % 2) * 0.045);
       root.add(mesh);
       return { mesh, material };
     });
@@ -223,7 +223,7 @@ export function PlayerMotionEffects3D({ gameStateRef, paused = false }) {
       slot.root.position.set(worldX(player.x), 1.18, worldZ(player.y));
       slot.stars.forEach(({ mesh }, starIndex) => {
         const angle = animationTime(player.knockdownSeconds) * (starIndex % 2 ? -2.6 : 2.6) + starIndex * Math.PI * 2 / 3;
-        mesh.position.set(Math.cos(angle) * 0.3, 0.02 + Math.sin(angle * 1.7) * 0.045, Math.sin(angle) * 0.18);
+        mesh.position.set(Math.cos(angle) * 0.42, 0.05 + Math.sin(angle * 1.7) * 0.07, Math.sin(angle) * 0.26);
         mesh.rotation.set(0, 0, angle * 0.8);
       });
     }

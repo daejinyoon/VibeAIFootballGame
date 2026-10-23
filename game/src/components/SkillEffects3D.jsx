@@ -26,6 +26,7 @@ const BARRIER_GROUND_GEOMETRY = new THREE.BoxGeometry(1, 0.055, 0.34);
 const BARRIER_GLOW_GEOMETRY = new THREE.BoxGeometry(1, 0.035, 0.12);
 const BARRIER_PLATE_GEOMETRY = new THREE.BoxGeometry(0.062, 1.8, 0.24);
 const BARRIER_SHARD_GEOMETRY = new THREE.ConeGeometry(0.3, 0.9, 5, 1);
+const BARRIER_DEBRIS_GEOMETRY = new THREE.TetrahedronGeometry(0.15, 0);
 const EAGLE_BODY_GEOMETRY = new THREE.SphereGeometry(0.22, 12, 8);
 const EAGLE_HEAD_GEOMETRY = new THREE.SphereGeometry(0.11, 10, 7);
 const EAGLE_BEAK_GEOMETRY = new THREE.ConeGeometry(0.075, 0.2, 5);
@@ -45,6 +46,8 @@ const EAGLE_WING_GEOMETRY = (() => {
 const EAGLE_BEAM_GEOMETRY = new THREE.CylinderGeometry(0.08, 0.28, 1, 12, 1, true);
 const RAINBOW_PULSE_GEOMETRY = new THREE.SphereGeometry(0.12, 12, 8);
 const TORNADO_TRAIL_POINT_COUNT = 24;
+const EAGLE_TRAIL_POINT_COUNT = 32;
+const TORNADO_HELIX_POINT_COUNT = 48;
 const BARRIER_GROUND_MATERIAL = new THREE.MeshStandardMaterial({ color: '#17151b', roughness: 1, emissive: '#080609', emissiveIntensity: 0.2, side: THREE.DoubleSide });
 const BARRIER_GLOW_MATERIAL = new THREE.MeshBasicMaterial({ color: '#ff7b31', transparent: true, opacity: 0.92, depthWrite: false, toneMapped: false });
 const BARRIER_PLATE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#8a7357', roughness: 0.94, emissive: '#633113', emissiveIntensity: 0.42 });
@@ -69,7 +72,7 @@ function makeSlot() {
     root.add(mesh);
     return mesh;
   });
-  const particles = Array.from({ length: 8 }, (_, index) => {
+  const particles = Array.from({ length: 12 }, (_, index) => {
     const mesh = makeMesh(PARTICLE_GEOMETRY);
     root.add(mesh);
     return mesh;
@@ -133,7 +136,15 @@ function makeBarrierSlot() {
     root.add(shard);
     shards.push(shard);
   }
-  return { root, groundCrack, glow, plates, shards };
+  const debris = Array.from({ length: 22 }, (_, index) => {
+    const piece = new THREE.Mesh(BARRIER_DEBRIS_GEOMETRY, new THREE.MeshStandardMaterial({
+      color: index % 2 ? '#b38a55' : '#73624f', emissive: '#a24217', emissiveIntensity: 0.35,
+      roughness: 0.92, transparent: true, opacity: 0.85,
+    }));
+    root.add(piece);
+    return piece;
+  });
+  return { root, groundCrack, glow, plates, shards, debris };
 }
 
 function makeTornadoSlot() {
@@ -157,11 +168,22 @@ function makeTornadoSlot() {
     root.add(particle);
     return particle;
   });
+  const helixLines = [0, 1].map((index) => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TORNADO_HELIX_POINT_COUNT * 3), 3));
+    geometry.setDrawRange(0, TORNADO_HELIX_POINT_COUNT);
+    const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({
+      color: index ? '#e5ffff' : '#49d8f0', transparent: true, opacity: 0.92,
+      depthWrite: false, toneMapped: false,
+    }));
+    root.add(line);
+    return line;
+  });
   const trailGeometry = new THREE.BufferGeometry();
   trailGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TORNADO_TRAIL_POINT_COUNT * 3), 3));
   trailGeometry.setDrawRange(0, 0);
   const trailLine = new THREE.Line(trailGeometry, new THREE.LineBasicMaterial({ color: '#80f4ff', transparent: true, opacity: 0.78, depthWrite: false, toneMapped: false }));
-  return { root, funnel, rings, particles, trailLine, trailPosition: new THREE.Vector3() };
+  return { root, funnel, rings, particles, helixLines, trailLine, trailPosition: new THREE.Vector3() };
 }
 
 function makeEagleSlot() {
@@ -194,7 +216,13 @@ function makeEagleSlot() {
   });
   const beam = makeMesh(EAGLE_BEAM_GEOMETRY, '#ffe889', 0.62);
   beam.visible = false;
-  return { root, body, wings, beam, materials: [bodyMaterial, wingMaterial, beakMaterial] };
+  const trailGeometry = new THREE.BufferGeometry();
+  trailGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(EAGLE_TRAIL_POINT_COUNT * 3), 3));
+  trailGeometry.setDrawRange(0, 0);
+  const trailLine = new THREE.Line(trailGeometry, new THREE.LineBasicMaterial({
+    color: '#ffbf4b', transparent: true, opacity: 0.88, depthWrite: false, toneMapped: false,
+  }));
+  return { root, body, wings, beam, trailLine, materials: [bodyMaterial, wingMaterial, beakMaterial] };
 }
 
 function worldX(x) {
@@ -218,6 +246,7 @@ export function SkillEffects3D({ gameStateRef }) {
   const tornadoSlots = useMemo(() => Array.from({ length: 2 }, makeTornadoSlot), []);
   const eagleSlots = useMemo(() => Array.from({ length: 3 }, makeEagleSlot), []);
   const tornadoHistory = useMemo(() => Array.from({ length: tornadoSlots.length }, () => []), [tornadoSlots.length]);
+  const eagleHistory = useMemo(() => Array.from({ length: eagleSlots.length }, () => []), [eagleSlots.length]);
   const scene = useMemo(() => {
     const group = new THREE.Group();
     for (const slot of slots) group.add(slot.root);
@@ -228,6 +257,7 @@ export function SkillEffects3D({ gameStateRef }) {
     for (const slot of eagleSlots) {
       group.add(slot.root);
       group.add(slot.beam);
+      group.add(slot.trailLine);
     }
     return group;
   }, [slots, airSlots, barrierSlots, tornadoSlots, eagleSlots]);
@@ -240,17 +270,23 @@ export function SkillEffects3D({ gameStateRef }) {
       for (const mesh of [...slot.rings, ...slot.particles]) mesh.material.dispose();
     }
     for (const slot of barrierSlots) {
-      for (const mesh of [slot.groundCrack, slot.glow, ...slot.plates, ...slot.shards]) mesh.material.dispose();
+      for (const mesh of [slot.groundCrack, slot.glow, ...slot.plates, ...slot.shards, ...slot.debris]) mesh.material.dispose();
     }
     for (const slot of tornadoSlots) {
       slot.funnel.material.dispose();
       for (const mesh of [...slot.rings, ...slot.particles]) mesh.material.dispose();
+      for (const line of slot.helixLines) {
+        line.material.dispose();
+        line.geometry.dispose();
+      }
       slot.trailLine.material.dispose();
       slot.trailLine.geometry.dispose();
     }
     for (const slot of eagleSlots) {
       for (const material of slot.materials) material.dispose();
       slot.beam.material.dispose();
+      slot.trailLine.material.dispose();
+      slot.trailLine.geometry.dispose();
     }
   }, [slots, airSlots, barrierSlots, tornadoSlots, eagleSlots]);
 
@@ -376,13 +412,13 @@ export function SkillEffects3D({ gameStateRef }) {
             const strandDirection = strandEnd.clone().sub(strandStart);
             strand.position.copy(strandStart).addScaledVector(strandDirection, 0.5);
             strand.quaternion.setFromUnitVectors(WORLD_UP, strandDirection.lengthSq() ? strandDirection.clone().normalize() : WORLD_UP);
-            strand.scale.set(0.24, strandDirection.length(), 0.24);
+            strand.scale.set(0.34, strandDirection.length(), 0.34);
             strand.material.opacity = fade * (0.66 + Math.sin(now * 22 + strandIndex) * 0.18);
             strand.visible = length > 0.08;
           });
           slot.rainbowPulse.position.copy(startPoint).lerp(endPoint, progress);
           slot.rainbowPulse.material.color.set(RAINBOW[Math.floor(now * 16) % RAINBOW.length]);
-          slot.rainbowPulse.scale.setScalar(0.72 + Math.sin(now * 35) * 0.2);
+          slot.rainbowPulse.scale.setScalar(0.9 + Math.sin(now * 35) * 0.26);
           slot.rainbowPulse.material.opacity = fade;
           slot.rainbowPulse.visible = true;
           if ((effect.transferredStatuses ?? []).some((status) => status.type === 'stunned') && progress > 0.68) {
@@ -521,6 +557,21 @@ export function SkillEffects3D({ gameStateRef }) {
         shard.position.z = side * wallOffset;
         shard.rotation.z = (shardIndex % 2 ? -1 : 1) * (0.08 + Math.sin(age * 11 + shardIndex) * 0.025);
       });
+      slot.debris.forEach((piece, pieceIndex) => {
+        const age = barrier.elapsedSeconds ?? 0;
+        const lane = pieceIndex / slot.debris.length;
+        const side = pieceIndex % 2 ? 1 : -1;
+        const burst = Math.min(1, age * 3.4);
+        const flutter = age * (5 + pieceIndex % 4) + pieceIndex * 1.7;
+        piece.position.set(-0.5 + lane + Math.sin(flutter) * 0.055,
+          0.1 + Math.abs(Math.sin(flutter)) * (0.42 + burst * 0.3),
+          side * (wallOffset + 0.12 + Math.cos(flutter * 1.3) * 0.16));
+        piece.rotation.set(flutter * 0.7, flutter, flutter * 0.45);
+        piece.scale.setScalar(0.45 + Math.abs(Math.sin(flutter * 0.8)) * 0.65);
+        piece.material.color.set(pieceIndex % 3 ? '#8f785b' : '#c99b5e');
+        piece.material.emissive.set(accent === '#ffb54f' ? '#a34318' : '#226b75');
+        piece.material.opacity = 0.62 + Math.abs(Math.sin(flutter)) * 0.3;
+      });
     }
 
     const tornadoEffects = effects.filter((effect) => effect.skillId === 'tornadoShot');
@@ -531,6 +582,9 @@ export function SkillEffects3D({ gameStateRef }) {
       if (!projectile || !state.eagleVolley) {
         slot.root.visible = false;
         slot.beam.visible = false;
+        slot.trailLine.visible = false;
+        eagleHistory[index].length = 0;
+        slot.trailLine.geometry.setDrawRange(0, 0);
         continue;
       }
       const [primary, secondary] = SKILL_EFFECT_COLORS.eagleShot[projectile.team === 'away' ? 'away' : 'home'];
@@ -548,6 +602,25 @@ export function SkillEffects3D({ gameStateRef }) {
         wing.children[0].material.color.set(primary);
         wing.children[0].material.emissive.set(secondary);
       });
+      const trail = eagleHistory[index];
+      const eaglePosition = new THREE.Vector3(worldX(projectile.x), height + 0.12, worldZ(projectile.y));
+      const lastEaglePosition = trail[trail.length - 1];
+      if (!lastEaglePosition || lastEaglePosition.distanceToSquared(eaglePosition) >= 0.001) {
+        trail.push(eaglePosition);
+        if (trail.length > EAGLE_TRAIL_POINT_COUNT) trail.shift();
+      }
+      const trailPositions = slot.trailLine.geometry.attributes.position.array;
+      trail.forEach((point, pointIndex) => {
+        const offset = pointIndex * 3;
+        trailPositions[offset] = point.x;
+        trailPositions[offset + 1] = point.y;
+        trailPositions[offset + 2] = point.z;
+      });
+      slot.trailLine.geometry.attributes.position.needsUpdate = true;
+      slot.trailLine.geometry.setDrawRange(0, trail.length);
+      slot.trailLine.material.color.set(secondary);
+      slot.trailLine.material.opacity = 0.9;
+      slot.trailLine.visible = trail.length > 1;
       slot.beam.visible = ascent;
       if (ascent) {
         slot.beam.position.set(worldX(projectile.x), Math.max(0.06, height * 0.48), worldZ(projectile.y));
@@ -594,7 +667,22 @@ export function SkillEffects3D({ gameStateRef }) {
       slot.trailLine.geometry.setDrawRange(0, history.length);
       slot.trailLine.material.color.set(secondary);
       slot.funnel.material.color.set(primary);
-      slot.funnel.material.opacity = 0.22 + Math.sin(time * 8) * 0.045;
+      slot.funnel.material.opacity = 0.34 + Math.sin(time * 8) * 0.08;
+      slot.helixLines.forEach((line, lineIndex) => {
+        const positions = line.geometry.attributes.position.array;
+        for (let pointIndex = 0; pointIndex < TORNADO_HELIX_POINT_COUNT; pointIndex += 1) {
+          const progress = pointIndex / (TORNADO_HELIX_POINT_COUNT - 1);
+          const angle = progress * Math.PI * 8 + time * (lineIndex ? -12 : 12) + lineIndex * Math.PI;
+          const radius = (0.2 + progress * 0.78) * width;
+          const offset = pointIndex * 3;
+          positions[offset] = Math.cos(angle) * radius;
+          positions[offset + 1] = progress * 1.74;
+          positions[offset + 2] = Math.sin(angle) * radius;
+        }
+        line.geometry.attributes.position.needsUpdate = true;
+        line.material.color.set(lineIndex ? secondary : primary);
+        line.material.opacity = 0.68 + Math.sin(time * 18 + lineIndex) * 0.2;
+      });
       slot.rings.forEach((ring, ringIndex) => {
         const spin = time * (ringIndex % 2 ? -5 : 4) + ringIndex * 0.7;
         ring.rotation.set(Math.PI / 2, spin * 0.18, spin);
