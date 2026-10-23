@@ -20,7 +20,9 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
   const [cutInCue, setCutInCue] = useState(null);
   const [scoreToast, setScoreToast] = useState(null);
   const cutInRef = useRef(null);
+  const cutInQueueRef = useRef([]);
   const cutInTimerRef = useRef(null);
+  const cutInSequenceRef = useRef(0);
   const scoreTimerRef = useRef(null);
   const lastUpdate = useRef(0);
   const stage = gameState.stage;
@@ -75,10 +77,35 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
     ? viewState.players.find((player) => player.id === cutInCue.playerId)
     : null;
 
-  useEffect(() => () => {
+  useEffect(() => {
+    cutInQueueRef.current = [];
+    cutInRef.current = null;
+    setCutInCue(null);
     if (cutInTimerRef.current !== null) window.clearTimeout(cutInTimerRef.current);
-    if (scoreTimerRef.current !== null) window.clearTimeout(scoreTimerRef.current);
-  }, []);
+    cutInTimerRef.current = null;
+
+    return () => {
+      cutInQueueRef.current = [];
+      cutInRef.current = null;
+      if (cutInTimerRef.current !== null) window.clearTimeout(cutInTimerRef.current);
+      cutInTimerRef.current = null;
+      if (scoreTimerRef.current !== null) window.clearTimeout(scoreTimerRef.current);
+    };
+  }, [gameState]);
+
+  const showNextCutIn = () => {
+    if (cutInRef.current || cutInQueueRef.current.length === 0) return;
+    const cue = cutInQueueRef.current.shift();
+    cutInRef.current = cue;
+    setCutInCue(cue);
+    cutInTimerRef.current = window.setTimeout(() => {
+      if (cutInRef.current?.id !== cue.id) return;
+      cutInRef.current = null;
+      cutInTimerRef.current = null;
+      setCutInCue(null);
+      showNextCutIn();
+    }, cue.durationSeconds * 1000);
+  };
 
   const handleGameEvents = (events) => {
     for (const event of events) {
@@ -88,25 +115,18 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
         if (scoreTimerRef.current !== null) window.clearTimeout(scoreTimerRef.current);
         scoreTimerRef.current = window.setTimeout(() => setScoreToast(null), 2100);
       }
-      if (event.type !== 'skillUsed' || event.automatic || !event.playerId || cutInRef.current) continue;
+      if (event.type !== 'skillUsed' || !event.playerId || !SKILLS[event.skillId]) continue;
+      cutInSequenceRef.current += 1;
       const cue = {
-        id: `${event.playerId}-${event.skillId}-${performance.now()}`,
+        id: `${event.playerId}-${event.skillId}-${cutInSequenceRef.current}`,
         playerId: event.playerId,
         team: event.team,
         skillId: event.skillId,
         durationSeconds: ['eulryongta', 'tornadoShot', 'powerTackle'].includes(event.skillId) ? 1.35 : 0.9,
       };
-      cutInRef.current = cue;
-      setCutInCue(cue);
-      cutInTimerRef.current = window.setTimeout(() => {
-        if (cutInRef.current === cue) {
-          cutInRef.current = null;
-          setCutInCue(null);
-        }
-        cutInTimerRef.current = null;
-      }, cue.durationSeconds * 1000);
-      break;
+      cutInQueueRef.current.push(cue);
     }
+    showNextCutIn();
     onGameEvents?.(events);
   };
 

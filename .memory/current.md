@@ -1,10 +1,13 @@
 # Current Context
 
 ## Active Plan
-[Remaining Skill 3D VFX](./plans/2026-10-23-remaining-skill-3d-vfx.md)
+[Skill Loadout, Visuals, and Match Fixes](./plans/2026-10-23-skill-loadout-visuals-and-match-fixes.md)
 
 ## Active Phase
-[P01 Remaining Skill Effects](./phases/2026-10-23-remaining-skill-3d-vfx/P01-remaining-skill-effects/phase.md)
+[P03 Kit Render Fix](./phases/2026-10-23-skill-loadout-visuals-and-match-fixes/P03-kit-render-fix/phase.md)
+
+## Active Task
+[T01 Apply Saved Kit to Match Models](./phases/2026-10-23-skill-loadout-visuals-and-match-fixes/P03-kit-render-fix/T01-apply-saved-kit-to-match-models.md)
 
 ## Status
 - P01-T01 complete: all six skill previews have legal activation setups; `applySkill` returned `ok` for all six.
@@ -16,4 +19,4 @@
 - Remaining Skill 3D VFX plan complete: all tasks in P01 passed the production build.
 
 ## Next Step
-No active task remains in this plan.
+Trace the saved home palette and logo through the 3D player model and fix the boundary that drops them.
