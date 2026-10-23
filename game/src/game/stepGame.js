@@ -1070,6 +1070,7 @@ function updateAwayDefense(state, deltaSeconds, events, defendingTeam = 'away', 
     state.aiPressingPlayerId = null;
     state.aiPressingLostSeconds = 0;
     state.aiObservedCarrierId = null;
+    updateKeeperPosition(state, defendingTeam, defendingCarrier, deltaSeconds, controlled);
     return;
   }
   const defenders = activePlayers(state, defendingTeam)
@@ -1105,7 +1106,9 @@ function updateAwayDefense(state, deltaSeconds, events, defendingTeam = 'away', 
   const pressingDistance = tuning.pressingDistance;
   let presser = eligible.find((player) => player.id === state.aiPressingPlayerId) ?? null;
   if (carrierChanged || !presser) {
-    presser = nearestPlayer(eligible, defendingCarrier);
+    presser = eligible
+      .sort((a, b) => distance(a, defendingCarrier) - distance(b, defendingCarrier)
+        || a.role.localeCompare(b.role) || a.id.localeCompare(b.id))[0] ?? null;
     state.aiPressingPlayerId = presser?.id ?? null;
     state.aiPressingLostSeconds = 0;
   } else if (distance(presser, defendingCarrier) > pressingDistance * 1.5) {
@@ -1155,12 +1158,44 @@ function updateAwayDefense(state, deltaSeconds, events, defendingTeam = 'away', 
     moveToward(player, player.aiTarget, AI_SPEED, deltaSeconds);
   });
 
+  updateKeeperPosition(state, defendingTeam, defendingCarrier, deltaSeconds, controlled);
+}
+
+function updateKeeperPosition(state, defendingTeam, opposingCarrier, deltaSeconds, controlled) {
   const keeper = activePlayers(state, defendingTeam).find((player) => player.role === 'goalkeeper');
-  if (keeper && keeper.id !== controlled?.id) {
-    const target = targetForRole(state, keeper, defendingCarrier.team, state.ball, defendingCarrier);
-    keeper.aiTarget = target;
-    moveToward(keeper, target, KEEPER_SPEED, deltaSeconds);
+  if (!keeper || keeper.id === controlled?.id) return;
+  const homeKeepsLeft = defendingTeam === 'home';
+  const goalLineX = homeKeepsLeft ? 48 : FIELD.width - 48;
+  const goalX = homeKeepsLeft ? 0 : FIELD.width;
+  const goalY = clamp(state.ball.y, 224, 316);
+  const closeThreat = opposingCarrier && distance(opposingCarrier, { x: goalX, y: goalY }) <= 150;
+  const hasClearLane = closeThreat && !activePlayers(state, defendingTeam)
+    .some((player) => player.role !== 'goalkeeper' && player.id !== opposingCarrier.id
+      && segmentDistance(player, opposingCarrier, { x: goalX, y: goalY }) <= 24);
+  const targetX = hasClearLane
+    ? (homeKeepsLeft ? 112 : FIELD.width - 112)
+    : goalLineX;
+  const target = {
+    x: homeKeepsLeft ? clamp(targetX, 32, 180) : clamp(targetX, FIELD.width - 180, FIELD.width - 32),
+    y: goalY,
+  };
+  keeper.aiTarget = target;
+  moveToward(keeper, target, KEEPER_SPEED, deltaSeconds, false);
+}
+
+function updateAutomaticHomeDefender(state) {
+  const awayCarrier = carrier(state);
+  if (!awayCarrier || awayCarrier.team !== 'away') {
+    state.aiControlledCarrierId = null;
+    return;
   }
+  if (state.aiControlledCarrierId === awayCarrier.id) return;
+  state.aiControlledCarrierId = awayCarrier.id;
+  const eligible = activePlayers(state, 'home').filter((player) => player.role !== 'goalkeeper'
+    && player.knockdownSeconds <= 0 && player.stunnedSeconds <= 0 && player.motionAction !== 'recover');
+  const selected = eligible.sort((a, b) => distance(a, awayCarrier) - distance(b, awayCarrier)
+    || a.role.localeCompare(b.role) || a.id.localeCompare(b.id))[0];
+  state.controlledPlayerId = selected?.id ?? null;
 }
 
 function assignMarks(defenders, attackers) {
@@ -1210,7 +1245,8 @@ function targetForRole(state, player, possessionTeam, ball, ballCarrier) {
 
   const opponents = activePlayers(state, ballCarrier.team)
     .filter((candidate) => candidate.role !== 'goalkeeper' && candidate.id !== ballCarrier.id)
-    .sort((left, right) => distance(left, ballCarrier) - distance(right, ballCarrier));
+    .sort((left, right) => distance(left, ballCarrier) - distance(right, ballCarrier)
+      || left.role.localeCompare(right.role) || left.id.localeCompare(right.id));
   const marked = opponents.find((candidate) => candidate.role === player.role) ?? opponents[0];
   const coverPoint = marked
     ? { x: ballCarrier.x * 0.56 + marked.x * 0.44, y: ballCarrier.y * 0.56 + marked.y * 0.44 }
@@ -1596,9 +1632,13 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   if (state.phase === 'throwIn' || state.phase === 'cornerKick') return finishFrame(events);
   if (state.phase === 'freeKick' || state.phase === 'penaltyKick') return finishFrame([...events, ...beginSetPiece(state, dt)]);
 
+  updateAutomaticHomeDefender(state);
   let controlled = byId(state, state.controlledPlayerId);
   if (!controlled || controlled.dismissed) {
-    controlled = nearestPlayer(activePlayers(state, 'home'), state.ball) ?? null;
+    const availableHomePlayers = activePlayers(state, 'home').filter((player) => state.possessionTeam !== 'away'
+      || (player.role !== 'goalkeeper' && player.knockdownSeconds <= 0 && player.stunnedSeconds <= 0
+        && player.motionAction !== 'recover'));
+    controlled = nearestPlayer(availableHomePlayers, state.ball) ?? null;
     state.controlledPlayerId = controlled?.id ?? null;
   }
 

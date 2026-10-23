@@ -831,6 +831,7 @@ test('knockdown freezes direct input and AI movement until the one-second recove
   state.ball.x = aiCarrier.x;
   state.ball.y = aiCarrier.y;
   state.possessionTeam = 'away';
+  state.aiControlledCarrierId = aiCarrier.id;
   const controlledStart = { x: controlled.x, y: controlled.y };
   const aiStart = { x: aiCarrier.x, y: aiCarrier.y };
 
@@ -1004,6 +1005,68 @@ test('defensive S switches through the four home players, including the goalkeep
   assert.equal(state.controlledPlayerId, 'home-gk');
 });
 
+test('away possession selects the nearest eligible defender once and preserves manual S selection', () => {
+  const state = createInitialGameState();
+  const carrier = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(carrier, { x: 850, y: 270 });
+  state.ball.ownerId = carrier.id;
+  state.ball.x = carrier.x;
+  state.ball.y = carrier.y;
+  state.possessionTeam = 'away';
+  Object.assign(state.players.find((player) => player.id === 'home-def-1'), {
+    x: 800, y: 270, knockdownSeconds: 1, motionAction: 'knockdown',
+  });
+  Object.assign(state.players.find((player) => player.id === 'home-mid-1'), { x: 700, y: 270 });
+  Object.assign(state.players.find((player) => player.id === 'home-fw'), { x: 300, y: 270 });
+
+  stepGame(state, frame(), 0.01);
+  assert.equal(state.controlledPlayerId, 'home-mid-1');
+
+  stepGame(state, frame({ pressed: ['s'] }), 0.01);
+  assert.equal(state.controlledPlayerId, 'home-fw');
+  stepGame(state, frame(), 0.01);
+  assert.equal(state.controlledPlayerId, 'home-fw');
+
+  const nextCarrier = state.players.find((player) => player.id === 'away-mid-1');
+  Object.assign(nextCarrier, { x: 280, y: 270 });
+  state.ball.ownerId = nextCarrier.id;
+  state.ball.x = nextCarrier.x;
+  state.ball.y = nextCarrier.y;
+  stepGame(state, frame(), 0.01);
+  assert.equal(state.controlledPlayerId, 'home-fw');
+});
+
+test('keeper tracks the goal mouth, steps out for a clear close one-on-one, then recovers', () => {
+  const state = createInitialGameState();
+  const keeper = state.players.find((player) => player.id === 'home-gk');
+  const carrier = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(carrier, { x: 140, y: 300 });
+  for (const player of state.players.filter((candidate) => candidate.team === 'home' && candidate.role !== 'goalkeeper')) {
+    Object.assign(player, { x: 420, y: 450 });
+  }
+  state.ball.ownerId = carrier.id;
+  state.ball.x = carrier.x;
+  state.ball.y = carrier.y;
+  state.possessionTeam = 'away';
+  state.aiShotCooldownSeconds = 100;
+
+  stepGame(state, frame(), 0.05);
+  assert.equal(keeper.aiTarget.x, 112);
+  assert.equal(keeper.aiTarget.y, 300);
+  assert.ok(keeper.x > 55 && keeper.x <= 180);
+
+  const blocker = state.players.find((player) => player.id === 'home-mid-1');
+  Object.assign(blocker, { x: 70, y: 300 });
+  stepGame(state, frame(), 0.05);
+  assert.equal(keeper.aiTarget.x, 48);
+
+  Object.assign(carrier, { x: 420, y: 300 });
+  state.ball.x = carrier.x;
+  stepGame(state, frame(), 0.05);
+  assert.equal(keeper.aiTarget.x, 48);
+  assert.ok(keeper.x < 60);
+});
+
 test('defensive D pressure moves the selected player toward the opponent carrier', () => {
   const state = createInitialGameState();
   const controlled = state.players.find((player) => player.id === 'home-fw');
@@ -1013,6 +1076,7 @@ test('defensive D pressure moves the selected player toward the opponent carrier
   opponent.x = 700;
   state.possessionTeam = 'away';
   state.ball.ownerId = opponent.id;
+  state.aiControlledCarrierId = opponent.id;
 
   stepGame(state, frame({ down: ['d'] }), 0.05);
 
@@ -1199,6 +1263,7 @@ test('the nearest noncontrolled defender presses while teammates cover separate 
   Object.assign(state.ball, { ownerId: carrier.id, x: carrier.x, y: carrier.y });
   state.possessionTeam = 'away';
   state.controlledPlayerId = controlled.id;
+  state.aiControlledCarrierId = carrier.id;
 
   stepGame(state, frame({ moveY: 1 }), 0.05);
 
