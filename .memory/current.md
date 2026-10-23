@@ -7,10 +7,10 @@
 [P02 Skill Presentation](./phases/2026-10-23-skill-loadout-visuals-and-match-fixes/P02-skill-presentation/phase.md)
 
 ## Active Task
-[T01 Themed Ball and Transfer Effects](./phases/2026-10-23-skill-loadout-visuals-and-match-fixes/P02-skill-presentation/T01-themed-ball-and-transfer-effects.md)
+[T02 Reliable Skill Cut-ins](./phases/2026-10-23-skill-loadout-visuals-and-match-fixes/P02-skill-presentation/T02-reliable-skill-cutins.md)
 
 ## Status
-- P01 complete: T01 (`2973cc6`), T02 (`17a3a07`), and T03 (`1fc8254`). Each equipped skill now has an independent ten-second cooldown; Rainbow Reflect is an active F skill that transfers the controlled player's negative statuses to the last opposing skill caster.
+- P01 complete: T01 (`2973cc6`), T02 (`17a3a07`), and T03 (`1fc8254`). P02-T01 (`90cec4f`) adds visible ball themes, continuous 0.7-second Vacuum Cleaner travel, and Rainbow Reflect transfer effects.
 
 ## Next Step
-Read P02-T01 and implement themed ball/travel visuals, the visible Vacuum Cleaner pull, and Rainbow Reflect transfer visuals.
+Read P02-T02 and make skill cut-ins appear for every activation by either team in every round.
