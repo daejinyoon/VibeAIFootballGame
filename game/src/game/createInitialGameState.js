@@ -43,6 +43,10 @@ function createAwayFormation() {
   }));
 }
 
+export function getBaseFormationPositions() {
+  return new Map([...homeFormation, ...createAwayFormation()].map(({ id, x, y }) => [id, { x, y }]));
+}
+
 function positionForKickoff(players, kickoffTeam, kickoffTakerId) {
   const center = { x: FIELD.width / 2, y: FIELD.height / 2 };
   const nonKickerOffset = kickoffTeam === 'home' ? 88 : -88;

@@ -23,7 +23,7 @@ import {
   SPRINT_STAMINA_MAX,
   WORLD_SPLIT_SLIDE_SPEED,
 } from './constants.js';
-import { createInitialGameState } from './createInitialGameState.js';
+import { createInitialGameState, getBaseFormationPositions } from './createInitialGameState.js';
 import { addSkillEffect, activateNextTeamSkill, applyAutomaticRainbowReflect, spawnNextEagleProjectile } from './skills.js';
 
 const PLAYER_SPEED = 176;
@@ -728,6 +728,22 @@ function launchAutomaticRestart(state, player) {
   return receiver;
 }
 
+function resetActivePlayersToBaseFormation(players) {
+  const basePositions = getBaseFormationPositions();
+  for (const player of players) {
+    if (player.dismissed) continue;
+    const basePosition = basePositions.get(player.id);
+    if (basePosition) {
+      player.x = basePosition.x;
+      player.y = basePosition.y;
+    }
+    player.vx = 0;
+    player.vy = 0;
+    player.aiTarget = null;
+    player.aiRetargetSeconds = 0;
+  }
+}
+
 function beginManualRestart(state, type, restartTeam, spot) {
   stopBallAtFieldEdge(state);
   const previousControlledPlayerId = type === 'goalKick' && restartTeam === 'home'
@@ -749,6 +765,7 @@ function beginManualRestart(state, type, restartTeam, spot) {
   }
 
   if (type === 'goalKick') {
+    resetActivePlayersToBaseFormation(state.players);
     taker.x = restartTeam === 'home' ? 70 : FIELD.width - 70;
     taker.y = FIELD.height / 2;
     spot = { x: taker.x, y: taker.y };
@@ -994,6 +1011,10 @@ function handleKeeperContact(state) {
     if (ball.lastTouchTeam === keeper.team) continue;
     if (ball.skillId === 'eagleShot') continue;
     setBallOwner(state, keeper);
+    resetActivePlayersToBaseFormation(state.players);
+    keeper.x = keeper.team === 'home' ? 70 : FIELD.width - 70;
+    keeper.y = FIELD.height / 2;
+    putBallAtPlayer(state, keeper);
     state.phase = 'goalKick';
     state.phaseSeconds = 1;
     putBallAtPlayer(state, keeper);

@@ -3,8 +3,8 @@
 ## Tasks
 | Task | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
-| T01 | `pending` | Return both teams to their base formations when a goalkeeper saves and starts a goal kick. | [T01](./T01-goal-kick-formations.md) |
+| T01 | `done ✅` | Return both teams to their base formations when a goalkeeper saves and starts a goal kick. | [T01](./T01-goal-kick-formations.md) |
 | T02 | `pending` | Trace and fix the home palette/logo path so the selected kit appears on every home player in a new match. | [T02](./T02-in-match-kit-rendering.md) |
 
 ## Progress
-- done: 0/2 (active: T01)
+- done: 1/2 (active: T02)

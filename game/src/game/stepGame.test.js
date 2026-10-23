@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { BALL_RADIUS, FIELD, KICKOFF_CIRCLE_RADIUS, PLAYER_BODY_WIDTH, SHOT_ASSIST_DISTANCE, SHOT_ASSIST_MAX, getAiTuning } from './constants.js';
-import { createInitialGameState as createGameState } from './createInitialGameState.js';
+import { createInitialGameState as createGameState, getBaseFormationPositions } from './createInitialGameState.js';
 import { applySkill } from './skills.js';
 import { applyTornadoContacts, stepGame } from './stepGame.js';
 
@@ -723,6 +723,15 @@ test('an opponent can collect a ground pass at its endpoint without pass immunit
 test('a keeper catches an ordinary shot and starts a timed goal kick', () => {
   const state = createInitialGameState();
   state.possessionTeam = 'away';
+  for (const [index, player] of state.players.entries()) {
+    Object.assign(player, { x: 300 + index * 20, y: 70 + index * 30, vx: 12, vy: -4, aiTarget: 'scattered', aiRetargetSeconds: 4 });
+  }
+  Object.assign(state.players.find((player) => player.id === 'home-gk'), { x: 55, y: 270 });
+  const basePositions = getBaseFormationPositions();
+  const dismissed = state.players.find((player) => player.id === 'away-mid-1');
+  Object.assign(dismissed, { dismissed: true, x: 420, y: 420, sprintStamina: 37 });
+  const preservedPlayer = state.players.find((player) => player.id === 'home-mid-1');
+  preservedPlayer.sprintStamina = 61;
   Object.assign(state.ball, { ownerId: null, x: 55, y: 270, vx: -30, vy: 0, flightKind: 'shot', lastTouchTeam: 'away' });
 
   const events = stepGame(state, frame(), 0.01);
@@ -732,6 +741,22 @@ test('a keeper catches an ordinary shot and starts a timed goal kick', () => {
   assert.ok(events.some((event) => event.type === 'keeperCatch'));
   assert.ok(!events.some((event) => event.type === 'playerKnockedDown'));
   assert.equal(state.players.find((player) => player.id === 'home-gk').knockdownSeconds, 0);
+  for (const player of state.players.filter((entry) => !entry.dismissed)) {
+    const expected = basePositions.get(player.id);
+    if (player.id === 'home-gk') {
+      assert.deepEqual({ x: player.x, y: player.y }, { x: 70, y: FIELD.height / 2 });
+    } else {
+      assert.deepEqual({ x: player.x, y: player.y }, expected);
+    }
+    assert.equal(player.vx, 0);
+    assert.equal(player.vy, 0);
+    assert.equal(player.aiTarget, null);
+    assert.equal(player.aiRetargetSeconds, 0);
+  }
+  assert.deepEqual({ x: dismissed.x, y: dismissed.y }, { x: 420, y: 420 });
+  assert.equal(dismissed.dismissed, true);
+  assert.ok(dismissed.sprintStamina >= 37 && dismissed.sprintStamina < 38);
+  assert.ok(preservedPlayer.sprintStamina >= 61 && preservedPlayer.sprintStamina < 62);
   let kickEvents = [];
   for (let i = 0; i < 24 && !kickEvents.some((event) => event.type === 'goalKick'); i += 1) {
     kickEvents = stepGame(state, frame(), 0.05);
@@ -740,6 +765,42 @@ test('a keeper catches an ordinary shot and starts a timed goal kick', () => {
   assert.equal(state.ball.ownerId, null);
   assert.ok(state.ball.vx > 0);
   assert.ok(kickEvents.some((event) => event.type === 'goalKick'));
+});
+
+test('goal-line goal kicks reset both teams while keeping the awarded goalkeeper at the ball', () => {
+  const basePositions = getBaseFormationPositions();
+  for (const scenario of [
+    { x: FIELD.width + BALL_RADIUS + 1, lastTouchTeam: 'home', team: 'away', keeperId: 'away-gk' },
+    { x: -BALL_RADIUS - 1, lastTouchTeam: 'away', team: 'home', keeperId: 'home-gk' },
+  ]) {
+    const state = createInitialGameState();
+    for (const [index, player] of state.players.entries()) {
+      Object.assign(player, { x: 320 + index * 13, y: 80 + index * 21, vx: -8, vy: 6, aiTarget: 'old', aiRetargetSeconds: 3 });
+    }
+    Object.assign(state.ball, {
+      ownerId: null,
+      x: scenario.x,
+      y: 400,
+      vx: 0,
+      vy: 0,
+      lastTouchTeam: scenario.lastTouchTeam,
+    });
+
+    const events = stepGame(state, frame(), 0.01);
+
+    assert.ok(events.some((event) => event.type === 'goalKick' && event.team === scenario.team));
+    assert.equal(state.ball.ownerId, scenario.keeperId);
+    for (const player of state.players) {
+      if (player.id === scenario.keeperId) {
+        assert.deepEqual({ x: player.x, y: player.y }, {
+          x: scenario.team === 'home' ? 70 : FIELD.width - 70,
+          y: FIELD.height / 2,
+        });
+      } else {
+        assert.deepEqual({ x: player.x, y: player.y }, basePositions.get(player.id));
+      }
+    }
+  }
 });
 
 test('a goal restarts from the center for the conceding team', () => {

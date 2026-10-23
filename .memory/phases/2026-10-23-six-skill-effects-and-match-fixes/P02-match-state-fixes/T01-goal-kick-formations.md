@@ -1,6 +1,6 @@
 # Task: T01 Goal Kick Formations
 
-## Status: pending
+## Status: done
 
 ## Goal
 After a goalkeeper save starts a goal kick, move active players from both teams back to their default base formation while leaving the goal-kick goalkeeper at the ball.
@@ -40,9 +40,9 @@ After a goalkeeper save starts a goal kick, move active players from both teams 
 - Verify both teams move from intentionally scattered coordinates to their expected formation; keeper remains at the ball; dismissed player remains dismissed; other restart types do not change formation; a save still enters the existing manual goal-kick flow.
 
 ## Acceptance Criteria
-- [ ] Both teams return to base formation on a goal kick, independent of which team takes it.
-- [ ] The taker keeper stays at the goal-kick spot and owns the stopped ball.
-- [ ] Dismissal, skill, stamina, score, timers, and restart input buffering remain intact.
+- [x] Both teams return to base formation on a goal kick, independent of which team takes it.
+- [x] The taker keeper stays at the goal-kick spot and owns the stopped ball.
+- [x] Dismissal, skill, stamina, score, timers, and restart input buffering remain intact.
 
 ## Validation
 - `cd game; npm test -- --test-name-pattern="keeper saves|goal kick|goal-line exits"` — restart formation tests pass.
@@ -60,6 +60,6 @@ Task: T01-goal-kick-formations
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed (`npm test`, 145/145; focused goal-kick tests; `npm run build`)
+- commit: `c16a6f7`
