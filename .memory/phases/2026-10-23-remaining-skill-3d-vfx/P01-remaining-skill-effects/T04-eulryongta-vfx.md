@@ -1,6 +1,6 @@
 # Task: T04 Eulryongta VFX
 
-## Status: pending
+## Status: done
 
 ## Goal
 Make Eulryongta's knockdown impact and dizzy state unmistakable: a visible impact burst followed by animated, readable 3D stars that track the downed player for the confirmed ten-second status.
@@ -46,9 +46,9 @@ Make Eulryongta's knockdown impact and dizzy state unmistakable: a visible impac
 - Confirm a legal forward target falls, the impact is visible, and stars follow until the ten-second timer expires.
 
 ## Acceptance Criteria
-- [ ] Eulryongta has a clear target-centered impact and dimensional 3D dizzy stars.
-- [ ] Stars follow the target and persist exactly as long as the existing knockdown status.
-- [ ] Photo cut-in, skill behavior, and camera remain intact.
+- [x] Eulryongta has a clear target-centered impact and dimensional 3D dizzy stars.
+- [x] Stars follow the target and persist exactly as long as the existing knockdown status.
+- [x] Photo cut-in, skill behavior, and camera remain intact.
 
 ## Validation
 - `cd game; npm run build` — pooled star and impact meshes compile.
@@ -67,6 +67,7 @@ Task: T04-eulryongta-vfx
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed (`npm run build`)
+- [x] Impact burst reads target coordinates; dizzy stars are restricted to Eulryongta knockdowns and fade with the existing status timer.
+- commit: recorded in Git history after validation

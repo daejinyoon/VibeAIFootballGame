@@ -7,7 +7,7 @@ const PARTICLES_PER_KIND = 12;
 const EMIT_INTERVAL = 0.035;
 const DEFAULT_JERSEY_ACCENTS = { home: '#d7ff74', away: '#ffe083' };
 const DUST_COLORS = ['#9a9a65', '#8a8060', '#a0926b', '#78805d'];
-const DIZZY_STAR_GEOMETRY = (() => {
+const DIZZY_STAR_SHAPE = (() => {
   const shape = new THREE.Shape();
   for (let index = 0; index < 10; index += 1) {
     const radius = index % 2 === 0 ? 1 : 0.44;
@@ -18,8 +18,17 @@ const DIZZY_STAR_GEOMETRY = (() => {
     else shape.lineTo(x, y);
   }
   shape.closePath();
-  return new THREE.ShapeGeometry(shape);
+  return shape;
 })();
+const DIZZY_STAR_GEOMETRY = new THREE.ExtrudeGeometry(DIZZY_STAR_SHAPE, {
+  depth: 0.14,
+  bevelEnabled: true,
+  bevelSegments: 2,
+  steps: 1,
+  bevelSize: 0.035,
+  bevelThickness: 0.025,
+});
+const DIZZY_STAR_FACE_GEOMETRY = new THREE.ShapeGeometry(DIZZY_STAR_SHAPE);
 
 function worldX(x) {
   return (Number(x) || 0) / 80 - FIELD.width / 160;
@@ -69,11 +78,22 @@ function makePool() {
   const dizzy = Array.from({ length: 8 }, () => {
     const root = new THREE.Group();
     const stars = Array.from({ length: 3 }, (_, index) => {
-      const material = new THREE.MeshBasicMaterial({ color: index % 2 ? '#9df7ff' : '#ffe979', transparent: true, opacity: 0.96, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+      const material = new THREE.MeshStandardMaterial({
+        color: index % 2 ? '#ff9149' : '#ff663d', emissive: '#a63122', emissiveIntensity: 0.65,
+        metalness: 0.24, roughness: 0.32, transparent: true, opacity: 0.96, depthWrite: false,
+      });
+      const faceMaterial = new THREE.MeshBasicMaterial({
+        color: index % 2 ? '#aaf7ff' : '#fff49a', transparent: true, opacity: 0.98,
+        depthWrite: false, toneMapped: false, side: THREE.DoubleSide,
+      });
       const mesh = new THREE.Mesh(DIZZY_STAR_GEOMETRY, material);
-      mesh.scale.setScalar(0.24 + (index % 2) * 0.045);
+      mesh.scale.setScalar(0.21 + (index % 2) * 0.035);
+      const face = new THREE.Mesh(DIZZY_STAR_FACE_GEOMETRY, faceMaterial);
+      face.scale.setScalar(0.72);
+      face.position.z = 0.172;
+      mesh.add(face);
       root.add(mesh);
-      return { mesh, material };
+      return { mesh, material, faceMaterial };
     });
     root.visible = false;
     return { root, stars };
@@ -93,7 +113,10 @@ export function PlayerMotionEffects3D({ gameStateRef, paused = false }) {
     pool.trailGeometry.dispose();
     pool.dustGeometry.dispose();
     for (const particle of [...pool.trails, ...pool.dust]) particle.material.dispose();
-    for (const slot of pool.dizzy) for (const star of slot.stars) star.material.dispose();
+    for (const slot of pool.dizzy) for (const star of slot.stars) {
+      star.material.dispose();
+      star.faceMaterial.dispose();
+    }
   }, [pool]);
 
   useFrame((_, delta) => {
@@ -211,7 +234,9 @@ export function PlayerMotionEffects3D({ gameStateRef, paused = false }) {
       particle.mesh.position.y = 0.045 + progress * 0.07;
     }
 
-    const knockedDown = players.filter((player) => !player.dismissed && player.knockdownSeconds > 0 && player.motionAction === 'knockdown');
+    const knockedDown = players.filter((player) => !player.dismissed
+      && player.knockdownSkillId === 'eulryongta'
+      && player.knockdownSeconds > 0 && player.motionAction === 'knockdown');
     for (let index = 0; index < pool.dizzy.length; index += 1) {
       const slot = pool.dizzy[index];
       const player = knockedDown[index];
@@ -221,10 +246,17 @@ export function PlayerMotionEffects3D({ gameStateRef, paused = false }) {
       }
       slot.root.visible = true;
       slot.root.position.set(worldX(player.x), 1.18, worldZ(player.y));
-      slot.stars.forEach(({ mesh }, starIndex) => {
-        const angle = animationTime(player.knockdownSeconds) * (starIndex % 2 ? -2.6 : 2.6) + starIndex * Math.PI * 2 / 3;
-        mesh.position.set(Math.cos(angle) * 0.42, 0.05 + Math.sin(angle * 1.7) * 0.07, Math.sin(angle) * 0.26);
-        mesh.rotation.set(0, 0, angle * 0.8);
+      const remaining = Math.max(0, Number(player.knockdownSeconds) || 0);
+      const fade = THREE.MathUtils.clamp(remaining / 0.65, 0, 1);
+      slot.stars.forEach(({ mesh, material, faceMaterial }, starIndex) => {
+        const direction = starIndex === 1 ? -1 : 1;
+        const angle = animationTime(remaining) * direction * (starIndex === 2 ? 3.2 : 2.35) + starIndex * Math.PI * 2 / 3;
+        const orbit = 0.36 + starIndex * 0.055;
+        mesh.position.set(Math.cos(angle) * orbit, 0.08 + starIndex * 0.14 + Math.sin(angle * 1.7) * 0.07, Math.sin(angle) * (0.2 + starIndex * 0.035));
+        mesh.rotation.set(Math.sin(angle) * 0.17, Math.cos(angle * 0.7) * 0.18, angle * 0.8);
+        mesh.scale.setScalar((0.21 + (starIndex % 2) * 0.035) * (0.92 + Math.sin(angle * 2) * 0.08));
+        material.opacity = 0.96 * fade;
+        faceMaterial.opacity = 0.98 * fade;
       });
     }
   });

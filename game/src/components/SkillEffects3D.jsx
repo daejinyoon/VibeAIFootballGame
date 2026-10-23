@@ -252,18 +252,20 @@ export function SkillEffects3D({ gameStateRef }) {
       slot.particles.forEach((particle, particleIndex) => {
         const angle = particleIndex / slot.particles.length * Math.PI * 2 + now * (effect.skillId === 'tornadoShot' ? 5 : 2.1);
         const orbit = effect.skillId === 'eulryongta' ? 0.35 + progress * 0.4 : radius * 1.2;
-        if (effect.skillId === 'eagleShot') {
+        if (effect.skillId === 'eulryongta') {
+          const angle = particleIndex / slot.particles.length * Math.PI * 2 + (particleIndex % 2 ? -1 : 1) * now * 1.4;
+          const burstRadius = 0.08 + progress * (0.62 + (particleIndex % 3) * 0.08);
+          particle.position.set(Math.cos(angle) * burstRadius,
+            0.08 + Math.sin(progress * Math.PI) * (0.12 + (particleIndex % 4) * 0.045),
+            Math.sin(angle) * burstRadius * 0.82);
+          particle.rotation.set(angle, now * 2.6, angle * 1.35);
+          particle.scale.set(0.72 + (particleIndex % 4) * 0.18, 0.75 + progress * 0.35, 0.72 + (particleIndex % 3) * 0.14);
+        } else if (effect.skillId === 'eagleShot') {
           const side = particleIndex < 4 ? -1 : 1;
           const feather = particleIndex % 4;
           particle.position.set(side * (0.17 + feather * 0.11), 0.16 + (3 - feather) * 0.055, (feather - 1.5) * 0.14);
           particle.rotation.set(0, 0, side * (0.45 + feather * 0.13));
           particle.scale.setScalar((1.05 - feather * 0.1) * levelScale);
-        } else if (effect.skillId === 'eulryongta') {
-          const coil = -1.2 + particleIndex * 0.38 + progress * 1.2;
-          const coilRadius = 0.18 + particleIndex * 0.035;
-          particle.position.set(Math.cos(coil) * coilRadius, 0.12 + particleIndex * 0.055, Math.sin(coil) * coilRadius);
-          particle.rotation.set(now * 2 + particleIndex, now * 1.7, coil);
-          particle.scale.setScalar(particleIndex === 0 ? 1.5 : 0.82);
         } else if (effect.skillId === 'vacuumCleaner') {
           const routeProgress = (particleIndex / slot.particles.length + (now * 1.65) % 1) % 1;
           const ballX = worldX(ball.x) - root.position.x;
