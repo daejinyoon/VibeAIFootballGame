@@ -3,11 +3,11 @@
 ## Active Plan
 [Football Game Overhaul](./plans/2026-10-23-football-game-overhaul.md)
 
-## Active Phase
+## Completed Phase
 [P05 Legacy 2D Renderer Cleanup](./phases/2026-10-23-football-game-overhaul/P05-legacy-2d-cleanup/phase.md)
 
 ## Active Task
-[T01 Remove Legacy 2D Renderer](./phases/2026-10-23-football-game-overhaul/P05-legacy-2d-cleanup/T01-remove-legacy-2d-renderer.md)
+None — the Football Game Overhaul plan is complete.
 
 ## Status
 - T01 sprint/stamina implementation is complete and committed as `8aafbbf`.
@@ -21,7 +21,8 @@
 - P04-T01 defines validated logo and kit palette choices, deterministic stage rivals, and v3 profile migration with campaign preservation; tests and build pass. Committed as `a9346a5`.
 - P04-T02 adds the start-screen team customization view with logo and kit previews, independent selection, and profile-safe saving. Tests and build pass. Committed as `ed49e39`. Manual browser interaction remains to be checked.
 - P04-T03 applies persistent home branding and deterministic stage rivals to player kits, skill cut-ins, score HUD, minimap, and stage selection. Validation passes. Committed as `27068cd`; manual browser texture check remains.
-- Phase progress: P01 4/4, P02 3/3, P03 1/1, P04 3/3, P05 0/1.
+- P05-T01 removes the unused Canvas 2D renderer while preserving the active 3D match. All 117 tests and the production build pass. Committed as `a78c829`.
+- Phase progress: P01 4/4, P02 3/3, P03 1/1, P04 3/3, P05 1/1. Plan complete.
 
-## Next Step (IMPORTANT)
-Read the P05-T01 legacy 2D renderer cleanup blueprint, then implement its specified files and run its listed validation commands.
+## Next Step
+The Football Game Overhaul plan is complete. Choose a new task to continue.

@@ -52,4 +52,4 @@ Task: T01-remove-legacy-2d-renderer
 - [x] Validation passed (
 pm test: 117 passed; 
 pm run build: passed)
-- commit: pending
+- commit: a78c829
