@@ -30,10 +30,13 @@ export const KICKOFF_CIRCLE_RADIUS = 70;
 export const BALL_GRAVITY = 900;
 export const LOB_VERTICAL_VELOCITY = 360;
 export const PLAYER_BODY_WIDTH = 24;
-export const WORLD_SPLIT_LENGTHS = Object.freeze([220, 275, 330]);
+// A clear fissure should span at least eight player body lengths even at level 1.
+export const WORLD_SPLIT_LENGTHS = Object.freeze([400, 500, 600]);
 export const WORLD_SPLIT_DURATION_SECONDS = 3;
-export const WORLD_SPLIT_THICKNESS = 28;
+export const WORLD_SPLIT_THICKNESS = 64;
 export const WORLD_SPLIT_HEIGHT = 72;
+export const WORLD_SPLIT_SLIDE_SECONDS = 0.95;
+export const WORLD_SPLIT_SLIDE_SPEED = 360;
 export const EAGLE_ASCENT_SECONDS = 0.45;
 export const EAGLE_SHOT_INTERVAL_SECONDS = 0.18;
 export const EAGLE_FLIGHT_HEIGHT = 180;

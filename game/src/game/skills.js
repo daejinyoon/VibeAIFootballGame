@@ -1,4 +1,4 @@
-import { BALL_RADIUS, EAGLE_SHOT_INTERVAL_SECONDS, FIELD, PLAYER_BODY_WIDTH, TEAM_SKILL_COOLDOWN_SECONDS, WORLD_SPLIT_DURATION_SECONDS, WORLD_SPLIT_HEIGHT, WORLD_SPLIT_LENGTHS, WORLD_SPLIT_THICKNESS } from './constants.js';
+import { BALL_RADIUS, EAGLE_SHOT_INTERVAL_SECONDS, FIELD, PLAYER_BODY_WIDTH, TEAM_SKILL_COOLDOWN_SECONDS, WORLD_SPLIT_DURATION_SECONDS, WORLD_SPLIT_HEIGHT, WORLD_SPLIT_LENGTHS, WORLD_SPLIT_SLIDE_SECONDS, WORLD_SPLIT_SLIDE_SPEED, WORLD_SPLIT_THICKNESS } from './constants.js';
 
 export const SKILL_IDS = Object.freeze([
   'eagleShot',
@@ -350,9 +350,12 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
       ? unitVector(player.facingX, player.facingY)
       : { x: player.team === 'home' ? 1 : -1, y: 0 };
     player.motionAction = 'tackle';
-    player.motionTimerSeconds = Math.max(player.motionTimerSeconds ?? 0, 0.4);
-    player.vx = forward.x * 160;
-    player.vy = forward.y * 160;
+    player.motionTimerSeconds = Math.max(player.motionTimerSeconds ?? 0, WORLD_SPLIT_SLIDE_SECONDS);
+    player.worldSplitSlideSecondsRemaining = WORLD_SPLIT_SLIDE_SECONDS;
+    player.worldSplitSlideDirectionX = forward.x;
+    player.worldSplitSlideDirectionY = forward.y;
+    player.vx = forward.x * WORLD_SPLIT_SLIDE_SPEED;
+    player.vy = forward.y * WORLD_SPLIT_SLIDE_SPEED;
     const barrier = { skillId, team: player.team, sourcePlayerId: player.id, x: player.x, y: player.y,
       facingX: forward.x, facingY: forward.y, length: WORLD_SPLIT_LENGTHS[level - 1] ?? WORLD_SPLIT_LENGTHS[0],
       thickness: WORLD_SPLIT_THICKNESS, height: WORLD_SPLIT_HEIGHT, elapsedSeconds: 0,

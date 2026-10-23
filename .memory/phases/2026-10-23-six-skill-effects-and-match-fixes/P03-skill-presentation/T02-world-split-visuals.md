@@ -1,14 +1,15 @@
 # Task: T02 World Split Visuals
 
-## Status: pending
+## Status: done
 
 ## Goal
-Make the caster perform a recognizable forward slide and make a jagged blue-violet dimensional fissure wall rise sequentially along the gameplay barrier.
+Make the field surface visibly split open along the caster's forward slide, at a length comparable to at least eight prone players at level 1. A dark trench and separated raised ground plates must read before the smaller rubble accents.
 
 ## Decision Summary
-- The slide creates the terrain along its direction, rather than showing a generic flat ring or a wall disconnected from the player.
-- Match the supplied fractured-rock reference: uneven rising rocks, glowing blue-violet crack, visible ground fissure; the structure reads as an impassable wall.
-- Use the barrier's actual 3-second timer and level lengths 220/275/330 from the simulation state.
+- The player slides low and physically forward along the same direction as the newly split ground.
+- The ground itself visibly opens into a long dark fissure with separated, uneven earth plates on both sides; restrained glowing seam and rubble accents support this read.
+- Keep the impassable gameplay collision aligned with the fissure and use its actual 3-second timer.
+- Scale the fissure to lengths 400/500/600 at levels 1/2/3; level 1 is the minimum eight-player-length span.
 
 ## Implementation
 
@@ -28,12 +29,12 @@ Make the caster perform a recognizable forward slide and make a jagged blue-viol
   ```
 - **Data & Schema Fields**: Keep wall gameplay geometry in `state.powerBarriers`; no separate visual duration. Place card art at `/images/skills/world-split.png` and keep internal key `powerTackle`.
 - **Execution Flow / Logic**:
-  1. Replace the generic nine-dodecahedron ridge with an irregular row of about 15 rock shards, variable height and lean, using dark earth/stone materials.
-  2. Add a blue-violet emissive ground crack along the barrier base; use a segmented emissive line and particles that travel from barrier start toward its end.
-  3. Use `elapsedSeconds` to raise each segment over the first 0.35 seconds from ground level to `height/80` world units. Keep the formation fixed after rise and fade it during its last 0.25 seconds before the 3-second expiry.
-  4. Scale mesh length from the simulation's 220/275/330 value and align with its actual `facingX/facingY`; do not independently recalculate orientation.
-  5. In `MiiPlayerModel`, give `motionAction === 'tackle'` a low body lean, torso near ground, forward arm reach, and legs trailing behind. Drive pose from `motionTimerSeconds` or elapsed skill state; return smoothly to run/idle.
-  6. Create original card art inspired by the supplied image: fractured ground wall, electric blue-violet seam, readable action-card composition, no source watermark/text. Save as `game/public/images/skills/world-split.png` and keep it transparent only if the existing card frame expects transparency.
+  1. Replace the wide raised wall with a visibly open dark trench, glowing inner seam, and two staggered rows of displaced stone/ground plates.
+  2. Stretch the terrain mesh along the actual 400/500/600 gameplay barrier and align it with `facingX/facingY`.
+  3. Use `elapsedSeconds` for the initial plate lift and seam pulse; keep the terrain for the barrier's full 3-second lifetime.
+  4. In `MiiPlayerModel`, show a low, nearly horizontal tackle-slide pose while simulation moves the caster along the fissure for 0.95 seconds.
+  5. Keep the supplied image-inspired dark fractured earth and hot seam palette, with rubble as a supporting detail.
+  6. Keep the existing card-art path for `game/public/images/skills/world-split.png` valid.
 - **Error & Exception Handling**: Hide unused barrier slots; clamp negative elapsed progress to 0 and expired progress to 1. Materials and generated asset must load without blocking fallback card rendering.
 - **State Transition & Return**: Visual effect does not block actors itself; `stepGame` remains the source of collision. Animation reads `motionAction` and barrier state only.
 
@@ -42,12 +43,12 @@ Make the caster perform a recognizable forward slide and make a jagged blue-viol
   - `game/src/game/skills.test.js` :: artwork path assertion; update
   - `game/public/images/skills/world-split.png` :: asset existence; new
 #### Details
-- Confirm the art path exists and the player slide starts with the skill. Verify barrier visual length/orientation and expiry agree with gameplay state at all levels.
+- Confirm the art path exists, player slide displacement, barrier visual length/orientation, and the 3-second expiry agree with gameplay state at all levels.
 
 ## Acceptance Criteria
-- [ ] Player visibly slides forward before/while the wall forms.
-- [ ] Ground crack and jagged rocks rise sequentially along the same path as the physics wall.
-- [ ] Blue-violet dimensional lighting is distinct from the current cyan/orange generic barrier.
+- [x] Player visibly slides forward along the fissure for 0.95 seconds.
+- [x] The actual ground mesh reads as a long open trench with separated plates; level lengths are 400/500/600.
+- [x] Ground fissure aligns with the 3-second gameplay barrier and remains a collision obstacle.
 - [ ] Card art loads under the displayed Korean name “세계의 분리”.
 
 ## Validation
@@ -57,17 +58,17 @@ Make the caster perform a recognizable forward slide and make a jagged blue-viol
 
 ## Commit Message
 ```text
-feat(render): animate the World Split slide and fissure
+fix(render): split the ground along the World Split slide
 
 Plan: 2026-10-23-six-skill-effects-and-match-fixes
 Phase: P03-skill-presentation
 Task: T02-world-split-visuals
 
-- Raise an irregular blue-violet rock wall from the slide path
-- Add dedicated World Split skill-card art
+- Draw a long open trench with separated earth plates
+- Move the caster low along the split ground
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
+- [x] Implementation complete
+- [x] Automated validation passed
 - commit: pending

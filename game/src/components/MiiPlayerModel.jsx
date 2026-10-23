@@ -76,6 +76,7 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
     const livePlayer = gameStateRef?.current?.players?.find((candidate) => candidate.id === player?.id) ?? player;
     if (!livePlayer) return;
     const speed = Math.hypot(livePlayer.vx ?? 0, livePlayer.vy ?? 0);
+    const sliding = (livePlayer.worldSplitSlideSecondsRemaining ?? 0) > 0;
     const moving = speed > 3 && ['run', 'tackle'].includes(livePlayer.motionAction);
     const ownsBall = gameStateRef?.current?.ball?.ownerId === livePlayer.id;
     const action = livePlayer.motionAction;
@@ -92,7 +93,7 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
     const runStrength = moving ? (livePlayer.sprinting ? 1.25 : 1) : 0;
     const dribbleTouch = ownsBall && moving ? Math.max(0, Math.sin(phase.current * 0.5)) * 0.48 : 0;
     const actionPose = displayAction === 'pass' ? 0.65 : displayAction === 'shot' ? 1 : displayAction === 'skill' ? 0.85
-      : displayAction === 'header' ? -0.55 : displayAction === 'tackle' ? 0.92 : 0;
+      : displayAction === 'header' ? -0.55 : displayAction === 'tackle' ? (sliding ? 0.25 : 0.92) : 0;
 
     if (leftArm.current) leftArm.current.rotation.x = -swing * runStrength + actionPose;
     if (rightArm.current) rightArm.current.rotation.x = swing * runStrength + actionPose * 0.35;
@@ -111,10 +112,10 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
     if (head.current) head.current.rotation.x = displayAction === 'header' ? -0.42 : livePlayer.sprinting ? 0.08 : 0;
     if (body.current) {
       const knocked = displayAction === 'knockdown' || displayAction === 'recover';
-      body.current.rotation.z = displayAction === 'knockdown'
+      body.current.rotation.z = sliding ? (livePlayer.worldSplitSlideDirectionY < 0 ? -1.18 : 1.18) : displayAction === 'knockdown'
         ? (livePlayer.knockdownDirectionX < 0 ? -1 : 1) * 1.36
         : displayAction === 'recover' ? (livePlayer.knockdownDirectionX < 0 ? -1 : 1) * 0.24 : 0;
-      body.current.position.y = displayAction === 'knockdown' ? 0.34 : 0;
+      body.current.position.y = sliding ? -0.08 : displayAction === 'knockdown' ? 0.34 : 0;
       if (knocked && torso.current) torso.current.position.y = 0.31;
     }
     if (pose === 'cutIn') {

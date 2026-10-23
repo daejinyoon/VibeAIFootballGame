@@ -21,6 +21,7 @@ import {
   SPRINT_DRAIN_PER_SECOND,
   SPRINT_RECOVERY_PER_SECOND,
   SPRINT_STAMINA_MAX,
+  WORLD_SPLIT_SLIDE_SPEED,
 } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
 import { addSkillEffect, activateNextTeamSkill, applyAutomaticRainbowReflect, spawnNextEagleProjectile } from './skills.js';
@@ -158,6 +159,7 @@ function carrier(state) {
 }
 
 function moveToward(player, target, speed, deltaSeconds, allowSprint = true) {
+  if (advanceWorldSplitSlide(player, deltaSeconds)) return;
   if (!player || !target || player.dismissed || player.stunnedSeconds > 0
       || player.knockdownSeconds > 0 || player.motionAction === 'recover'
       || (player.airborneSecondsRemaining ?? 0) > 0) return;
@@ -179,6 +181,7 @@ function moveToward(player, target, speed, deltaSeconds, allowSprint = true) {
 }
 
 function moveByInput(player, moveX, moveY, speed, deltaSeconds, sprintRequested = false) {
+  if (advanceWorldSplitSlide(player, deltaSeconds)) return;
   if (!player || player.dismissed || player.stunnedSeconds > 0
       || player.knockdownSeconds > 0 || player.motionAction === 'recover'
       || (player.airborneSecondsRemaining ?? 0) > 0) return;
@@ -198,6 +201,24 @@ function moveByInput(player, moveX, moveY, speed, deltaSeconds, sprintRequested 
     player.facingY = Math.sign(direction.y);
     if ((player.motionTimerSeconds ?? 0) <= 0) player.motionAction = 'run';
   }
+}
+
+function advanceWorldSplitSlide(player, deltaSeconds) {
+  const remaining = player?.worldSplitSlideSecondsRemaining ?? 0;
+  if (!player || remaining <= 0) return false;
+  const step = Math.min(remaining, deltaSeconds);
+  const direction = unit(player.worldSplitSlideDirectionX ?? player.facingX ?? 1,
+    player.worldSplitSlideDirectionY ?? player.facingY ?? 0);
+  player.worldSplitSlideSecondsRemaining = Math.max(0, remaining - step);
+  player.vx = direction.x * WORLD_SPLIT_SLIDE_SPEED;
+  player.vy = direction.y * WORLD_SPLIT_SLIDE_SPEED;
+  player.x = clamp(player.x + player.vx * step, 0, FIELD.width);
+  player.y = clamp(player.y + player.vy * step, 0, FIELD.height);
+  player.facingX = direction.x;
+  player.facingY = direction.y;
+  player.sprinting = false;
+  player.motionAction = player.worldSplitSlideSecondsRemaining > 0 ? 'tackle' : 'idle';
+  return true;
 }
 
 function advanceSprintStamina(players, deltaSeconds) {
