@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { playEulryongtaImpact, prepareSkillAudio } from './skillAudio.js';
+import { playEulryongtaImpact, playSkillAudio, prepareSkillAudio } from './skillAudio.js';
 
 test('Eulryongta audio safely does nothing when Web Audio is unavailable', () => {
   const previousWindow = globalThis.window;
@@ -8,6 +8,60 @@ test('Eulryongta audio safely does nothing when Web Audio is unavailable', () =>
     globalThis.window = {};
     assert.equal(prepareSkillAudio(), false);
     assert.equal(playEulryongtaImpact(), false);
+    assert.equal(playSkillAudio('eagleShot'), false);
+    assert.equal(playSkillAudio('unknown'), false);
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
+test('each supported skill schedules a distinct bounded Web Audio cue', () => {
+  const previousWindow = globalThis.window;
+  const calls = { oscillators: [], buffers: 0, stops: [] };
+  class AudioParamMock {
+    constructor(owner, field) { this.owner = owner; this.field = field; }
+    setValueAtTime(value) { this.owner[this.field].push(value); }
+    exponentialRampToValueAtTime(value) { this.owner[this.field].push(value); }
+  }
+  class AudioNodeMock {
+    constructor(kind) {
+      this.kind = kind;
+      this.frequencyValues = [];
+      this.gainValues = [];
+      this.frequency = new AudioParamMock(this, 'frequencyValues');
+      this.gain = new AudioParamMock(this, 'gainValues');
+      this.Q = new AudioParamMock(this, 'qValues');
+      this.qValues = [];
+    }
+    connect() { return this; }
+    disconnect() {}
+    start() {}
+    stop(time) { calls.stops.push(time); }
+  }
+  class AudioContextMock {
+    constructor() { this.state = 'running'; this.currentTime = 1; this.sampleRate = 1000; this.destination = {}; }
+    resume() { return Promise.resolve(); }
+    createBuffer() { calls.buffers += 1; return { getChannelData: () => new Float32Array(1000) }; }
+    createBufferSource() { return new AudioNodeMock('buffer'); }
+    createBiquadFilter() { return new AudioNodeMock('filter'); }
+    createGain() { return new AudioNodeMock('gain'); }
+    createOscillator() {
+      const oscillator = new AudioNodeMock('oscillator');
+      calls.oscillators.push(oscillator);
+      return oscillator;
+    }
+  }
+  try {
+    globalThis.window = { AudioContext: AudioContextMock };
+    const skills = ['eagleShot', 'tornadoShot', 'powerTackle', 'eulryongta', 'vacuumCleaner', 'rainbowReflect'];
+    for (const skillId of skills) assert.equal(playSkillAudio(skillId), true);
+    assert.equal(playSkillAudio('unsupported'), false);
+    assert.ok(calls.oscillators.length >= skills.length);
+    assert.ok(calls.buffers >= 4);
+    assert.ok(calls.stops.every((time) => time <= 2.21));
+    const toneSignatures = new Set(calls.oscillators.map((node) => `${node.type}:${node.frequencyValues.join(',')}`));
+    assert.ok(toneSignatures.size >= 10);
   } finally {
     if (previousWindow === undefined) delete globalThis.window;
     else globalThis.window = previousWindow;

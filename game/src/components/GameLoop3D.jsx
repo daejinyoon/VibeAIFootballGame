@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { FIELD } from '../game/constants.js';
 import { createInputController } from '../game/createInputController.js';
-import { playEulryongtaImpact, prepareSkillAudio } from '../game/skillAudio.js';
+import { playSkillAudio, prepareSkillAudio } from '../game/skillAudio.js';
 import { stepGame } from '../game/stepGame.js';
 
 function worldX(x) {
@@ -67,7 +67,8 @@ export function GameLoop3D({
     const previousBallPosition = { x: state.ball.x, y: state.ball.y, height: state.ball.height ?? 0 };
     const events = stepGame(state, inputRef.current?.readFrame(), simulationDelta);
     for (const event of events) {
-      if (event.type === 'skillUsed' && event.skillId === 'eulryongta') playEulryongtaImpact();
+      if (event.type === 'skillUsed' && !event.automatic) playSkillAudio(event.skillId);
+      if (event.type === 'skillReflected') playSkillAudio('rainbowReflect');
       if (event.type === 'skillUsed' && event.skillId === 'vacuumCleaner') {
         state.vacuumPullVisual = {
           from: previousBallPosition,

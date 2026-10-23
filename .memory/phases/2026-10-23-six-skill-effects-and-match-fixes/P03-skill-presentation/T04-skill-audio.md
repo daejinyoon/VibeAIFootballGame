@@ -1,6 +1,6 @@
 # Task: T04 Skill Audio
 
-## Status: pending
+## Status: done
 
 ## Goal
 Give each of the six skills a distinct sound generated locally through Web Audio, while retaining keyboard gesture audio preparation and avoiding downloaded sound assets.
@@ -41,10 +41,10 @@ Give each of the six skills a distinct sound generated locally through Web Audio
 - Mock AudioContext nodes and assert each supported skill schedules at least one source, all six have a distinct cue signature/frequency envelope, Eulryongta retains its short impact, unsupported IDs return false, and absent Web Audio does not throw.
 
 ## Acceptance Criteria
-- [ ] All six skills have distinct recognizable sound envelopes.
-- [ ] Eulryongta's cue remains slap-like and short.
-- [ ] Rainbow Reflect auto-use makes a sound once when it reflects an opponent skill.
-- [ ] Audio failure degrades silently and never stops frame simulation.
+- [x] All six skills have distinct recognizable sound envelopes.
+- [x] Eulryongta's cue remains slap-like and short.
+- [x] Rainbow Reflect auto-use makes a sound once when it reflects an opponent skill.
+- [x] Audio failure degrades silently and never stops frame simulation.
 
 ## Validation
 - `cd game; npm test -- --test-name-pattern="audio|impact|skill cue"` — Web Audio tests pass.
@@ -63,6 +63,6 @@ Task: T04-skill-audio
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed (`npm test`, 149/149; focused audio cue tests; `npm run build`)
+- commit: `ffd14f0`
