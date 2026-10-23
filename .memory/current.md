@@ -1,16 +1,16 @@
 # Current Context
 
 ## Active Plan
-[Skill Loadout, Visuals, and Match Fixes](./plans/2026-10-23-skill-loadout-visuals-and-match-fixes.md)
+[Remaining Skill 3D VFX](./plans/2026-10-23-remaining-skill-3d-vfx.md)
 
 ## Active Phase
-[P02 Skill Presentation](./phases/2026-10-23-skill-loadout-visuals-and-match-fixes/P02-skill-presentation/phase.md)
+[P01 Remaining Skill Effects](./phases/2026-10-23-remaining-skill-3d-vfx/P01-remaining-skill-effects/phase.md)
 
 ## Active Task
-[T02 Reliable Skill Cut-ins](./phases/2026-10-23-skill-loadout-visuals-and-match-fixes/P02-skill-presentation/T02-reliable-skill-cutins.md)
+[T02 Tornado Shot VFX](./phases/2026-10-23-remaining-skill-3d-vfx/P01-remaining-skill-effects/T02-tornado-shot-vfx.md)
 
 ## Status
-- P01 complete: T01 (`2973cc6`), T02 (`17a3a07`), and T03 (`1fc8254`). P02-T01 (`90cec4f`, refined in `22eec89`) strengthens all six skill VFX and preserves continuous Vacuum travel and Rainbow transfer.
+- P01-T01 complete: all six skill previews have legal activation setups; `applySkill` returned `ok` for all six.
 
 ## Next Step
-Read P02-T02 and make skill cut-ins appear for every activation by either team in every round.
+Read P01-T02 and strengthen the Tornado Shot 3D funnel, wind bands, ground contact, and path ribbon around the live ball.

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useRef, useState } from 'react';
 import { createCampaign, finishStage, getUnlockedStage } from './game/campaign.js';
 import { createInitialGameState } from './game/createInitialGameState.js';
-import { SKILL_IDS, SKILLS, awardSkillCard, equipTeamSkill, reorderTeamSkill, unequipTeamSkill } from './game/skills.js';
+import { SKILL_IDS, SKILLS, applySkill, awardSkillCard, equipTeamSkill, reorderTeamSkill, unequipTeamSkill } from './game/skills.js';
 import { getTeamBranding } from './game/teamBranding.js';
 import { createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
@@ -16,7 +16,7 @@ const GameScreen = lazy(() => import('./components/GameScreen.jsx'));
 
 function makeMatchState(campaign, teamCustomization) {
   const ownedSkills = new Map((campaign.ownedTeamSkills ?? []).map((entry) => [entry.skillId, entry]));
-  return createInitialGameState({
+  const state = createInitialGameState({
     stage: campaign.currentStage,
     teamSkillDeck: (campaign.equippedTeamSkillIds ?? [])
       .map((skillId) => ownedSkills.get(skillId))
@@ -25,6 +25,34 @@ function makeMatchState(campaign, teamCustomization) {
       .map((skillId) => ({ skillId, level: 1 })),
     teamBranding: getTeamBranding(campaign.currentStage, teamCustomization),
   });
+  if (campaign.isSkillPreview) {
+    const skillId = campaign.ownedTeamSkills?.[0]?.skillId;
+    const source = state.players.find((player) => player.id === state.controlledPlayerId);
+    const target = state.players.find((player) => player.team === 'away' && player.role === 'forward');
+    if (source) {
+      source.facingX = 1;
+      source.facingY = 0;
+    }
+    if (skillId === 'eulryongta' && source && target) {
+      target.x = Math.min(source.x + 108, 900);
+      target.y = source.y;
+      target.facingX = -1;
+      target.facingY = 0;
+    }
+    if (skillId === 'vacuumCleaner') {
+      state.ball.x = Math.min(state.ball.x + 130, 850);
+      state.ball.y = Math.max(60, state.ball.y - 45);
+      state.ball.ownerId = null;
+      state.possessionTeam = null;
+    }
+    if (skillId === 'rainbowReflect' && source && target) {
+      source.stunnedSeconds = 2;
+      source.statusDurationSeconds = { stunned: 2 };
+      state.lastSkillCasterByTeam.away = target.id;
+    }
+    if (source && skillId) applySkill(state, { team: 'home', sourcePlayerId: source.id, skillId, level: ownedSkills.get(skillId)?.level ?? 1 });
+  }
+  return state;
 }
 
 function createSkillPreviewCampaign(skillId) {
