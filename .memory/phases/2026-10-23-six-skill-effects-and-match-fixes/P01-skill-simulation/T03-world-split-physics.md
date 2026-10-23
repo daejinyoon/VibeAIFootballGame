@@ -90,6 +90,7 @@ Task: T03-world-split-physics
 - commit: 3270df8
 
 ## Visibility Follow-up (2026-10-23)
-- Increased the fissure wall height and shard size, added stronger emissive stone and crack accents, and lengthened the skill cut-in.
+- Rebuilt the fissure as a tall row of raised rock shards with a glowing ground crack and pulsing fissure lines; lengthened the skill cut-in.
 - Match canvas now takes keyboard focus on entry so F works immediately in a direct skill preview.
-- Automated tests validate simulation, while visual intensity still needs player review in the preview link.
+- Added an input-level check that pressing F creates and retains the World Split terrain barrier.
+- Automated tests validate simulation, while final visual intensity still needs player review in the preview link.

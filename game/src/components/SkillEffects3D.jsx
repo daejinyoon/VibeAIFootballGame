@@ -22,11 +22,13 @@ const BEAM_GEOMETRY = new THREE.CylinderGeometry(0.045, 0.12, 1, 10, 1, true);
 const RAINBOW_GEOMETRIES = RAINBOW.map(() => new THREE.TorusGeometry(0.53, 0.025, 6, 24, Math.PI));
 const AIR_RING_GEOMETRY = new THREE.TorusGeometry(0.3, 0.025, 6, 28);
 const AIR_PARTICLE_GEOMETRY = new THREE.TetrahedronGeometry(0.06, 0);
-const BARRIER_BASE_GEOMETRY = new THREE.BoxGeometry(1, 0.82, 0.42);
-const BARRIER_SHARD_GEOMETRY = new THREE.DodecahedronGeometry(0.28, 0);
-const BARRIER_CRACK_GEOMETRY = new THREE.BoxGeometry(0.035, 0.58, 0.035);
-const BARRIER_BASE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#332d38', roughness: 0.96 });
-const BARRIER_SHARD_MATERIAL = new THREE.MeshStandardMaterial({ color: '#675e68', roughness: 0.92, emissive: '#302338', emissiveIntensity: 0.42 });
+const BARRIER_BASE_GEOMETRY = new THREE.BoxGeometry(1, 1.06, 0.54);
+const BARRIER_GROUND_GEOMETRY = new THREE.BoxGeometry(1, 0.07, 0.74);
+const BARRIER_SHARD_GEOMETRY = new THREE.ConeGeometry(0.34, 1.05, 5, 1);
+const BARRIER_CRACK_GEOMETRY = new THREE.BoxGeometry(0.045, 1.08, 0.035);
+const BARRIER_BASE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#332d38', roughness: 0.96, emissive: '#7b2e18', emissiveIntensity: 0.45 });
+const BARRIER_GROUND_MATERIAL = new THREE.MeshBasicMaterial({ color: '#ff6b32', transparent: true, opacity: 0.78, depthWrite: false, toneMapped: false });
+const BARRIER_SHARD_MATERIAL = new THREE.MeshStandardMaterial({ color: '#675e68', roughness: 0.92, emissive: '#583322', emissiveIntensity: 0.75 });
 
 function makeMesh(geometry, color = '#ffffff', opacity = 0.8) {
   const material = new THREE.MeshBasicMaterial({
@@ -79,27 +81,30 @@ function makeAirSlot() {
 
 function makeBarrierSlot() {
   const root = new THREE.Group();
+  const groundCrack = new THREE.Mesh(BARRIER_GROUND_GEOMETRY, BARRIER_GROUND_MATERIAL);
+  groundCrack.position.y = 0.055;
+  root.add(groundCrack);
   const base = new THREE.Mesh(BARRIER_BASE_GEOMETRY, BARRIER_BASE_MATERIAL);
-  base.position.y = 0.36;
+  base.position.y = 0.54;
   root.add(base);
   const shards = [];
-  for (let index = 0; index < 13; index += 1) {
+  for (let index = 0; index < 17; index += 1) {
     const shard = new THREE.Mesh(BARRIER_SHARD_GEOMETRY, BARRIER_SHARD_MATERIAL);
-    shard.position.set(-0.46 + index * 0.077, 0.55 + (index % 3) * 0.11, (index % 2 ? 1 : -1) * 0.035);
-    shard.scale.set(0.75 + (index % 3) * 0.18, 1.25 + (index % 2) * 0.48, 0.9);
+    shard.position.set(-0.48 + index * 0.06, 0.78 + (index % 3) * 0.13, (index % 2 ? 1 : -1) * 0.055);
+    shard.scale.set(0.9 + (index % 3) * 0.2, 1.15 + (index % 2) * 0.52, 1.25);
     shard.rotation.set((index % 2) * 0.16, index * 0.43, (index % 3 - 1) * 0.16);
     root.add(shard);
     shards.push(shard);
   }
-  const cracks = Array.from({ length: 6 }, (_, index) => {
+  const cracks = Array.from({ length: 9 }, (_, index) => {
     const crackMaterial = new THREE.MeshBasicMaterial({ color: index % 2 ? '#6ef3ff' : '#ffb54f', transparent: true, toneMapped: false });
     const crack = new THREE.Mesh(BARRIER_CRACK_GEOMETRY, crackMaterial);
-    crack.position.set(-0.36 + index * 0.145, 0.2, 0.188);
+    crack.position.set(-0.4 + index * 0.1, 0.58 + (index % 3) * 0.12, 0.3);
     crack.rotation.z = (index % 2 ? -1 : 1) * 0.42;
     root.add(crack);
     return crack;
   });
-  return { root, shards, cracks };
+  return { root, groundCrack, shards, cracks };
 }
 
 function makeTornadoSlot() {
@@ -357,9 +362,17 @@ export function SkillEffects3D({ gameStateRef }) {
       slot.root.scale.set(barrier.length / 80, 1, barrier.thickness / 28);
       const accent = barrier.team === 'away' ? '#ffb54f' : '#6ef3ff';
       for (const crack of slot.cracks) crack.material.color.set(accent);
-      const pulse = 0.82 + Math.sin((barrier.remainingSeconds ?? 0) * 10) * 0.12;
-      slot.root.children[0].material.emissive?.set('#21160e');
-      slot.cracks.forEach((crack, crackIndex) => { crack.material.opacity = pulse - crackIndex * 0.025; });
+      const pulse = 0.78 + Math.sin((barrier.elapsedSeconds ?? 0) * 16) * 0.18;
+      const teamGlow = barrier.team === 'away' ? '#ff533d' : '#ffad38';
+      slot.groundCrack.material.color.set(teamGlow);
+      slot.groundCrack.material.opacity = pulse;
+      slot.cracks.forEach((crack, crackIndex) => {
+        crack.material.color.set(crackIndex % 2 ? accent : teamGlow);
+        crack.material.opacity = pulse - crackIndex * 0.018;
+      });
+      slot.shards.forEach((shard, shardIndex) => {
+        shard.rotation.z = (shardIndex % 2 ? -1 : 1) * (0.08 + Math.sin((barrier.elapsedSeconds ?? 0) * 11 + shardIndex) * 0.025);
+      });
     }
 
     const tornadoEffects = effects.filter((effect) => effect.skillId === 'tornadoShot');

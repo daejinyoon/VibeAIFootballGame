@@ -171,6 +171,18 @@ test('World Split blocks a low ball and allows a ball above the wall', () => {
   assert.ok(high.ball.x > 400, 'a ball above the wall clears it');
 });
 
+test('pressing F in the match creates a persistent World Split terrain barrier', () => {
+  const state = createInitialGameState({ teamSkillDeck: [{ skillId: 'powerTackle', level: 1 }] });
+  const source = state.players.find((player) => player.id === state.controlledPlayerId);
+  const events = stepGame(state, frame({ pressed: ['f'] }), 0.05);
+
+  assert.ok(events.some((event) => event.type === 'powerBarrierCreated'));
+  assert.equal(state.powerBarriers.length, 1);
+  assert.equal(state.powerBarriers[0].length, 220);
+  assert.ok(state.powerBarriers[0].remainingSeconds > 2.9);
+  assert.equal(state.powerBarriers[0].sourcePlayerId, source.id);
+});
+
 test('kickoff circle keeps non-kickers outside until the ball moves clear', () => {
   const state = createGameState();
   const center = { x: FIELD.width / 2, y: FIELD.height / 2 };
