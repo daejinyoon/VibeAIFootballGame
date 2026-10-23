@@ -280,17 +280,21 @@ export function SkillEffects3D({ gameStateRef }) {
       const progress = THREE.MathUtils.clamp(effect.elapsedSeconds / duration, 0, 1);
       const fade = Math.min(1, progress * 12 + 0.08, (1 - progress) * (effect.durationSeconds > 1 ? 3 : 2.2));
       const now = effect.elapsedSeconds;
+      const vacuumPull = effect.skillId === 'vacuumCleaner' && state.vacuumPullVisual?.sourcePlayerId === source.id
+        ? state.vacuumPullVisual : null;
+      const vacuumProgress = vacuumPull
+        ? THREE.MathUtils.clamp(vacuumPull.elapsedSeconds / Math.max(0.001, vacuumPull.durationSeconds), 0, 1)
+        : 0;
       const isBallSkill = effect.skillId === 'eagleShot' || effect.skillId === 'tornadoShot'
         || (effect.skillId === 'rainbowReflect' && ball.flightKind === 'skill-shot' && ball.skillId === 'rainbowReflect');
-      const anchor = effect.position ?? (isBallSkill ? ball : (target ?? source));
+      const vacuumPosition = vacuumPull ? {
+        x: vacuumPull.from.x + (vacuumPull.to.x - vacuumPull.from.x) * vacuumProgress,
+        y: vacuumPull.from.y + (vacuumPull.to.y - vacuumPull.from.y) * vacuumProgress,
+        height: 0,
+      } : null;
+      const anchor = effect.position ?? vacuumPosition ?? (isBallSkill ? ball : (target ?? source));
       root.visible = true;
       root.position.set(worldX(anchor.x), (Number(anchor.height) || 0) / 80 + 0.12, worldZ(anchor.y));
-      if (effect.skillId === 'vacuumCleaner') {
-        const pull = state.vacuumPullVisual?.sourcePlayerId === source.id ? state.vacuumPullVisual : null;
-        const midpoint = pull ? { x: (pull.from.x + pull.to.x) / 2, y: (pull.from.y + pull.to.y) / 2 }
-          : { x: (source.x + ball.x) / 2, y: (source.y + ball.y) / 2 };
-        root.position.set(worldX(midpoint.x), 0.18, worldZ(midpoint.y));
-      }
       root.rotation.set(0, 0, 0);
       root.scale.set(1.65, 1.15, 1.65);
 
@@ -333,10 +337,8 @@ export function SkillEffects3D({ gameStateRef }) {
 
       slot.beam.visible = false;
       if (effect.skillId === 'vacuumCleaner' || (effect.skillId === 'rainbowReflect' && !effect.cancellationPulse)) {
-        const pull = effect.skillId === 'vacuumCleaner' && state.vacuumPullVisual?.sourcePlayerId === source.id
-          ? state.vacuumPullVisual : null;
-        const start = pull ? pull.from : source;
-        const end = pull ? pull.to : ball;
+        const start = vacuumPull ? vacuumPull.from : source;
+        const end = vacuumPull ? vacuumPosition : ball;
         const startPoint = new THREE.Vector3(
           worldX(start.x) - root.position.x,
           (Number(start.height) || 0) / 80 + 0.18 - root.position.y,
@@ -353,16 +355,22 @@ export function SkillEffects3D({ gameStateRef }) {
         slot.beam.quaternion.setFromUnitVectors(WORLD_UP, direction.lengthSq() ? direction.normalize() : WORLD_UP);
         slot.beam.scale.set(1, length, 1);
         slot.beam.material.color.set(effect.skillId === 'rainbowReflect' ? primary : secondary);
-        setOpacity(slot.beam, fade * (effect.skillId === 'vacuumCleaner' ? 0.5 : 0.26));
+        setOpacity(slot.beam, fade * (effect.skillId === 'vacuumCleaner' ? 0.76 : 0.26));
         slot.beam.visible = length > 0.08;
+      }
+
+      if (effect.skillId === 'rainbowReflect' && effect.cancellationPulse) {
+        const destination = effect.returnTargetPosition ?? { x: effect.team === 'home' ? FIELD.width : 0, y: anchor.y };
+        root.rotation.y = Math.atan2(worldX(destination.x) - worldX(anchor.x), worldZ(destination.y) - worldZ(anchor.y));
       }
 
       slot.arcs.forEach((arc, arcIndex) => {
         const rainbowActive = effect.skillId === 'rainbowReflect';
         arc.material.color.set(RAINBOW[arcIndex]);
-        arc.position.set(0, 0.42 + arcIndex * 0.018, -0.08);
-        arc.rotation.set(0, 0, Math.PI + (arcIndex % 2) * 0.04);
-        arc.scale.set(0.75 + arcIndex * 0.035, 0.82 + arcIndex * 0.035, 1);
+        arc.position.set(0, 0.34 + arcIndex * 0.032, -0.08);
+        arc.rotation.set(0, effect.cancellationPulse ? 0 : 0, Math.PI + (arcIndex % 2) * 0.04);
+        const returnPulse = effect.cancellationPulse ? 1 + progress * 0.55 : 0.75;
+        arc.scale.set((0.75 + arcIndex * 0.035) * returnPulse, (0.82 + arcIndex * 0.035) * returnPulse, 1);
         setOpacity(arc, rainbowActive ? fade * 0.82 : 0);
       });
       if (effect.skillId === 'rainbowReflect' && effect.cancellationPulse) {

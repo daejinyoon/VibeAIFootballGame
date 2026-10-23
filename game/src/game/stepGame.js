@@ -2005,7 +2005,8 @@ function advanceSkillEffects(state, deltaSeconds) {
     if (effect.elapsedSeconds >= effect.durationSeconds) return false;
     if (effect.skillId === 'vacuumCleaner'
         && state.vacuumEffect?.playerId !== effect.sourcePlayerId
-        && state.vacuumPullVisual?.sourcePlayerId !== effect.sourcePlayerId) return false;
+        && state.vacuumPullVisual?.sourcePlayerId !== effect.sourcePlayerId
+        && effect.elapsedSeconds >= 0.55) return false;
     if (effect.skillId === 'powerTackle' && !effect.targetPlayerId
         && !(state.powerBarriers ?? []).some((barrier) => barrier.sourcePlayerId === effect.sourcePlayerId)) return false;
     if (effect.skillId === 'rainbowReflect' && !effect.cancellationPulse

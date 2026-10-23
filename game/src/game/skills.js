@@ -37,12 +37,14 @@ function result(ok, skillId, team, reason = null, events = []) {
   return { ok, skillId, team, reason, events };
 }
 
-export function addSkillEffect(state, { skillId, team, sourcePlayerId, targetPlayerId = null, durationSeconds, position, cancellationPulse = false, level = 1 }) {
+export function addSkillEffect(state, { skillId, team, sourcePlayerId, targetPlayerId = null, durationSeconds, position, returnTargetPosition, cancellationPulse = false, level = 1 }) {
   if (!Array.isArray(state.skillEffects)) state.skillEffects = [];
   const id = Number.isInteger(state.nextSkillEffectId) ? state.nextSkillEffectId : 1;
   state.nextSkillEffectId = id + 1;
   const effect = { id, skillId, team, sourcePlayerId, targetPlayerId, elapsedSeconds: 0, durationSeconds, level,
-    ...(position ? { position: { ...position } } : {}), ...(cancellationPulse ? { cancellationPulse: true } : {}) };
+    ...(position ? { position: { ...position } } : {}),
+    ...(returnTargetPosition ? { returnTargetPosition: { ...returnTargetPosition } } : {}),
+    ...(cancellationPulse ? { cancellationPulse: true } : {}) };
   state.skillEffects.push(effect);
   return effect;
 }
@@ -598,8 +600,13 @@ export function applyAutomaticRainbowReflect(state, defendingTeam = 'home') {
 
   const reflector = state.players.filter((player) => player.team === defendingTeam && player.role !== 'goalkeeper' && !player.dismissed)
     .sort((a, b) => distance(a, cancelPosition) - distance(b, cancelPosition))[0];
+  const originalSource = state.players.find((player) => player.id === reflectedSourcePlayerId);
+  const returnTargetPosition = ['eagleShot', 'tornadoShot'].includes(reflectedSkillId)
+    ? { x: defendingTeam === 'home' ? FIELD.width : 0, y: cancelPosition.y }
+    : originalSource ? { x: originalSource.x, y: originalSource.y }
+      : { x: defendingTeam === 'home' ? FIELD.width : 0, y: cancelPosition.y };
   if (reflector) addSkillEffect(state, { skillId: 'rainbowReflect', team: defendingTeam,
-    sourcePlayerId: reflector.id, position: cancelPosition, cancellationPulse: true, durationSeconds: 0.75 });
+    sourcePlayerId: reflector.id, position: cancelPosition, returnTargetPosition, cancellationPulse: true, durationSeconds: 0.75 });
   return { type: 'skillReflected', skillId: 'rainbowReflect', team: defendingTeam, automatic: true,
     reflectedSkillId, sourcePlayerId: reflectedSourcePlayerId };
 }

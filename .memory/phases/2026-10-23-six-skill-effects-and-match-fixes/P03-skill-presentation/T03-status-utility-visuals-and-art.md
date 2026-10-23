@@ -1,6 +1,6 @@
 # Task: T03 Status and Utility Visuals
 
-## Status: pending
+## Status: done
 
 ## Goal
 Make Eulryongta's ten-second knockdown obvious, show Vacuum Cleaner pulling the ball along the ground through a wind path, and show Rainbow Reflect visibly returning the reflected effect.
@@ -49,10 +49,10 @@ Make Eulryongta's ten-second knockdown obvious, show Vacuum Cleaner pulling the 
 - Manually trigger the three skills and verify star lifetime, ground-level suction movement, and shield/return direction. Confirm the photo cut-in remains intact.
 
 ## Acceptance Criteria
-- [ ] Eulryongta target shows fall plus dizzy rotating stars for the full ten-second status.
-- [ ] Vacuum shows a ground-level moving ball path from field location to user without changing instant-pull gameplay.
-- [ ] Rainbow Reflect shows a localized shield and return arc at the actual reflection location.
-- [ ] No visual cue changes the underlying simulation or camera.
+- [x] Eulryongta target shows fall plus dizzy rotating stars for the full ten-second status.
+- [x] Vacuum shows a ground-level moving ball path from field location to user without changing instant-pull gameplay.
+- [x] Rainbow Reflect shows a localized shield and return arc at the actual reflection location.
+- [x] No visual cue changes the underlying simulation or camera.
 
 ## Validation
 - `cd game; npm run build` — effects and cut-in components compile.
@@ -71,6 +71,6 @@ Task: T03-status-utility-visuals-and-art
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed (`npm test`, 148/148; `npm run build`)
+- commit: `eff1e17`

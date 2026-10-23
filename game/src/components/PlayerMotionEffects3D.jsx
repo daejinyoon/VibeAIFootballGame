@@ -7,6 +7,19 @@ const PARTICLES_PER_KIND = 12;
 const EMIT_INTERVAL = 0.035;
 const DEFAULT_JERSEY_ACCENTS = { home: '#d7ff74', away: '#ffe083' };
 const DUST_COLORS = ['#9a9a65', '#8a8060', '#a0926b', '#78805d'];
+const DIZZY_STAR_GEOMETRY = (() => {
+  const shape = new THREE.Shape();
+  for (let index = 0; index < 10; index += 1) {
+    const radius = index % 2 === 0 ? 1 : 0.44;
+    const angle = index * Math.PI / 5 - Math.PI / 2;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    if (index === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  return new THREE.ShapeGeometry(shape);
+})();
 
 function worldX(x) {
   return (Number(x) || 0) / 80 - FIELD.width / 160;
@@ -53,9 +66,22 @@ function makePool() {
     ...makeParticle(dustGeometry, DUST_COLORS[index % DUST_COLORS.length], 0.42),
     phase: index / PARTICLES_PER_KIND,
   }));
+  const dizzy = Array.from({ length: 8 }, () => {
+    const root = new THREE.Group();
+    const stars = Array.from({ length: 3 }, (_, index) => {
+      const material = new THREE.MeshBasicMaterial({ color: index % 2 ? '#9df7ff' : '#ffe979', transparent: true, opacity: 0.96, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(DIZZY_STAR_GEOMETRY, material);
+      mesh.scale.setScalar(0.17 + (index % 2) * 0.035);
+      root.add(mesh);
+      return { mesh, material };
+    });
+    root.visible = false;
+    return { root, stars };
+  });
   const scene = new THREE.Group();
   for (const particle of [...trails, ...dust]) scene.add(particle.mesh);
-  return { scene, trailGeometry, dustGeometry, trails, dust };
+  for (const slot of dizzy) scene.add(slot.root);
+  return { scene, trailGeometry, dustGeometry, trails, dust, dizzy };
 }
 
 /** Reuse a bounded pool of low grass-level cues for players who are sprinting. */
@@ -67,6 +93,7 @@ export function PlayerMotionEffects3D({ gameStateRef, paused = false }) {
     pool.trailGeometry.dispose();
     pool.dustGeometry.dispose();
     for (const particle of [...pool.trails, ...pool.dust]) particle.material.dispose();
+    for (const slot of pool.dizzy) for (const star of slot.stars) star.material.dispose();
   }, [pool]);
 
   useFrame((_, delta) => {
@@ -78,6 +105,7 @@ export function PlayerMotionEffects3D({ gameStateRef, paused = false }) {
       cursor.emitTimer = 0;
       for (const particle of pool.trails) clearParticle(particle);
       for (const particle of pool.dust) clearParticle(particle);
+      for (const slot of pool.dizzy) slot.root.visible = false;
       return;
     }
 
@@ -182,7 +210,28 @@ export function PlayerMotionEffects3D({ gameStateRef, paused = false }) {
       particle.mesh.scale.setScalar(puffScale);
       particle.mesh.position.y = 0.045 + progress * 0.07;
     }
+
+    const knockedDown = players.filter((player) => !player.dismissed && player.knockdownSeconds > 0 && player.motionAction === 'knockdown');
+    for (let index = 0; index < pool.dizzy.length; index += 1) {
+      const slot = pool.dizzy[index];
+      const player = knockedDown[index];
+      if (!player) {
+        slot.root.visible = false;
+        continue;
+      }
+      slot.root.visible = true;
+      slot.root.position.set(worldX(player.x), 1.18, worldZ(player.y));
+      slot.stars.forEach(({ mesh }, starIndex) => {
+        const angle = animationTime(player.knockdownSeconds) * (starIndex % 2 ? -2.6 : 2.6) + starIndex * Math.PI * 2 / 3;
+        mesh.position.set(Math.cos(angle) * 0.3, 0.02 + Math.sin(angle * 1.7) * 0.045, Math.sin(angle) * 0.18);
+        mesh.rotation.set(0, 0, angle * 0.8);
+      });
+    }
   });
 
   return <primitive object={pool.scene} dispose={null} />;
+}
+
+function animationTime(remainingSeconds) {
+  return (10 - remainingSeconds) * 5;
 }
