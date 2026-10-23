@@ -1505,6 +1505,23 @@ function releaseRestart(state, restart, action) {
 function advanceManualRestart(state, input, deltaSeconds) {
   const restart = state.restart;
   if (!restart) return [];
+  if (restart.team === 'home') {
+    if (input.moveX !== 0 || input.moveY !== 0) {
+      const facing = unit(input.moveX, input.moveY);
+      const taker = byId(state, restart.takerId);
+      if (taker && !taker.dismissed) {
+        taker.facingX = facing.x;
+        taker.facingY = facing.y;
+      }
+    }
+    const action = restart.type === 'throwIn' && input.pressed.has('s') ? 'throwIn'
+      : restart.type === 'cornerKick' && input.pressed.has('a') ? 'cornerCross'
+        : restart.type === 'cornerKick' && input.pressed.has('s') ? 'shortPass'
+          : restart.type === 'goalKick' && input.pressed.has('a') ? 'longKick'
+            : restart.type === 'goalKick' && input.pressed.has('s') ? 'shortPass'
+              : null;
+    if (action) restart.queuedAction ??= action;
+  }
   restart.readySeconds = Math.max(0, restart.readySeconds - deltaSeconds);
   const taker = byId(state, restart.takerId);
   if (!taker || taker.dismissed) return [];
@@ -1517,11 +1534,7 @@ function advanceManualRestart(state, input, deltaSeconds) {
     return [{ type: 'restartTaken', restartType: restart.type, team: restart.team, playerId: taker.id, receiverId: receiver?.id ?? null }];
   }
 
-  if (input.moveX !== 0 || input.moveY !== 0) {
-    const facing = unit(input.moveX, input.moveY);
-    taker.facingX = facing.x;
-    taker.facingY = facing.y;
-  }
+  if (restart.queuedAction) return releaseRestart(state, restart, restart.queuedAction);
   if (restart.type === 'throwIn' && input.pressed.has('s')) return releaseRestart(state, restart, 'throwIn');
   if (restart.type === 'cornerKick' && input.pressed.has('a')) return releaseRestart(state, restart, 'cornerCross');
   if (restart.type === 'cornerKick' && input.pressed.has('s')) return releaseRestart(state, restart, 'shortPass');

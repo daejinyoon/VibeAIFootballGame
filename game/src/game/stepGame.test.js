@@ -735,6 +735,98 @@ test('a missing last-touch team uses the home-team restart fallback', () => {
   assert.ok(events.some((event) => event.type === 'cornerKick' && event.team === 'home'));
 });
 
+test('home restart actions pressed during setup execute once the restart is ready', () => {
+  const cases = [
+    { type: 'throwIn', playerId: 'home-def-1', key: 's', action: 'throwIn' },
+    { type: 'cornerKick', playerId: 'home-def-1', key: 'a', action: 'cornerCross' },
+    { type: 'goalKick', playerId: 'home-gk', key: 'a', action: 'longKick' },
+  ];
+
+  for (const scenario of cases) {
+    const state = createInitialGameState();
+    const taker = state.players.find((player) => player.id === scenario.playerId);
+    state.phase = scenario.type;
+    state.restart = {
+      type: scenario.type,
+      team: 'home',
+      takerId: taker.id,
+      spot: { x: taker.x, y: taker.y },
+      readySeconds: 0.35,
+      previousControlledPlayerId: 'home-fw',
+    };
+    state.controlledPlayerId = taker.id;
+    state.ball.ownerId = taker.id;
+    state.ball.x = taker.x;
+    state.ball.y = taker.y;
+
+    const earlyEvents = stepGame(state, frame({ pressed: [scenario.key] }), 0.05);
+    assert.equal(state.restart.queuedAction, scenario.action);
+    assert.equal(state.phase, scenario.type);
+    assert.equal(earlyEvents.some((event) => event.type === 'restartTaken'), false);
+
+    let readyEvents = [];
+    for (let i = 0; i < 10 && state.restart; i += 1) {
+      readyEvents = stepGame(state, frame(), 0.05);
+    }
+    assert.equal(state.restart, null);
+    assert.ok(readyEvents.some((event) => event.type === 'restartTaken' && event.restartType === scenario.type));
+  }
+});
+
+test('restart input buffer ignores invalid keys and preserves the first valid action', () => {
+  const state = createInitialGameState();
+  const taker = state.players.find((player) => player.id === 'home-def-1');
+  state.phase = 'cornerKick';
+  state.restart = {
+    type: 'cornerKick',
+    team: 'home',
+    takerId: taker.id,
+    spot: { x: taker.x, y: taker.y },
+    readySeconds: 0.35,
+  };
+  state.controlledPlayerId = taker.id;
+  state.ball.ownerId = taker.id;
+  state.ball.x = taker.x;
+  state.ball.y = taker.y;
+
+  stepGame(state, frame({ pressed: ['d'] }), 0.05);
+  assert.equal(state.restart.queuedAction, undefined);
+  stepGame(state, frame({ pressed: ['a'] }), 0.05);
+  stepGame(state, frame({ pressed: ['s'] }), 0.05);
+  let events = [];
+  for (let i = 0; i < 10 && state.restart; i += 1) {
+    events = stepGame(state, frame(), 0.05);
+  }
+
+  assert.ok(events.some((event) => event.type === 'pass' && event.action === 'cornerCross'));
+  assert.equal(state.restart, null);
+});
+
+test('away restarts remain automatic after their setup delay', () => {
+  const state = createInitialGameState();
+  const taker = state.players.find((player) => player.id === 'away-def-1');
+  state.phase = 'throwIn';
+  state.restart = {
+    type: 'throwIn',
+    team: 'away',
+    takerId: taker.id,
+    spot: { x: taker.x, y: taker.y },
+    readySeconds: 0.35,
+  };
+  state.ball.ownerId = taker.id;
+  state.ball.x = taker.x;
+  state.ball.y = taker.y;
+
+  stepGame(state, frame(), 0.05);
+  let events = [];
+  for (let i = 0; i < 10 && state.restart; i += 1) {
+    events = stepGame(state, frame(), 0.05);
+  }
+
+  assert.equal(state.restart, null);
+  assert.ok(events.some((event) => event.type === 'restartTaken' && event.team === 'away'));
+});
+
 test('a golden-goal score immediately finishes the stage', () => {
   const state = createInitialGameState();
   state.phase = 'overtime';
