@@ -43,6 +43,7 @@ const EAGLE_WING_GEOMETRY = (() => {
   return new THREE.ShapeGeometry(shape);
 })();
 const EAGLE_BEAM_GEOMETRY = new THREE.CylinderGeometry(0.08, 0.28, 1, 12, 1, true);
+const RAINBOW_PULSE_GEOMETRY = new THREE.SphereGeometry(0.12, 12, 8);
 const TORNADO_TRAIL_POINT_COUNT = 24;
 const BARRIER_GROUND_MATERIAL = new THREE.MeshStandardMaterial({ color: '#17151b', roughness: 1, emissive: '#080609', emissiveIntensity: 0.2, side: THREE.DoubleSide });
 const BARRIER_GLOW_MATERIAL = new THREE.MeshBasicMaterial({ color: '#ff7b31', transparent: true, opacity: 0.92, depthWrite: false, toneMapped: false });
@@ -75,12 +76,19 @@ function makeSlot() {
   });
   const beam = makeMesh(BEAM_GEOMETRY, '#9dffec', 0.45);
   root.add(beam);
+  const rainbowStrands = RAINBOW.map((color) => {
+    const mesh = makeMesh(BEAM_GEOMETRY, color, 0.88);
+    root.add(mesh);
+    return mesh;
+  });
+  const rainbowPulse = makeMesh(RAINBOW_PULSE_GEOMETRY, '#ffffff', 0.98);
+  root.add(rainbowPulse);
   const arcs = RAINBOW.map((color, index) => {
     const mesh = makeMesh(RAINBOW_GEOMETRIES[index], color, 0.88);
     root.add(mesh);
     return mesh;
   });
-  return { root, rings, particles, beam, arcs };
+  return { root, rings, particles, beam, rainbowStrands, rainbowPulse, arcs };
 }
 
 function makeAirSlot() {
@@ -226,7 +234,7 @@ export function SkillEffects3D({ gameStateRef }) {
 
   useEffect(() => () => {
     for (const slot of slots) {
-      for (const mesh of [...slot.rings, ...slot.particles, slot.beam, ...slot.arcs]) mesh.material.dispose();
+      for (const mesh of [...slot.rings, ...slot.particles, slot.beam, ...slot.rainbowStrands, slot.rainbowPulse, ...slot.arcs]) mesh.material.dispose();
     }
     for (const slot of airSlots) {
       for (const mesh of [...slot.rings, ...slot.particles]) mesh.material.dispose();
@@ -280,19 +288,9 @@ export function SkillEffects3D({ gameStateRef }) {
       const progress = THREE.MathUtils.clamp(effect.elapsedSeconds / duration, 0, 1);
       const fade = Math.min(1, progress * 12 + 0.08, (1 - progress) * (effect.durationSeconds > 1 ? 3 : 2.2));
       const now = effect.elapsedSeconds;
-      const vacuumPull = effect.skillId === 'vacuumCleaner' && state.vacuumPullVisual?.sourcePlayerId === source.id
-        ? state.vacuumPullVisual : null;
-      const vacuumProgress = vacuumPull
-        ? THREE.MathUtils.clamp(vacuumPull.elapsedSeconds / Math.max(0.001, vacuumPull.durationSeconds), 0, 1)
-        : 0;
       const isBallSkill = effect.skillId === 'eagleShot' || effect.skillId === 'tornadoShot'
         || (effect.skillId === 'rainbowReflect' && ball.flightKind === 'skill-shot' && ball.skillId === 'rainbowReflect');
-      const vacuumPosition = vacuumPull ? {
-        x: vacuumPull.from.x + (vacuumPull.to.x - vacuumPull.from.x) * vacuumProgress,
-        y: vacuumPull.from.y + (vacuumPull.to.y - vacuumPull.from.y) * vacuumProgress,
-        height: 0,
-      } : null;
-      const anchor = effect.position ?? vacuumPosition ?? (isBallSkill ? ball : (target ?? source));
+      const anchor = effect.skillId === 'rainbowReflect' ? source : effect.position ?? (isBallSkill ? ball : (target ?? source));
       root.visible = true;
       root.position.set(worldX(anchor.x), (Number(anchor.height) || 0) / 80 + 0.12, worldZ(anchor.y));
       root.rotation.set(0, 0, 0);
@@ -325,38 +323,90 @@ export function SkillEffects3D({ gameStateRef }) {
           particle.position.set(Math.cos(coil) * coilRadius, 0.12 + particleIndex * 0.055, Math.sin(coil) * coilRadius);
           particle.rotation.set(now * 2 + particleIndex, now * 1.7, coil);
           particle.scale.setScalar(particleIndex === 0 ? 1.5 : 0.82);
+        } else if (effect.skillId === 'vacuumCleaner') {
+          const routeProgress = (particleIndex / slot.particles.length + (now * 1.65) % 1) % 1;
+          const ballX = worldX(ball.x) - root.position.x;
+          const ballZ = worldZ(ball.y) - root.position.z;
+          const sourceX = worldX(source.x) - root.position.x;
+          const sourceZ = worldZ(source.y) - root.position.z;
+          const spiralAngle = now * 28 - routeProgress * Math.PI * 5;
+          const spiralRadius = 0.06 + (1 - routeProgress) * 0.2;
+          particle.position.set(
+            THREE.MathUtils.lerp(ballX, sourceX, routeProgress) + Math.cos(spiralAngle) * spiralRadius,
+            0.16 + Math.sin(spiralAngle * 0.7) * 0.07,
+            THREE.MathUtils.lerp(ballZ, sourceZ, routeProgress) + Math.sin(spiralAngle) * spiralRadius,
+          );
+          particle.rotation.set(now * 4, spiralAngle, now * 2.4);
+          particle.scale.setScalar(0.72 + (particleIndex % 3) * 0.18);
         } else {
           particle.position.set(Math.cos(angle) * orbit, 0.13 + 0.18 + (particleIndex % 3) * 0.07, Math.sin(angle) * orbit);
           particle.rotation.set(now * 2 + particleIndex, now * 1.7, now * 2.4);
           particle.scale.setScalar(0.85);
         }
         particle.material.color.set(particleIndex % 2 ? secondary : primary);
-        const visible = ['eagleShot', 'tornadoShot', 'powerTackle', 'eulryongta', 'rainbowReflect'].includes(effect.skillId);
+        const visible = ['eagleShot', 'tornadoShot', 'powerTackle', 'eulryongta', 'vacuumCleaner', 'rainbowReflect'].includes(effect.skillId);
         setOpacity(particle, visible ? fade * 0.78 : 0);
       });
 
       slot.beam.visible = false;
+      slot.rainbowStrands.forEach((strand) => { strand.visible = false; });
+      slot.rainbowPulse.visible = false;
       if (effect.skillId === 'vacuumCleaner' || (effect.skillId === 'rainbowReflect' && !effect.cancellationPulse)) {
-        const start = vacuumPull ? vacuumPull.from : source;
-        const end = vacuumPull ? vacuumPosition : ball;
+        const start = source;
+        const end = effect.skillId === 'vacuumCleaner' ? ball : target;
         const startPoint = new THREE.Vector3(
           worldX(start.x) - root.position.x,
-          (Number(start.height) || 0) / 80 + 0.18 - root.position.y,
+          (Number(start.height) || 0) / 80 + (effect.skillId === 'rainbowReflect' ? 0.78 : 0.18) - root.position.y,
           worldZ(start.y) - root.position.z,
         );
         const endPoint = new THREE.Vector3(
           worldX(end.x) - root.position.x,
-          (Number(end.height) || 0) / 80 + 0.18 - root.position.y,
+          (Number(end.height) || 0) / 80 + (effect.skillId === 'rainbowReflect' ? 0.78 : 0.18) - root.position.y,
           worldZ(end.y) - root.position.z,
         );
         const direction = endPoint.clone().sub(startPoint);
         const length = direction.length();
-        slot.beam.position.copy(startPoint).addScaledVector(direction, 0.5);
-        slot.beam.quaternion.setFromUnitVectors(WORLD_UP, direction.lengthSq() ? direction.normalize() : WORLD_UP);
-        slot.beam.scale.set(1, length, 1);
-        slot.beam.material.color.set(effect.skillId === 'rainbowReflect' ? primary : secondary);
-        setOpacity(slot.beam, fade * (effect.skillId === 'vacuumCleaner' ? 0.76 : 0.26));
-        slot.beam.visible = length > 0.08;
+        if (effect.skillId === 'rainbowReflect' && target) {
+          const unitDirection = direction.lengthSq() ? direction.clone().normalize() : WORLD_UP;
+          const side = new THREE.Vector3(-unitDirection.z, 0, unitDirection.x).normalize();
+          slot.rainbowStrands.forEach((strand, strandIndex) => {
+            const offset = (strandIndex - (slot.rainbowStrands.length - 1) / 2) * 0.035;
+            const strandStart = startPoint.clone().addScaledVector(side, offset);
+            const strandEnd = endPoint.clone().addScaledVector(side, offset);
+            const strandDirection = strandEnd.clone().sub(strandStart);
+            strand.position.copy(strandStart).addScaledVector(strandDirection, 0.5);
+            strand.quaternion.setFromUnitVectors(WORLD_UP, strandDirection.lengthSq() ? strandDirection.clone().normalize() : WORLD_UP);
+            strand.scale.set(0.24, strandDirection.length(), 0.24);
+            strand.material.opacity = fade * (0.66 + Math.sin(now * 22 + strandIndex) * 0.18);
+            strand.visible = length > 0.08;
+          });
+          slot.rainbowPulse.position.copy(startPoint).lerp(endPoint, progress);
+          slot.rainbowPulse.material.color.set(RAINBOW[Math.floor(now * 16) % RAINBOW.length]);
+          slot.rainbowPulse.scale.setScalar(0.72 + Math.sin(now * 35) * 0.2);
+          slot.rainbowPulse.material.opacity = fade;
+          slot.rainbowPulse.visible = true;
+          if ((effect.transferredStatuses ?? []).some((status) => status.type === 'stunned') && progress > 0.68) {
+            const arrival = Math.min(1, (progress - 0.68) / 0.24);
+            const ring = slot.rings[0];
+            ring.position.copy(endPoint).add(new THREE.Vector3(0, -0.5, 0));
+            ring.scale.setScalar(0.55 + arrival * 1.1);
+            ring.material.color.set('#fff07a');
+            setOpacity(ring, fade * (1 - arrival * 0.35));
+            slot.particles.slice(0, 4).forEach((particle, particleIndex) => {
+              const angle = particleIndex / 4 * Math.PI * 2 + now * 18;
+              particle.position.copy(endPoint).add(new THREE.Vector3(Math.cos(angle) * 0.28, -0.42 + Math.sin(angle * 2) * 0.08, Math.sin(angle) * 0.24));
+              particle.material.color.set(particleIndex % 2 ? '#fff8b0' : '#a7f6ff');
+              setOpacity(particle, fade * arrival);
+            });
+          }
+        } else {
+          slot.beam.position.copy(startPoint).addScaledVector(direction, 0.5);
+          slot.beam.quaternion.setFromUnitVectors(WORLD_UP, direction.lengthSq() ? direction.normalize() : WORLD_UP);
+          slot.beam.scale.set(1, length, 1);
+          slot.beam.material.color.set(secondary);
+          setOpacity(slot.beam, fade * 0.76);
+          slot.beam.visible = length > 0.08;
+        }
       }
 
       if (effect.skillId === 'rainbowReflect' && effect.cancellationPulse) {

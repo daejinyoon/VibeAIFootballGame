@@ -37,13 +37,14 @@ function result(ok, skillId, team, reason = null, events = []) {
   return { ok, skillId, team, reason, events };
 }
 
-export function addSkillEffect(state, { skillId, team, sourcePlayerId, targetPlayerId = null, durationSeconds, position, returnTargetPosition, cancellationPulse = false, level = 1 }) {
+export function addSkillEffect(state, { skillId, team, sourcePlayerId, targetPlayerId = null, durationSeconds, position, returnTargetPosition, transferredStatuses, cancellationPulse = false, level = 1 }) {
   if (!Array.isArray(state.skillEffects)) state.skillEffects = [];
   const id = Number.isInteger(state.nextSkillEffectId) ? state.nextSkillEffectId : 1;
   state.nextSkillEffectId = id + 1;
   const effect = { id, skillId, team, sourcePlayerId, targetPlayerId, elapsedSeconds: 0, durationSeconds, level,
     ...(position ? { position: { ...position } } : {}),
     ...(returnTargetPosition ? { returnTargetPosition: { ...returnTargetPosition } } : {}),
+    ...(transferredStatuses ? { transferredStatuses: transferredStatuses.map((status) => ({ ...status })) } : {}),
     ...(cancellationPulse ? { cancellationPulse: true } : {}) };
   state.skillEffects.push(effect);
   return effect;
@@ -421,7 +422,7 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
     addSkillEffect(state, {
       skillId, team, sourcePlayerId: player.id, targetPlayerId: target.id,
       position: { x: player.x, y: player.y },
-      returnTargetPosition: { x: target.x, y: target.y }, durationSeconds: 0.9,
+      returnTargetPosition: { x: target.x, y: target.y }, transferredStatuses, durationSeconds: 0.9,
     });
   }
 
@@ -504,8 +505,14 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
     }
     events.unshift({ type: 'skillUsed', skillId, team: player.team, playerId: player.id });
   } else if (skillId === 'vacuumCleaner') {
-    state.ball.x = player.x;
-    state.ball.y = player.y;
+    state.vacuumEffect = {
+      playerId: player.id,
+      startPosition: { x: state.ball.x, y: state.ball.y },
+      elapsedSeconds: 0,
+      durationSeconds: 0.7,
+      remainingSeconds: 0.7,
+    };
+    state.ball.ownerId = null;
     state.ball.vx = 0;
     state.ball.vy = 0;
     state.ball.height = 0;
@@ -517,7 +524,7 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
     delete state.ball.scoreValue;
     delete state.ball.flightTarget;
     delete state.ball.passTarget;
-    setBallOwner(state, player);
+    state.possessionTeam = null;
     events = [{ type: 'skillUsed', skillId, team: player.team, playerId: player.id }];
   }
 
@@ -532,7 +539,7 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
   } else if (!state.skillEffects?.some((effect) => effect.sourcePlayerId === player.id && effect.skillId === skillId)) {
     if (!['tornadoShot', 'powerTackle'].includes(skillId)) addSkillEffect(state, {
       skillId, team: player.team, sourcePlayerId: player.id,
-      durationSeconds: 1,
+      durationSeconds: skillId === 'vacuumCleaner' ? 0.7 : 1,
     });
   }
   state.lastSkillCasterByTeam = {

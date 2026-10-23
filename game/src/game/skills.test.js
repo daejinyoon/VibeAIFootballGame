@@ -276,7 +276,7 @@ test('Eulryongta targets the nearest 1/2/3 opponents in front for ten seconds, i
   assert.equal(noTarget.reason, 'noTargetInFront');
 });
 
-test('Vacuum Cleaner immediately claims the ball from anywhere on the field', () => {
+test('Vacuum Cleaner captures the starting ball position for a continuous pull', () => {
   const state = createInitialGameState();
   const user = state.players.find((player) => player.id === 'home-def-1');
   state.powerBarriers.push({ team: 'away', sourcePlayerId: 'away-fw', x: 300, y: 200,
@@ -284,8 +284,16 @@ test('Vacuum Cleaner immediately claims the ball from anywhere on the field', ()
   Object.assign(state.ball, { ownerId: null, x: FIELD.width, y: FIELD.height, vx: 240, vy: 100, height: 30, skillId: 'eagleShot', scoreValue: 3 });
   const result = applySkill(state, { team: 'home', sourcePlayerId: user.id, skillId: 'vacuumCleaner', level: 1 });
   assert.equal(result.ok, true);
-  assert.equal(state.ball.ownerId, user.id);
-  assert.deepEqual({ x: state.ball.x, y: state.ball.y, vx: state.ball.vx, vy: state.ball.vy }, { x: user.x, y: user.y, vx: 0, vy: 0 });
+  assert.equal(state.ball.ownerId, null);
+  assert.deepEqual({ x: state.ball.x, y: state.ball.y, vx: state.ball.vx, vy: state.ball.vy }, { x: FIELD.width, y: FIELD.height, vx: 0, vy: 0 });
+  assert.deepEqual(state.vacuumEffect, {
+    playerId: user.id,
+    startPosition: { x: FIELD.width, y: FIELD.height },
+    elapsedSeconds: 0,
+    durationSeconds: 0.7,
+    remainingSeconds: 0.7,
+  });
+  assert.equal(state.skillEffects.find((effect) => effect.skillId === 'vacuumCleaner').durationSeconds, 0.7);
   assert.equal(state.ball.scoreValue, undefined);
 });
 
@@ -320,6 +328,9 @@ test('Rainbow Reflect transfers all active negative statuses to the last opponen
   const transfer = attempt.events.find((event) => event.type === 'skillStatusTransferred');
   assert.equal(transfer.sourcePlayerId, user.id);
   assert.equal(transfer.targetPlayerId, distantLastCaster.id);
+  const transferEffect = state.skillEffects.find((effect) => effect.skillId === 'rainbowReflect');
+  assert.equal(transferEffect.targetPlayerId, distantLastCaster.id);
+  assert.deepEqual(transferEffect.transferredStatuses, transfer.transferredStatuses);
   assert.deepEqual(transfer.transferredStatuses, [
     { type: 'knockdown', durationSeconds: 0.8 },
     { type: 'airborne', durationSeconds: 5 },

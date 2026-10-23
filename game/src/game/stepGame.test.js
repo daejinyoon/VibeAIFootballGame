@@ -40,6 +40,37 @@ test('the opening clock stays stopped until the opening taker actually kicks the
   assert.equal(state.remainingSeconds, 59.95);
 });
 
+test('Vacuum Cleaner moves the live ball along an accelerating spiral path and completes at 0.7 seconds', () => {
+  const state = createInitialGameState();
+  const user = state.players.find((player) => player.id === 'home-def-1');
+  Object.assign(user, { x: 100, y: 300, facingX: 1, facingY: 0 });
+  Object.assign(state.ball, { ownerId: null, x: 900, y: 300, vx: 0, vy: 0, height: 0 });
+  state.controlledPlayerId = user.id;
+  state.possessionTeam = null;
+  state.phase = 'playing';
+  assert.equal(applySkill(state, { team: 'home', sourcePlayerId: user.id, skillId: 'vacuumCleaner', level: 1 }).ok, true);
+
+  for (let index = 0; index < 4; index += 1) stepGame(state, frame(), 0.05);
+  const firstX = state.ball.x;
+  assert.ok(firstX < 900 && firstX > user.x, 'the ball travels visibly without teleporting to the user');
+  assert.ok(Math.abs(state.vacuumEffect.elapsedSeconds - 0.2) < 1e-9);
+
+  for (let index = 0; index < 4; index += 1) stepGame(state, frame(), 0.05);
+  const secondX = state.ball.x;
+  assert.ok(secondX < firstX, 'the ball keeps moving toward the user');
+  assert.ok(firstX - secondX > 900 - firstX, 'ease-in acceleration increases travel over equal time steps');
+
+  for (let index = 0; index < 6; index += 1) stepGame(state, frame(), 0.05);
+  assert.equal(state.vacuumEffect ?? null, null);
+  assert.equal(state.ball.ownerId, user.id);
+  const finalUser = state.players.find((player) => player.id === user.id);
+  assert.deepEqual({ x: state.ball.x, y: state.ball.y }, {
+    x: finalUser.x + finalUser.facingX * 17,
+    y: finalUser.y + finalUser.facingY * 17,
+  });
+  assert.ok(!state.skillEffects.some((effect) => effect.skillId === 'vacuumCleaner'));
+});
+
 test('only the opening kickoff taker can start the clock, and later kickoffs preserve the started clock', () => {
   const state = createGameState();
   state.controlledPlayerId = 'home-def-1';

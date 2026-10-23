@@ -568,6 +568,7 @@ function clearSkillTransientState(state) {
   state.tornadoShotEffect = null;
   state.powerBarriers = [];
   state.vacuumEffect = null;
+  delete state.vacuumPullVisual;
   state.skillCutIn = null;
   delete state.ball.skillId;
   delete state.ball.skillLevel;
@@ -1671,17 +1672,26 @@ function advanceVacuum(state, deltaSeconds) {
     return [];
   }
 
-  const dx = player.x - state.ball.x;
-  const dy = player.y - state.ball.y;
+  const start = effect.startPosition ?? { x: state.ball.x, y: state.ball.y };
+  const distanceToPlayer = distance(state.ball, player);
+  effect.durationSeconds = Math.max(0.001, effect.durationSeconds ?? 0.7);
+  effect.elapsedSeconds = Math.min(effect.durationSeconds, (effect.elapsedSeconds ?? 0) + deltaSeconds);
+  const progress = clamp(effect.elapsedSeconds / effect.durationSeconds, 0, 1);
+  const easedProgress = progress * progress;
+  const dx = player.x - start.x;
+  const dy = player.y - start.y;
   const length = Math.hypot(dx, dy) || 1;
-  const travel = Math.min(length, 440 * deltaSeconds);
-  state.ball.x = clamp(state.ball.x + dx / length * travel, 0, FIELD.width);
-  state.ball.y = clamp(state.ball.y + dy / length * travel, 0, FIELD.height);
+  const spiralRadius = Math.min(22, length * 0.12) * (1 - progress);
+  const spiralAngle = progress * Math.PI * 6;
+  const spiralOffset = Math.sin(spiralAngle) * spiralRadius;
+  state.ball.x = clamp(start.x + dx * easedProgress - (dy / length) * spiralOffset, 0, FIELD.width);
+  state.ball.y = clamp(start.y + dy * easedProgress + (dx / length) * spiralOffset, 0, FIELD.height);
   state.ball.vx = 0;
   state.ball.vy = 0;
-  effect.remainingSeconds -= deltaSeconds;
+  state.ball.height = 0;
+  effect.remainingSeconds = Math.max(0, effect.durationSeconds - effect.elapsedSeconds);
 
-  if (length <= 18 || effect.remainingSeconds <= 0) {
+  if (distanceToPlayer <= 18 || effect.remainingSeconds <= 0) {
     setBallOwner(state, player);
     putBallAtPlayer(state, player);
     if (player.role === 'goalkeeper') {
@@ -2037,9 +2047,7 @@ function advanceSkillEffects(state, deltaSeconds) {
     effect.elapsedSeconds += deltaSeconds;
     if (effect.elapsedSeconds >= effect.durationSeconds) return false;
     if (effect.skillId === 'vacuumCleaner'
-        && state.vacuumEffect?.playerId !== effect.sourcePlayerId
-        && state.vacuumPullVisual?.sourcePlayerId !== effect.sourcePlayerId
-        && effect.elapsedSeconds >= 0.55) return false;
+        && state.vacuumEffect?.playerId !== effect.sourcePlayerId) return false;
     if (effect.skillId === 'powerTackle' && !effect.targetPlayerId
         && !(state.powerBarriers ?? []).some((barrier) => barrier.sourcePlayerId === effect.sourcePlayerId)) return false;
     if (effect.skillId === 'eagleShot' && !state.eagleVolley) return false;

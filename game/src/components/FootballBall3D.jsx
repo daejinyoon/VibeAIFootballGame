@@ -4,6 +4,8 @@ import { FIELD } from '../game/constants.js';
 
 export function FootballBall3D({ ball, actorsRef }) {
   const ballRef = useRef(null);
+  const tornadoWrapRef = useRef(null);
+  const tornadoInnerWrapRef = useRef(null);
   if (!ball) return null;
 
   const x = (Number(ball.x) || 0) / 80 - FIELD.width / 160;
@@ -14,6 +16,8 @@ export function FootballBall3D({ ball, actorsRef }) {
 
   useFrame((_, delta) => {
     if (ballRef.current) ballRef.current.rotation.x += delta * (inFlight ? 5.5 : 1.2);
+    if (tornadoWrapRef.current) tornadoWrapRef.current.rotation.y += delta * 5;
+    if (tornadoInnerWrapRef.current) tornadoInnerWrapRef.current.rotation.x -= delta * 4;
   });
 
   const registerActor = (actor) => {
@@ -34,23 +38,31 @@ export function FootballBall3D({ ball, actorsRef }) {
         <mesh castShadow>
           <sphereGeometry args={[0.19, 18, 14]} />
           <meshStandardMaterial
-            color={ball.flightKind === 'skill-shot' ? '#fff1bd' : '#fff7df'}
-            emissive={ball.flightKind === 'skill-shot' ? '#ffb144' : '#ffffff'}
-            emissiveIntensity={ball.flightKind === 'skill-shot' ? 0.48 : 0.04}
+            color={ball.skillId === 'tornadoShot' ? '#e9fcff' : ball.flightKind === 'skill-shot' ? '#fff1bd' : '#fff7df'}
+            emissive={ball.skillId === 'tornadoShot' ? '#31cce8' : ball.flightKind === 'skill-shot' ? '#ffb144' : '#ffffff'}
+            emissiveIntensity={ball.skillId === 'tornadoShot' ? 0.34 : ball.flightKind === 'skill-shot' ? 0.48 : 0.04}
             roughness={0.4}
           />
         </mesh>
         <mesh position={[0, 0.018, 0.17]}>
           <icosahedronGeometry args={[0.05, 0]} />
-          <meshStandardMaterial color="#273945" roughness={0.54} />
+          <meshStandardMaterial color={ball.skillId === 'tornadoShot' ? '#124c66' : '#273945'} roughness={0.54} />
         </mesh>
         <mesh position={[-0.122, 0.068, 0.093]} rotation={[0.3, 0, -0.4]}>
           <icosahedronGeometry args={[0.041, 0]} />
-          <meshStandardMaterial color="#273945" roughness={0.54} />
+          <meshStandardMaterial color={ball.skillId === 'tornadoShot' ? '#124c66' : '#273945'} roughness={0.54} />
         </mesh>
         <mesh position={[0.119, -0.064, 0.089]} rotation={[-0.3, 0, 0.4]}>
           <icosahedronGeometry args={[0.041, 0]} />
-          <meshStandardMaterial color="#273945" roughness={0.54} />
+          <meshStandardMaterial color={ball.skillId === 'tornadoShot' ? '#124c66' : '#273945'} roughness={0.54} />
+        </mesh>
+        <mesh ref={tornadoWrapRef} visible={ball.skillId === 'tornadoShot'} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.245, 0.018, 6, 32]} />
+          <meshBasicMaterial color="#62e8ff" transparent opacity={0.86} depthWrite={false} toneMapped={false} />
+        </mesh>
+        <mesh ref={tornadoInnerWrapRef} visible={ball.skillId === 'tornadoShot'} rotation={[0.45, 0, Math.PI / 2]}>
+          <torusGeometry args={[0.205, 0.012, 6, 32]} />
+          <meshBasicMaterial color="#d8ffff" transparent opacity={0.78} depthWrite={false} toneMapped={false} />
         </mesh>
       </group>
     </group>

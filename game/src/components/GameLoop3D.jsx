@@ -52,10 +52,6 @@ export function GameLoop3D({
     const state = gameStateRef.current;
     if (paused) return;
     animationTimeRef.current += Math.max(0, delta);
-    if (state.vacuumPullVisual) {
-      state.vacuumPullVisual.elapsedSeconds += Math.max(0, delta);
-      if (state.vacuumPullVisual.elapsedSeconds >= state.vacuumPullVisual.durationSeconds) state.vacuumPullVisual = null;
-    }
     if (state.skillCutIn) {
       state.skillCutIn.elapsedSeconds += Math.max(0, delta);
       if (state.skillCutIn.elapsedSeconds >= state.skillCutIn.durationSeconds) {
@@ -64,20 +60,10 @@ export function GameLoop3D({
     }
     const presentationScale = state.skillCutIn ? 0.4 : 1;
     const simulationDelta = Math.min(delta, 0.05) * presentationScale;
-    const previousBallPosition = { x: state.ball.x, y: state.ball.y, height: state.ball.height ?? 0 };
     const events = stepGame(state, inputRef.current?.readFrame(), simulationDelta);
     for (const event of events) {
       if (event.type === 'skillUsed' && !event.automatic) playSkillAudio(event.skillId);
       if (event.type === 'skillReflected') playSkillAudio('rainbowReflect');
-      if (event.type === 'skillUsed' && event.skillId === 'vacuumCleaner') {
-        state.vacuumPullVisual = {
-          from: previousBallPosition,
-          to: { x: state.ball.x, y: state.ball.y, height: state.ball.height ?? 0 },
-          sourcePlayerId: event.playerId,
-          elapsedSeconds: 0,
-          durationSeconds: 0.48,
-        };
-      }
     }
 
     for (const player of state.players) {
