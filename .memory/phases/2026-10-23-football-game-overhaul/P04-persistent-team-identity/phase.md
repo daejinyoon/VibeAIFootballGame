@@ -3,9 +3,9 @@
 ## Tasks
 | Task | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
-| T01 | `in_progress` | Define branding data and migrate local profiles without losing campaign saves | [T01](./T01-branding-model-profile.md) |
-| T02 | `pending` | Add the start-screen team customization flow | [T02](./T02-team-customization-screen.md) |
+| T01 | `done` | Define branding data and migrate local profiles without losing campaign saves | [T01](./T01-branding-model-profile.md) |
+| T02 | `in_progress` | Add the start-screen team customization flow | [T02](./T02-team-customization-screen.md) |
 | T03 | `pending` | Apply home and stage-specific opponent branding to kits, stage cards, and HUD | [T03](./T03-stage-branding-integration.md) |
 
 ## Progress
-- done: 0/3 (active: T01)
+- done: 1/3 (active: T02)
