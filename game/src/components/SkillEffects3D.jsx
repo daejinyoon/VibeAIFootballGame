@@ -23,15 +23,34 @@ const BEAM_GEOMETRY = new THREE.CylinderGeometry(0.045, 0.12, 1, 10, 1, true);
 const RAINBOW_GEOMETRIES = RAINBOW.map(() => new THREE.TorusGeometry(0.53, 0.025, 6, 24, Math.PI));
 const AIR_RING_GEOMETRY = new THREE.TorusGeometry(0.3, 0.025, 6, 28);
 const AIR_PARTICLE_GEOMETRY = new THREE.TetrahedronGeometry(0.06, 0);
-const BARRIER_GROUND_GEOMETRY = new THREE.BoxGeometry(1, 0.055, 0.34);
-const BARRIER_GLOW_GEOMETRY = new THREE.BoxGeometry(1, 0.035, 0.12);
-const BARRIER_PLATE_GEOMETRY = new THREE.BoxGeometry(0.062, 1.8, 0.24);
+function makeFissureGeometry(halfWidth, jitterScale) {
+  const shape = new THREE.Shape();
+  const segments = 24;
+  const edgeJitter = (index, salt) => Math.sin(index * 12.9898 + salt * 78.233) * jitterScale;
+  shape.moveTo(-0.5, -halfWidth + edgeJitter(0, 1));
+  for (let index = 1; index <= segments; index += 1) {
+    const x = -0.5 + index / segments;
+    shape.lineTo(x, -halfWidth + edgeJitter(index, 1));
+  }
+  for (let index = segments - 1; index >= 0; index -= 1) {
+    const x = -0.5 + index / segments;
+    shape.lineTo(x, halfWidth + edgeJitter(index, 2));
+  }
+  shape.closePath();
+  return new THREE.ShapeGeometry(shape);
+}
+
+const BARRIER_FISSURE_GEOMETRY = makeFissureGeometry(0.19, 0.065);
+const BARRIER_GLOW_GEOMETRY = makeFissureGeometry(0.035, 0.012);
+const BARRIER_PLATE_GEOMETRY = new THREE.DodecahedronGeometry(1, 0);
+const BARRIER_GROUND_PLATE_GEOMETRY = new THREE.DodecahedronGeometry(1, 0);
 const BARRIER_SHARD_GEOMETRY = new THREE.ConeGeometry(0.3, 0.9, 5, 1);
 const BARRIER_DEBRIS_GEOMETRY = new THREE.TetrahedronGeometry(0.15, 0);
 const RAINBOW_PULSE_GEOMETRY = new THREE.SphereGeometry(0.12, 12, 8);
-const BARRIER_GROUND_MATERIAL = new THREE.MeshStandardMaterial({ color: '#17151b', roughness: 1, emissive: '#080609', emissiveIntensity: 0.2, side: THREE.DoubleSide });
-const BARRIER_GLOW_MATERIAL = new THREE.MeshBasicMaterial({ color: '#ff7b31', transparent: true, opacity: 0.92, depthWrite: false, toneMapped: false });
-const BARRIER_PLATE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#8a7357', roughness: 0.94, emissive: '#633113', emissiveIntensity: 0.42 });
+const BARRIER_GROUND_MATERIAL = new THREE.MeshStandardMaterial({ color: '#100f15', roughness: 1, emissive: '#09070b', emissiveIntensity: 0.28, side: THREE.DoubleSide });
+const BARRIER_GLOW_MATERIAL = new THREE.MeshBasicMaterial({ color: '#ff672b', transparent: true, opacity: 0.92, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+const BARRIER_PLATE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#635748', roughness: 0.96, emissive: '#241911', emissiveIntensity: 0.3 });
+const BARRIER_GROUND_PLATE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#837361', roughness: 0.98, emissive: '#28170f', emissiveIntensity: 0.18 });
 const BARRIER_SHARD_MATERIAL = new THREE.MeshStandardMaterial({ color: '#766149', roughness: 0.92, emissive: '#713112', emissiveIntensity: 0.48 });
 
 function makeMesh(geometry, color = '#ffffff', opacity = 0.8) {
@@ -92,20 +111,30 @@ function makeAirSlot() {
 
 function makeBarrierSlot() {
   const root = new THREE.Group();
-  const groundCrack = new THREE.Mesh(BARRIER_GROUND_GEOMETRY, BARRIER_GROUND_MATERIAL);
-  groundCrack.position.y = 0.025;
+  const groundCrack = new THREE.Mesh(BARRIER_FISSURE_GEOMETRY, BARRIER_GROUND_MATERIAL);
+  groundCrack.rotation.x = -Math.PI / 2;
+  groundCrack.position.y = 0.026;
   root.add(groundCrack);
   const glow = new THREE.Mesh(BARRIER_GLOW_GEOMETRY, BARRIER_GLOW_MATERIAL);
-  glow.position.y = 0.045;
+  glow.rotation.x = -Math.PI / 2;
+  glow.position.y = 0.04;
   root.add(glow);
-  const plates = [];
+  const groundPlates = [];
   for (let side = -1; side <= 1; side += 2) {
-    for (let index = 0; index < 16; index += 1) {
-      const plate = new THREE.Mesh(BARRIER_PLATE_GEOMETRY, BARRIER_PLATE_MATERIAL);
-      plate.position.set(-0.47 + index * 0.0625, 0.48, side * 0.5);
-      plate.rotation.set((index % 2 ? -1 : 1) * 0.05, (index % 2 ? 1 : -1) * 0.11, (index % 3 - 1) * 0.045);
+    for (let index = 0; index < 14; index += 1) {
+      const plate = new THREE.Mesh(BARRIER_GROUND_PLATE_GEOMETRY, BARRIER_GROUND_PLATE_MATERIAL);
+      plate.userData = { side, index };
       root.add(plate);
-      plates.push(plate);
+      groundPlates.push(plate);
+    }
+  }
+  const wallBlocks = [];
+  for (let side = -1; side <= 1; side += 2) {
+    for (let index = 0; index < 14; index += 1) {
+      const plate = new THREE.Mesh(BARRIER_PLATE_GEOMETRY, BARRIER_PLATE_MATERIAL);
+      plate.userData = { side, index };
+      root.add(plate);
+      wallBlocks.push(plate);
     }
   }
   const shards = [];
@@ -125,7 +154,7 @@ function makeBarrierSlot() {
     root.add(piece);
     return piece;
   });
-  return { root, groundCrack, glow, plates, shards, debris };
+  return { root, groundCrack, glow, groundPlates, wallBlocks, shards, debris };
 }
 
 function worldX(x) {
@@ -162,7 +191,7 @@ export function SkillEffects3D({ gameStateRef }) {
       for (const mesh of [...slot.rings, ...slot.particles]) mesh.material.dispose();
     }
     for (const slot of barrierSlots) {
-      for (const mesh of [slot.groundCrack, slot.glow, ...slot.plates, ...slot.shards, ...slot.debris]) mesh.material.dispose();
+      for (const mesh of [slot.groundCrack, slot.glow, ...slot.groundPlates, ...slot.wallBlocks, ...slot.shards, ...slot.debris]) mesh.material.dispose();
     }
   }, [slots, airSlots, barrierSlots]);
 
@@ -397,56 +426,78 @@ export function SkillEffects3D({ gameStateRef }) {
     for (let index = 0; index < barrierSlots.length; index += 1) {
       const slot = barrierSlots[index];
       const barrier = barriers[index];
-      if (!barrier || barrier.remainingSeconds <= 0) {
+      if (!barrier || !Number.isFinite(barrier.remainingSeconds) || barrier.remainingSeconds <= 0
+          || ![barrier.x, barrier.y, barrier.length, barrier.facingX, barrier.facingY].every(Number.isFinite)) {
         slot.root.visible = false;
         continue;
       }
+      const facingLength = Math.hypot(barrier.facingX, barrier.facingY) || 1;
+      const facingX = barrier.facingX / facingLength;
+      const facingY = barrier.facingY / facingLength;
+      const age = Math.max(0, Number(barrier.elapsedSeconds) || 0);
+      const rise = THREE.MathUtils.smoothstep(age, 0, 0.35);
+      const wallOffset = Math.max(0, Number(barrier.wallOffset) || 40) / 80;
+      const directionAngle = Math.atan2(-facingY, facingX);
+      const lifetime = Math.max(0.001, Number(barrier.remainingSeconds) || 0.001);
+      const fade = Math.min(1, lifetime / 0.28);
       slot.root.visible = true;
       slot.root.position.set(
-        worldX(barrier.x + barrier.facingX * barrier.length / 2),
+        worldX(barrier.x + facingX * barrier.length / 2),
         0,
-        worldZ(barrier.y + barrier.facingY * barrier.length / 2),
+        worldZ(barrier.y + facingY * barrier.length / 2),
       );
-      slot.root.rotation.y = Math.atan2(-barrier.facingY, barrier.facingX);
+      slot.root.rotation.y = directionAngle;
       slot.root.scale.set(barrier.length / 80, 1, 1);
       const accent = barrier.team === 'away' ? '#ffb54f' : '#6ef3ff';
-      const pulse = 0.72 + Math.sin((barrier.elapsedSeconds ?? 0) * 13) * 0.18;
-      const teamGlow = barrier.team === 'away' ? '#ff553c' : '#ff9b39';
+      const pulse = 0.76 + Math.sin(age * 13) * 0.16;
+      const teamGlow = barrier.team === 'away' ? '#ff653c' : '#ff8d38';
       slot.glow.material.color.set(teamGlow);
-      slot.glow.material.opacity = pulse;
+      slot.glow.material.opacity = pulse * fade;
       slot.groundCrack.material.emissive.set(accent);
-      const rise = Math.min(1, Math.max(0, (barrier.elapsedSeconds ?? 0) / 0.35));
-      const wallOffset = (barrier.wallOffset ?? 40) / 80;
-      slot.plates.forEach((plate, plateIndex) => {
-        const indexInRow = plateIndex % 16;
-        const side = plateIndex < 16 ? -1 : 1;
-        plate.position.set(-0.47 + indexInRow * 0.0625,
-          0.9 * rise + (indexInRow % 3) * 0.018,
-          side * wallOffset);
-        plate.scale.y = rise * (0.88 + (indexInRow % 4) * 0.045);
-        plate.material.emissive.set(plateIndex % 2 ? '#342115' : '#1e2522');
+      const maximumWallHeight = Math.max(0.3, Number(barrier.height) || 144) / 80;
+      slot.groundPlates.forEach((plate) => {
+        const { side, index: plateIndex } = plate.userData;
+        const lane = plateIndex / 13;
+        const jitter = Math.sin(plateIndex * 8.17 + side * 3.2);
+        const chipRise = rise * (0.035 + (plateIndex % 4) * 0.012);
+        plate.position.set(-0.47 + lane * 0.94, 0.035 + chipRise, side * (0.205 + rise * (0.045 + Math.abs(jitter) * 0.035)));
+        plate.rotation.set(0.1 + jitter * 0.12, plateIndex * 0.7, (plateIndex % 2 ? 1 : -1) * 0.07);
+        plate.scale.set(0.025 + (plateIndex % 3) * 0.009, 0.025 + (plateIndex % 2) * 0.014, 0.045 + Math.abs(jitter) * 0.035);
+        plate.material.emissive.set(accent === '#ffb54f' ? '#352017' : '#162b30');
+      });
+      slot.wallBlocks.forEach((block) => {
+        const { side, index: blockIndex } = block.userData;
+        const lane = blockIndex / 13;
+        const variation = Math.sin(blockIndex * 4.61 + side * 2.7);
+        const shapeHeight = 0.72 + (blockIndex % 4) * 0.055 + Math.abs(variation) * 0.08;
+        const height = maximumWallHeight / 1.88 * shapeHeight * rise;
+        block.position.set(-0.48 + lane * 0.96, height * 0.88, side * wallOffset);
+        block.rotation.set(variation * 0.12, blockIndex * 0.63, variation * 0.16);
+        block.scale.set(0.115 + (blockIndex % 3) * 0.017, height, 0.22 + (blockIndex % 4) * 0.025);
+        block.material.color.set(blockIndex % 3 ? '#655747' : '#83715b');
+        block.material.emissive.set(accent === '#ffb54f' ? '#2b1710' : '#17262a');
       });
       slot.shards.forEach((shard, shardIndex) => {
-        const age = barrier.elapsedSeconds ?? 0;
         const side = shardIndex % 2 ? 1 : -1;
-        shard.position.y = 1.8 * rise;
+        shard.position.y = 1.55 * rise * (0.78 + (shardIndex % 3) * 0.1);
         shard.position.z = side * wallOffset;
-        shard.rotation.z = (shardIndex % 2 ? -1 : 1) * (0.08 + Math.sin(age * 11 + shardIndex) * 0.025);
+        shard.position.x = -0.48 + (shardIndex / (slot.shards.length - 1)) * 0.96;
+        shard.rotation.z = (shardIndex % 2 ? -1 : 1) * (0.13 + Math.sin(age * 11 + shardIndex) * 0.035);
+        shard.scale.set(0.75 + (shardIndex % 3) * 0.08, rise * (0.8 + (shardIndex % 2) * 0.3), 0.7 + (shardIndex % 2) * 0.15);
       });
       slot.debris.forEach((piece, pieceIndex) => {
-        const age = barrier.elapsedSeconds ?? 0;
         const lane = pieceIndex / slot.debris.length;
         const side = pieceIndex % 2 ? 1 : -1;
-        const burst = Math.min(1, age * 3.4);
         const flutter = age * (5 + pieceIndex % 4) + pieceIndex * 1.7;
-        piece.position.set(-0.5 + lane + Math.sin(flutter) * 0.055,
-          0.1 + Math.abs(Math.sin(flutter)) * (0.42 + burst * 0.3),
-          side * (wallOffset + 0.12 + Math.cos(flutter * 1.3) * 0.16));
+        const flight = Math.sin(Math.min(1, age / 0.8) * Math.PI / 2) * Math.max(0, 1 - Math.max(0, age - 0.8) / 2.2);
+        piece.position.set(-0.5 + lane + Math.sin(flutter) * 0.045 * flight,
+          0.08 + flight * (0.38 + (pieceIndex % 4) * 0.08),
+          side * (wallOffset + 0.1 + Math.cos(flutter * 1.3) * 0.09 * flight));
         piece.rotation.set(flutter * 0.7, flutter, flutter * 0.45);
-        piece.scale.setScalar(0.45 + Math.abs(Math.sin(flutter * 0.8)) * 0.65);
+        piece.scale.setScalar((0.45 + Math.abs(Math.sin(flutter * 0.8)) * 0.65) * rise);
         piece.material.color.set(pieceIndex % 3 ? '#8f785b' : '#c99b5e');
         piece.material.emissive.set(accent === '#ffb54f' ? '#a34318' : '#226b75');
-        piece.material.opacity = 0.62 + Math.abs(Math.sin(flutter)) * 0.3;
+        piece.material.opacity = (0.62 + Math.abs(Math.sin(flutter)) * 0.3) * fade;
       });
     }
 

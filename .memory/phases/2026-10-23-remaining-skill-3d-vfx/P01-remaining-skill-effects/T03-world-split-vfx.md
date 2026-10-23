@@ -1,6 +1,6 @@
 # Task: T03 World Split VFX
 
-## Status: pending
+## Status: done
 
 ## Goal
 Make World Split read as a large ground rupture that opens along the caster's slide, with a dark central fissure, separated stone plates, and two raised walls visibly forming on either side.
@@ -47,10 +47,10 @@ Make World Split read as a large ground rupture that opens along the caster's sl
 - Confirm lengths, 3-second lifetime, initial wall lift, and slide alignment.
 
 ## Acceptance Criteria
-- [ ] Ground visibly opens into an uneven dark fissure with separated raised plates.
-- [ ] Two raised, impassable rock walls flank the slide and read clearly in the match camera.
-- [ ] Visual length, direction, and lifetime match the 400/500/600-unit, 3-second barrier.
-- [ ] Gameplay collision and slide behavior are unchanged.
+- [x] Ground visibly opens into an uneven dark fissure with separated raised plates.
+- [x] Two raised, impassable rock walls flank the slide and read clearly in the match camera.
+- [x] Visual length, direction, and lifetime match the 400/500/600-unit, 3-second barrier.
+- [x] Gameplay collision and slide behavior are unchanged.
 
 ## Validation
 - `cd game; npm run build` — barrier geometry compiles.
@@ -69,6 +69,7 @@ Task: T03-world-split-vfx
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed (`npm run build`)
+- [x] Preview route remains available for direct in-game inspection; no capture artifacts created.
+- commit: recorded in Git history after validation
