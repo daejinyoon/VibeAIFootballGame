@@ -562,17 +562,7 @@ function finishMatch(state) {
 }
 
 function clearSkillTransientState(state) {
-  state.skillEffects = [];
-  state.skillProjectiles = [];
-  state.eagleVolley = null;
-  state.tornadoShotEffect = null;
-  state.powerBarriers = [];
-  state.vacuumEffect = null;
-  delete state.vacuumPullVisual;
-  state.skillCutIn = null;
-  delete state.ball.skillId;
-  delete state.ball.skillLevel;
-  delete state.ball.scoreValue;
+  clearSkillVfxState(state);
   for (const player of state.players) {
     player.airborneSecondsRemaining = 0;
     player.knockdownSeconds = 0;
@@ -592,8 +582,22 @@ function clearSkillTransientState(state) {
   }
 }
 
-function scoreGoal(state, scoringTeam) {
+function clearSkillVfxState(state) {
+  state.skillEffects = [];
+  state.skillProjectiles = [];
+  state.eagleVolley = null;
   state.tornadoShotEffect = null;
+  state.powerBarriers = [];
+  state.vacuumEffect = null;
+  delete state.vacuumPullVisual;
+  state.skillCutIn = null;
+  delete state.ball.skillId;
+  delete state.ball.skillLevel;
+  delete state.ball.scoreValue;
+}
+
+function scoreGoal(state, scoringTeam) {
+  clearSkillVfxState(state);
   const points = 1;
   state.score[scoringTeam] += points;
   state.restart = null;

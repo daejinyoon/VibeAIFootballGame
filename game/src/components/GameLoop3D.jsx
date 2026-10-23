@@ -84,12 +84,15 @@ export function GameLoop3D({
 
     const { ball } = state;
     const ballActor = actorsRef.current.ball;
-    if (ballActor) ballActor.position.set(worldX(ball.x), 0, worldZ(ball.y));
+    if (ballActor) {
+      ballActor.position.set(worldX(ball.x), 0, worldZ(ball.y));
+      // The animated eagle is the ball during every phase of Eagle Shot.
+      ballActor.visible = !state.eagleVolley;
+    }
     const ballBody = actorsRef.current.ballBody;
     if (ballBody) {
       ballBody.position.y = Math.max(0, ball.height ?? 0) / 80 + 0.12;
-      ballBody.visible = !(state.skillProjectiles ?? []).some((projectile) => projectile.skillId === 'eagleShot'
-        && !projectile.resolved && projectile.phase === 'ascending');
+      ballBody.visible = !state.eagleVolley;
     }
 
     if (events.length > 0) callbacksRef.current.onGameEvents?.(events);

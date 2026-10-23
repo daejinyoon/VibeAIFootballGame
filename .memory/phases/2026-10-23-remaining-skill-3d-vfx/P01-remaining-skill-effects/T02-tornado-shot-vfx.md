@@ -1,6 +1,6 @@
 # Task: T02 Tornado Shot VFX
 
-## Status: pending
+## Status: done
 
 ## Goal
 Make Tornado Shot look like a dense, energetic storm physically wrapped around the moving ball, with its funnel and ground contact clearly visible from the existing match camera.
@@ -49,14 +49,16 @@ Make Tornado Shot look like a dense, energetic storm physically wrapped around t
 - Confirm a visible ball inside the funnel, continuous field travel, and width changes at levels 1/2/3 without a camera cut.
 
 ## Acceptance Criteria
-- [ ] Funnel, paired helices, ground contact, and path ribbon form one readable moving storm.
-- [ ] Ball remains visible inside the storm during flight.
-- [ ] Width tracks `pathWidth`; effect hides when simulation state expires.
-- [ ] Tornado trajectory, hits, score, lift duration, and camera remain unchanged.
+- [x] Funnel, paired helices, ground contact, and path ribbon form one readable moving storm.
+- [x] Ball remains visible inside the storm during flight.
+- [x] Width tracks `pathWidth`; effect hides when simulation state expires.
+- [x] All skill VFX and skill-owned field objects clear immediately on goal; active VFX also clear at their normal expiry.
+- [x] Tornado trajectory, hits, score, lift duration, and camera remain unchanged.
 
 ## Validation
 - `cd game; npm run build` — scene component and geometry compile.
 - Manual: preview `tornadoShot` and trigger levels 1/2/3.
+- Goal transition: `scoreGoal` clears skill presentation state without changing player status timers.
 
 ## Commit Message
 ```text
@@ -71,6 +73,7 @@ Task: T02-tornado-shot-vfx
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed (`npm run build`; Tornado Shot levels 1/2/3 activation and preview HTTP 200 were confirmed earlier in this task)
+- [x] Goal cleanup clears skill visuals/projectiles/barriers without clearing player status timers.
+- commit: recorded in Git history after validation

@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { FIELD } from '../game/constants.js';
+import { EagleProjectile3D } from './EagleProjectile3D.jsx';
 
 const SLOT_COUNT = 32;
 const AIR_SLOT_COUNT = 16;
@@ -27,27 +28,7 @@ const BARRIER_GLOW_GEOMETRY = new THREE.BoxGeometry(1, 0.035, 0.12);
 const BARRIER_PLATE_GEOMETRY = new THREE.BoxGeometry(0.062, 1.8, 0.24);
 const BARRIER_SHARD_GEOMETRY = new THREE.ConeGeometry(0.3, 0.9, 5, 1);
 const BARRIER_DEBRIS_GEOMETRY = new THREE.TetrahedronGeometry(0.15, 0);
-const EAGLE_BODY_GEOMETRY = new THREE.SphereGeometry(0.22, 12, 8);
-const EAGLE_HEAD_GEOMETRY = new THREE.SphereGeometry(0.11, 10, 7);
-const EAGLE_BEAK_GEOMETRY = new THREE.ConeGeometry(0.075, 0.2, 5);
-const EAGLE_TAIL_GEOMETRY = new THREE.ConeGeometry(0.13, 0.38, 5);
-const EAGLE_WING_GEOMETRY = (() => {
-  const shape = new THREE.Shape();
-  shape.moveTo(0, 0);
-  shape.quadraticCurveTo(-0.18, 0.2, -0.42, 0.2);
-  shape.lineTo(-0.78, 0.32);
-  shape.lineTo(-0.61, 0.13);
-  shape.lineTo(-0.87, 0.16);
-  shape.lineTo(-0.56, -0.04);
-  shape.lineTo(-0.75, -0.1);
-  shape.quadraticCurveTo(-0.28, -0.22, 0, 0);
-  return new THREE.ShapeGeometry(shape);
-})();
-const EAGLE_BEAM_GEOMETRY = new THREE.CylinderGeometry(0.08, 0.28, 1, 12, 1, true);
 const RAINBOW_PULSE_GEOMETRY = new THREE.SphereGeometry(0.12, 12, 8);
-const TORNADO_TRAIL_POINT_COUNT = 24;
-const EAGLE_TRAIL_POINT_COUNT = 32;
-const TORNADO_HELIX_POINT_COUNT = 48;
 const BARRIER_GROUND_MATERIAL = new THREE.MeshStandardMaterial({ color: '#17151b', roughness: 1, emissive: '#080609', emissiveIntensity: 0.2, side: THREE.DoubleSide });
 const BARRIER_GLOW_MATERIAL = new THREE.MeshBasicMaterial({ color: '#ff7b31', transparent: true, opacity: 0.92, depthWrite: false, toneMapped: false });
 const BARRIER_PLATE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#8a7357', roughness: 0.94, emissive: '#633113', emissiveIntensity: 0.42 });
@@ -147,84 +128,6 @@ function makeBarrierSlot() {
   return { root, groundCrack, glow, plates, shards, debris };
 }
 
-function makeTornadoSlot() {
-  const root = new THREE.Group();
-  const funnel = new THREE.Mesh(new THREE.ConeGeometry(0.82, 1.72, 28, 1, true), new THREE.MeshBasicMaterial({
-    color: '#5bd9f0', transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false, toneMapped: false,
-  }));
-  funnel.position.y = 0.86;
-  root.add(funnel);
-  const rings = [0, 1, 2, 3].map((index) => {
-    const ring = makeMesh(RING_GEOMETRY, index % 2 ? '#e5ffff' : '#53dff5', 0.9);
-    ring.rotation.x = Math.PI / 2;
-    ring.position.y = 0.2 + index * 0.38;
-    const radius = 1.08 - index * 0.19;
-    ring.scale.set(radius, radius, radius);
-    root.add(ring);
-    return ring;
-  });
-  const particles = Array.from({ length: 18 }, (_, index) => {
-    const particle = makeMesh(PARTICLE_GEOMETRY, index % 2 ? '#cbfbff' : '#54d8ef', 0.95);
-    root.add(particle);
-    return particle;
-  });
-  const helixLines = [0, 1].map((index) => {
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TORNADO_HELIX_POINT_COUNT * 3), 3));
-    geometry.setDrawRange(0, TORNADO_HELIX_POINT_COUNT);
-    const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({
-      color: index ? '#e5ffff' : '#49d8f0', transparent: true, opacity: 0.92,
-      depthWrite: false, toneMapped: false,
-    }));
-    root.add(line);
-    return line;
-  });
-  const trailGeometry = new THREE.BufferGeometry();
-  trailGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TORNADO_TRAIL_POINT_COUNT * 3), 3));
-  trailGeometry.setDrawRange(0, 0);
-  const trailLine = new THREE.Line(trailGeometry, new THREE.LineBasicMaterial({ color: '#80f4ff', transparent: true, opacity: 0.78, depthWrite: false, toneMapped: false }));
-  return { root, funnel, rings, particles, helixLines, trailLine, trailPosition: new THREE.Vector3() };
-}
-
-function makeEagleSlot() {
-  const root = new THREE.Group();
-  const bodyMaterial = new THREE.MeshStandardMaterial({ color: '#fff1aa', emissive: '#ff9f32', emissiveIntensity: 1.35, roughness: 0.3, metalness: 0.05 });
-  const wingMaterial = new THREE.MeshStandardMaterial({ color: '#fff4be', emissive: '#ff922d', emissiveIntensity: 1.1, roughness: 0.35, side: THREE.DoubleSide });
-  const beakMaterial = new THREE.MeshStandardMaterial({ color: '#ffcb59', emissive: '#e97323', emissiveIntensity: 0.65, roughness: 0.4 });
-  const body = new THREE.Mesh(EAGLE_BODY_GEOMETRY, bodyMaterial);
-  body.scale.set(0.72, 0.72, 1.55);
-  root.add(body);
-  const head = new THREE.Mesh(EAGLE_HEAD_GEOMETRY, bodyMaterial);
-  head.position.set(0, 0.1, 0.27);
-  root.add(head);
-  const beak = new THREE.Mesh(EAGLE_BEAK_GEOMETRY, beakMaterial);
-  beak.position.set(0, 0.08, 0.42);
-  beak.rotation.x = Math.PI / 2;
-  root.add(beak);
-  const tail = new THREE.Mesh(EAGLE_TAIL_GEOMETRY, wingMaterial);
-  tail.position.set(0, 0, -0.38);
-  tail.rotation.x = -Math.PI / 2;
-  root.add(tail);
-  const wings = [-1, 1].map((side) => {
-    const pivot = new THREE.Group();
-    pivot.position.set(side * 0.06, 0.02, -0.02);
-    const wing = new THREE.Mesh(EAGLE_WING_GEOMETRY, wingMaterial);
-    wing.scale.x = side;
-    pivot.add(wing);
-    root.add(pivot);
-    return pivot;
-  });
-  const beam = makeMesh(EAGLE_BEAM_GEOMETRY, '#ffe889', 0.62);
-  beam.visible = false;
-  const trailGeometry = new THREE.BufferGeometry();
-  trailGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(EAGLE_TRAIL_POINT_COUNT * 3), 3));
-  trailGeometry.setDrawRange(0, 0);
-  const trailLine = new THREE.Line(trailGeometry, new THREE.LineBasicMaterial({
-    color: '#ffbf4b', transparent: true, opacity: 0.88, depthWrite: false, toneMapped: false,
-  }));
-  return { root, body, wings, beam, trailLine, materials: [bodyMaterial, wingMaterial, beakMaterial] };
-}
-
 function worldX(x) {
   return (Number(x) || 0) / 80 - FIELD.width / 160;
 }
@@ -243,24 +146,13 @@ export function SkillEffects3D({ gameStateRef }) {
   const slots = useMemo(() => Array.from({ length: SLOT_COUNT }, makeSlot), []);
   const airSlots = useMemo(() => Array.from({ length: AIR_SLOT_COUNT }, makeAirSlot), []);
   const barrierSlots = useMemo(() => Array.from({ length: BARRIER_SLOT_COUNT }, makeBarrierSlot), []);
-  const tornadoSlots = useMemo(() => Array.from({ length: 2 }, makeTornadoSlot), []);
-  const eagleSlots = useMemo(() => Array.from({ length: 3 }, makeEagleSlot), []);
-  const tornadoHistory = useMemo(() => Array.from({ length: tornadoSlots.length }, () => []), [tornadoSlots.length]);
-  const eagleHistory = useMemo(() => Array.from({ length: eagleSlots.length }, () => []), [eagleSlots.length]);
   const scene = useMemo(() => {
     const group = new THREE.Group();
     for (const slot of slots) group.add(slot.root);
     for (const slot of airSlots) group.add(slot.root);
     for (const slot of barrierSlots) group.add(slot.root);
-    for (const slot of tornadoSlots) group.add(slot.root);
-    for (const slot of tornadoSlots) group.add(slot.trailLine);
-    for (const slot of eagleSlots) {
-      group.add(slot.root);
-      group.add(slot.beam);
-      group.add(slot.trailLine);
-    }
     return group;
-  }, [slots, airSlots, barrierSlots, tornadoSlots, eagleSlots]);
+  }, [slots, airSlots, barrierSlots]);
 
   useEffect(() => () => {
     for (const slot of slots) {
@@ -272,23 +164,7 @@ export function SkillEffects3D({ gameStateRef }) {
     for (const slot of barrierSlots) {
       for (const mesh of [slot.groundCrack, slot.glow, ...slot.plates, ...slot.shards, ...slot.debris]) mesh.material.dispose();
     }
-    for (const slot of tornadoSlots) {
-      slot.funnel.material.dispose();
-      for (const mesh of [...slot.rings, ...slot.particles]) mesh.material.dispose();
-      for (const line of slot.helixLines) {
-        line.material.dispose();
-        line.geometry.dispose();
-      }
-      slot.trailLine.material.dispose();
-      slot.trailLine.geometry.dispose();
-    }
-    for (const slot of eagleSlots) {
-      for (const material of slot.materials) material.dispose();
-      slot.beam.material.dispose();
-      slot.trailLine.material.dispose();
-      slot.trailLine.geometry.dispose();
-    }
-  }, [slots, airSlots, barrierSlots, tornadoSlots, eagleSlots]);
+  }, [slots, airSlots, barrierSlots]);
 
   useFrame((_, delta) => {
     const state = gameStateRef?.current;
@@ -574,134 +450,10 @@ export function SkillEffects3D({ gameStateRef }) {
       });
     }
 
-    const tornadoEffects = effects.filter((effect) => effect.skillId === 'tornadoShot');
-    const projectiles = (state?.skillProjectiles ?? []).filter((projectile) => projectile.skillId === 'eagleShot' && !projectile.resolved);
-    for (let index = 0; index < eagleSlots.length; index += 1) {
-      const slot = eagleSlots[index];
-      const projectile = projectiles[index];
-      if (!projectile || !state.eagleVolley) {
-        slot.root.visible = false;
-        slot.beam.visible = false;
-        slot.trailLine.visible = false;
-        eagleHistory[index].length = 0;
-        slot.trailLine.geometry.setDrawRange(0, 0);
-        continue;
-      }
-      const [primary, secondary] = SKILL_EFFECT_COLORS.eagleShot[projectile.team === 'away' ? 'away' : 'home'];
-      const ascent = projectile.phase === 'ascending';
-      const height = Math.max(0, Number(projectile.height) || 0) / 80;
-      slot.root.visible = true;
-      slot.root.position.set(worldX(projectile.x), height + 0.12, worldZ(projectile.y));
-      slot.root.rotation.y = projectile.team === 'away' ? -Math.PI / 2 : Math.PI / 2;
-      slot.root.scale.setScalar(ascent ? 0.74 + Math.min(0.5, height * 0.12) : 0.86);
-      slot.body.material.color.set(primary);
-      slot.body.material.emissive.set(secondary);
-      slot.wings.forEach((wing, wingIndex) => {
-        const flap = Math.sin((projectile.ageSeconds ?? 0) * 22 + wingIndex * Math.PI) * 0.52;
-        wing.rotation.z = wingIndex === 0 ? flap : -flap;
-        wing.children[0].material.color.set(primary);
-        wing.children[0].material.emissive.set(secondary);
-      });
-      const trail = eagleHistory[index];
-      const eaglePosition = new THREE.Vector3(worldX(projectile.x), height + 0.12, worldZ(projectile.y));
-      const lastEaglePosition = trail[trail.length - 1];
-      if (!lastEaglePosition || lastEaglePosition.distanceToSquared(eaglePosition) >= 0.001) {
-        trail.push(eaglePosition);
-        if (trail.length > EAGLE_TRAIL_POINT_COUNT) trail.shift();
-      }
-      const trailPositions = slot.trailLine.geometry.attributes.position.array;
-      trail.forEach((point, pointIndex) => {
-        const offset = pointIndex * 3;
-        trailPositions[offset] = point.x;
-        trailPositions[offset + 1] = point.y;
-        trailPositions[offset + 2] = point.z;
-      });
-      slot.trailLine.geometry.attributes.position.needsUpdate = true;
-      slot.trailLine.geometry.setDrawRange(0, trail.length);
-      slot.trailLine.material.color.set(secondary);
-      slot.trailLine.material.opacity = 0.9;
-      slot.trailLine.visible = trail.length > 1;
-      slot.beam.visible = ascent;
-      if (ascent) {
-        slot.beam.position.set(worldX(projectile.x), Math.max(0.06, height * 0.48), worldZ(projectile.y));
-        slot.beam.scale.set(1, Math.max(0.12, height), 1);
-        slot.beam.material.color.set(secondary);
-        slot.beam.material.opacity = 0.38 + Math.sin((projectile.ageSeconds ?? 0) * 25) * 0.14;
-      }
-    }
-
-    for (let index = 0; index < tornadoSlots.length; index += 1) {
-      const slot = tornadoSlots[index];
-      const effect = index === 0 ? state?.tornadoShotEffect : tornadoEffects[index];
-      if (!effect || !state?.tornadoShotEffect) {
-        slot.root.visible = false;
-        slot.trailLine.visible = false;
-        tornadoHistory[index].length = 0;
-        slot.trailLine.geometry.setDrawRange(0, 0);
-        continue;
-      }
-      const ball = state.ball;
-      const [primary, secondary] = SKILL_EFFECT_COLORS.tornadoShot[effect.team === 'away' ? 'away' : 'home'];
-      const time = effect.elapsedSeconds;
-      const width = Math.max(1, (effect.pathWidth ?? 42) / 42);
-      const position = slot.trailPosition.set(worldX(ball.x), 0.015, worldZ(ball.y));
-      const history = tornadoHistory[index];
-      const last = history[history.length - 1];
-      if (!last || last.distanceToSquared(position) >= 0.0025) {
-        history.push(position.clone());
-        if (history.length > TORNADO_TRAIL_POINT_COUNT) history.shift();
-      }
-      slot.root.visible = true;
-      slot.trailLine.visible = history.length > 1;
-      slot.root.position.copy(position);
-      slot.root.scale.set(width, 1, width);
-      slot.root.rotation.y = time * 1.8;
-      const trailPositions = slot.trailLine.geometry.attributes.position.array;
-      history.forEach((point, pointIndex) => {
-        const offset = pointIndex * 3;
-        trailPositions[offset] = point.x;
-        trailPositions[offset + 1] = 0.045 + pointIndex / history.length * 0.08;
-        trailPositions[offset + 2] = point.z;
-      });
-      slot.trailLine.geometry.attributes.position.needsUpdate = true;
-      slot.trailLine.geometry.setDrawRange(0, history.length);
-      slot.trailLine.material.color.set(secondary);
-      slot.funnel.material.color.set(primary);
-      slot.funnel.material.opacity = 0.34 + Math.sin(time * 8) * 0.08;
-      slot.helixLines.forEach((line, lineIndex) => {
-        const positions = line.geometry.attributes.position.array;
-        for (let pointIndex = 0; pointIndex < TORNADO_HELIX_POINT_COUNT; pointIndex += 1) {
-          const progress = pointIndex / (TORNADO_HELIX_POINT_COUNT - 1);
-          const angle = progress * Math.PI * 8 + time * (lineIndex ? -12 : 12) + lineIndex * Math.PI;
-          const radius = (0.2 + progress * 0.78) * width;
-          const offset = pointIndex * 3;
-          positions[offset] = Math.cos(angle) * radius;
-          positions[offset + 1] = progress * 1.74;
-          positions[offset + 2] = Math.sin(angle) * radius;
-        }
-        line.geometry.attributes.position.needsUpdate = true;
-        line.material.color.set(lineIndex ? secondary : primary);
-        line.material.opacity = 0.68 + Math.sin(time * 18 + lineIndex) * 0.2;
-      });
-      slot.rings.forEach((ring, ringIndex) => {
-        const spin = time * (ringIndex % 2 ? -5 : 4) + ringIndex * 0.7;
-        ring.rotation.set(Math.PI / 2, spin * 0.18, spin);
-        ring.material.color.set(ringIndex % 2 ? secondary : primary);
-        ring.material.opacity = 0.78 + Math.sin(time * 12 + ringIndex) * 0.18;
-        ring.scale.setScalar((1.06 - ringIndex * 0.19) * (0.9 + Math.sin(time * 9 + ringIndex) * 0.08));
-      });
-      slot.particles.forEach((particle, particleIndex) => {
-        const height = (particleIndex % 6) / 5 * 1.56;
-        const angle = particleIndex * 2.399 + time * (particleIndex % 2 ? -5.5 : 5.5);
-        const radius = 0.28 + height * 0.39 + Math.sin(time * 8 + particleIndex) * 0.06;
-        particle.position.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
-        particle.rotation.set(time * 3, angle, time * 2);
-        particle.scale.setScalar(0.75 + (particleIndex % 3) * 0.22);
-        particle.material.color.set(particleIndex % 2 ? secondary : primary);
-        particle.material.opacity = 0.9;
-      });
-    }
   });
 
-  return <primitive object={scene} dispose={null} />;
+  return <>
+    <primitive object={scene} dispose={null} />
+    <EagleProjectile3D gameStateRef={gameStateRef} />
+  </>;
 }

@@ -7,6 +7,7 @@ import { PlayerMotionEffects3D } from './PlayerMotionEffects3D.jsx';
 import { SkillEffects3D } from './SkillEffects3D.jsx';
 import { StadiumBackdrop3D } from './StadiumBackdrop3D.jsx';
 import { TrackingCamera3D } from './TrackingCamera3D.jsx';
+import { TornadoShot3D } from './TornadoShot3D.jsx';
 
 const DEMO_PLAYERS = [
   { id: 'home-gk', team: 'home', role: 'goalkeeper', x: 55, y: 270 },
@@ -165,6 +166,7 @@ export default function Match3DCanvas({
             <FootballBall3D ball={ball} actorsRef={actorsRef} />
             {gameStateRef && <PlayerMotionEffects3D gameStateRef={gameStateRef} paused={paused} />}
             {gameStateRef && <SkillEffects3D gameStateRef={gameStateRef} />}
+            {gameStateRef && <TornadoShot3D gameStateRef={gameStateRef} />}
             {children}
           </Canvas>
         </RendererErrorBoundary>
