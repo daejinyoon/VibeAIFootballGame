@@ -78,6 +78,8 @@ export function applyTornadoContacts(state, previousBallPosition, currentBallPos
     if (segmentDistance(player, previousBallPosition, currentBallPosition) > contactRadius) continue;
     player.airborneSecondsRemaining = 5;
     player.airborneFromTeam = effect.team;
+    player.airborneSourcePlayerId = source.id;
+    player.airborneSkillId = 'tornadoShot';
     effect.hitPlayerIds.push(player.id);
     events.push({ type: 'tornadoLift', skillId: 'tornadoShot', team: effect.team,
       playerId: player.id, level, durationSeconds: 5 });
@@ -638,6 +640,10 @@ function advancePlayerRecovery(player, deltaSeconds) {
       player.motionAction = 'recover';
       player.vx = 0;
       player.vy = 0;
+      delete player.knockdownFromTeam;
+      delete player.knockdownSourcePlayerId;
+      delete player.knockdownSkillId;
+      delete player.knockdownReflectedByTeam;
     }
   } else if (player.motionAction === 'recover') {
     player.motionAction = 'idle';
@@ -645,6 +651,12 @@ function advancePlayerRecovery(player, deltaSeconds) {
     player.knockdownDirectionY = 0;
   }
   player.airborneSecondsRemaining = Math.max(0, (player.airborneSecondsRemaining ?? 0) - deltaSeconds);
+  if (player.airborneSecondsRemaining === 0) {
+    delete player.airborneFromTeam;
+    delete player.airborneSourcePlayerId;
+    delete player.airborneSkillId;
+    delete player.airborneReflectedByTeam;
+  }
 }
 
 function nearestPlayer(players, point) {

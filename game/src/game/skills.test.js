@@ -231,17 +231,23 @@ test('World Split slides the caster along a long, three-second level-scaled grou
   }
 });
 
-test('Eulryongta targets up to level count in front for ten seconds and fails without targets', () => {
-  const state = createInitialGameState();
-  const user = state.players.find((player) => player.id === 'home-mid-1');
-  Object.assign(user, { x: 300, y: 175, facingX: 1, facingY: 0 });
-  Object.assign(state.players.find((player) => player.id === 'away-def-1'), { x: 340, y: 175 });
-  Object.assign(state.players.find((player) => player.id === 'away-mid-1'), { x: 360, y: 175 });
-  Object.assign(state.players.find((player) => player.id === 'away-fw'), { x: 380, y: 175 });
-  const result = applySkill(state, { team: 'home', sourcePlayerId: user.id, skillId: 'eulryongta', level: 2 });
-  assert.equal(result.events.filter((event) => event.type === 'playerKnockedDown').length, 2);
-  assert.ok(state.players.filter((player) => player.team === 'away').filter((player) => player.knockdownSeconds > 0)
-    .every((player) => player.knockdownSeconds === 10));
+test('Eulryongta targets the nearest 1/2/3 opponents in front for ten seconds, including keepers', () => {
+  for (const level of [1, 2, 3]) {
+    const state = createInitialGameState();
+    const user = state.players.find((player) => player.id === 'home-mid-1');
+    Object.assign(user, { x: 300, y: 175, facingX: 1, facingY: 0 });
+    Object.assign(state.players.find((player) => player.id === 'away-gk'), { x: 330, y: 175 });
+    Object.assign(state.players.find((player) => player.id === 'away-def-1'), { x: 340, y: 175 });
+    Object.assign(state.players.find((player) => player.id === 'away-mid-1'), { x: 360, y: 175 });
+    Object.assign(state.players.find((player) => player.id === 'away-fw'), { x: 380, y: 175 });
+    const result = applySkill(state, { team: 'home', sourcePlayerId: user.id, skillId: 'eulryongta', level });
+    const knocked = result.events.filter((event) => event.type === 'playerKnockedDown');
+    assert.equal(knocked.length, level);
+    assert.equal(knocked[0].playerId, 'away-gk', 'the nearest opposing goalkeeper is eligible');
+    assert.ok(knocked.every((event) => event.durationSeconds === 10));
+    assert.ok(knocked.every((event) => state.players.find((player) => player.id === event.playerId).knockdownSeconds === 10));
+    assert.equal(user.knockdownSeconds, 0, 'the caster is excluded');
+  }
   const empty = createInitialGameState();
   for (const target of empty.players.filter((player) => player.team === 'away')) Object.assign(target, { x: 950, y: 10 });
   const noTarget = applySkill(empty, { team: 'home', sourcePlayerId: 'home-fw', skillId: 'eulryongta', level: 1 });
@@ -251,6 +257,8 @@ test('Eulryongta targets up to level count in front for ten seconds and fails wi
 test('Vacuum Cleaner immediately claims the ball from anywhere on the field', () => {
   const state = createInitialGameState();
   const user = state.players.find((player) => player.id === 'home-def-1');
+  state.powerBarriers.push({ team: 'away', sourcePlayerId: 'away-fw', x: 300, y: 200,
+    facingX: 1, facingY: 0, length: 400, thickness: 20, wallOffset: 40, remainingSeconds: 3 });
   Object.assign(state.ball, { ownerId: null, x: FIELD.width, y: FIELD.height, vx: 240, vy: 100, height: 30, skillId: 'eagleShot', scoreValue: 3 });
   const result = applySkill(state, { team: 'home', sourcePlayerId: user.id, skillId: 'vacuumCleaner', level: 1 });
   assert.equal(result.ok, true);
@@ -259,26 +267,72 @@ test('Vacuum Cleaner immediately claims the ball from anywhere on the field', ()
   assert.equal(state.ball.scoreValue, undefined);
 });
 
-test('Rainbow Reflect passively cancels opposing global effects and keeps own effects', () => {
-  const state = createInitialGameState({ teamSkillDeck: teamDeck('rainbowReflect'), opponentSkillDeck: teamDeck('powerTackle') });
-  state.skillEffects = [
-    { id: 1, skillId: 'eulryongta', team: 'away', sourcePlayerId: 'away-fw', elapsedSeconds: 0, durationSeconds: 10 },
-    { id: 2, skillId: 'powerTackle', team: 'home', sourcePlayerId: 'home-fw', elapsedSeconds: 0, durationSeconds: 3 },
-  ];
-  state.powerBarriers = [{ team: 'away', sourcePlayerId: 'away-fw', x: 300, y: 200, facingX: 1, facingY: 0, length: 220, thickness: 28, remainingSeconds: 3 }];
-  Object.assign(state.ball, { ownerId: null, flightKind: 'skill-shot', skillId: 'tornadoShot', lastTouchTeam: 'away' });
-  state.tornadoShotEffect = { team: 'away', sourcePlayerId: 'away-fw', level: 1, pathWidth: 48, hitPlayerIds: [] };
-  Object.assign(state.players.find((player) => player.id === 'home-mid-1'), { knockdownSeconds: 9, knockdownFromTeam: 'away' });
-  state.players.find((player) => player.id === 'away-mid-1').airborneSecondsRemaining = 4;
-  state.players.find((player) => player.id === 'away-mid-1').airborneFromTeam = 'away';
+test('Rainbow Reflect redirects Eagle and Tornado shots toward its attacking goal once', () => {
+  for (const skillId of ['eagleShot', 'tornadoShot']) {
+    const state = createInitialGameState({ teamSkillDeck: teamDeck('rainbowReflect'), opponentSkillDeck: teamDeck(skillId) });
+    carrier(state, 'away-fw');
+    assert.equal(applySkill(state, { team: 'away', sourcePlayerId: 'away-fw', skillId, level: 1 }).ok, true);
+    state.ball.x = 540;
+    state.ball.y = 290;
+    const event = applyAutomaticRainbowReflect(state, 'home');
+    assert.equal(event.reflectedSkillId, skillId);
+    assert.equal(event.sourcePlayerId, 'away-fw');
+    assert.equal(state.ball.skillId, 'rainbowReflect');
+    assert.equal(state.ball.flightKind, 'skill-shot');
+    assert.equal(state.ball.lastTouchTeam, 'home');
+    assert.equal(state.possessionTeam, 'home');
+    assert.ok(state.ball.vx > 0, 'the returned shot moves toward home attacking goal');
+    assert.ok(Math.abs(Math.hypot(state.ball.vx, state.ball.vy) - 520) < 0.001);
+    assert.equal(state.ball.scoreValue, undefined);
+    assert.equal(state.eagleVolley, null);
+    assert.deepEqual(state.skillProjectiles, []);
+    assert.equal(state.tornadoShotEffect, null);
+    assert.equal(applyAutomaticRainbowReflect(state, 'away'), null, 'a returned shot cannot ping-pong');
+  }
+});
+
+test('Rainbow Reflect returns Eulryongta and Tornado status to the distant original caster once', () => {
+  const eulryongState = createInitialGameState({ teamSkillDeck: teamDeck('rainbowReflect') });
+  const attacker = eulryongState.players.find((player) => player.id === 'away-fw');
+  const affected = eulryongState.players.find((player) => player.id === 'home-mid-1');
+  Object.assign(attacker, { x: 800, y: 200, facingX: -1, facingY: 0 });
+  Object.assign(affected, { x: 720, y: 200 });
+  assert.equal(applySkill(eulryongState, { team: 'away', sourcePlayerId: attacker.id, skillId: 'eulryongta', level: 1 }).ok, true);
+  const knockdownReflection = applyAutomaticRainbowReflect(eulryongState, 'home');
+  assert.equal(knockdownReflection.reflectedSkillId, 'eulryongta');
+  assert.equal(affected.knockdownSeconds, 0);
+  assert.equal(attacker.knockdownSeconds, 10);
+  assert.equal(attacker.knockdownReflectedByTeam, 'home');
+  assert.equal(applyAutomaticRainbowReflect(eulryongState, 'away'), null, 'reflected knockdown cannot ping-pong');
+
+  const tornadoState = createInitialGameState({ teamSkillDeck: teamDeck('rainbowReflect') });
+  const tornadoCaster = tornadoState.players.find((player) => player.id === 'away-fw');
+  const lifted = tornadoState.players.find((player) => player.id === 'home-mid-1');
+  Object.assign(tornadoCaster, { x: 850, y: 220 });
+  Object.assign(lifted, { x: 120, y: 300, airborneSecondsRemaining: 2.5, airborneFromTeam: 'away',
+    airborneSourcePlayerId: tornadoCaster.id, airborneSkillId: 'tornadoShot' });
+  const liftReflection = applyAutomaticRainbowReflect(tornadoState, 'home');
+  assert.equal(liftReflection.reflectedSkillId, 'tornadoShot');
+  assert.equal(lifted.airborneSecondsRemaining, 0);
+  assert.equal(tornadoCaster.airborneSecondsRemaining, 5);
+  assert.equal(tornadoCaster.airborneReflectedByTeam, 'home');
+  assert.equal(applyAutomaticRainbowReflect(tornadoState, 'away'), null, 'reflected lift cannot ping-pong');
+});
+
+test('Rainbow Reflect reverses World Split at its original origin and preserves its lifetime', () => {
+  const state = createInitialGameState({ teamSkillDeck: teamDeck('rainbowReflect') });
+  const barrier = { skillId: 'powerTackle', team: 'away', sourcePlayerId: 'away-fw', x: 700, y: 230,
+    facingX: -1, facingY: 0, length: 500, thickness: 20, wallOffset: 40, remainingSeconds: 2.4 };
+  state.powerBarriers.push(barrier);
   const event = applyAutomaticRainbowReflect(state, 'home');
-  assert.equal(event.skillId, 'rainbowReflect');
-  assert.deepEqual(state.skillEffects.map((effect) => [effect.team, effect.cancellationPulse === true]), [['home', false], ['home', true]]);
-  assert.deepEqual(state.powerBarriers, []);
-  assert.equal(state.tornadoShotEffect, null);
-  assert.equal(state.ball.skillId, undefined);
-  assert.equal(state.players.find((player) => player.id === 'home-mid-1').knockdownSeconds, 0);
-  assert.equal(state.players.find((player) => player.id === 'away-mid-1').airborneSecondsRemaining, 0);
+  assert.equal(event.reflectedSkillId, 'powerTackle');
+  assert.equal(barrier.team, 'home');
+  assert.equal(barrier.facingX, 1);
+  assert.equal(barrier.x, 700, 'the barrier keeps its original cast origin');
+  assert.equal(barrier.y, 230);
+  assert.equal(barrier.length, 500);
+  assert.equal(barrier.remainingSeconds, 2.4);
+  assert.equal(applyAutomaticRainbowReflect(state, 'away'), null, 'reflected terrain cannot ping-pong');
 });
 
 test('away AI activates its shared deck and cooldown prevents repeat activation', () => {

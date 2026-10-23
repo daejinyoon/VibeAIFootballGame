@@ -387,6 +387,8 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
       const direction = unitVector(target.x - player.x, target.y - player.y);
       target.knockdownSeconds = 10;
       target.knockdownFromTeam = player.team;
+      target.knockdownSourcePlayerId = player.id;
+      target.knockdownSkillId = 'eulryongta';
       target.knockdownDirectionX = direction.x;
       target.knockdownDirectionY = direction.y;
       target.motionAction = 'knockdown';
@@ -466,58 +468,138 @@ export function activateNextTeamSkill(state, team, sourcePlayerId) {
   return result(false, null, team, 'noUsableSkill');
 }
 
-/** Rainbow Reflect is a passive team defense that erases opponent skill effects globally. */
+/** Rainbow Reflect passively returns opposing skill outcomes instead of deleting them. */
 export function applyAutomaticRainbowReflect(state, defendingTeam = 'home') {
   const deck = state?.teamSkillDecks?.[defendingTeam] ?? [];
   if (!deck.some((entry) => entry.skillId === 'rainbowReflect')) return null;
   const opposingTeam = defendingTeam === 'home' ? 'away' : 'home';
-  const opponentEffects = (state.skillEffects ?? []).filter((effect) => effect.team === opposingTeam && !effect.cancellationPulse);
-  const hasBarrier = (state.powerBarriers ?? []).some((effect) => effect.team === opposingTeam);
-  const hasLift = state.players.some((player) => player.team !== defendingTeam && (player.airborneSecondsRemaining ?? 0) > 0);
-  const hasSkillShot = state.ball.flightKind === 'skill-shot' && state.ball.lastTouchTeam === opposingTeam
-    && ['eagleShot', 'tornadoShot'].includes(state.ball.skillId);
-  if (!opponentEffects.length && !hasBarrier && !hasLift && !hasSkillShot) return null;
-  const cancelledBarrier = (state.powerBarriers ?? []).find((effect) => effect.team === opposingTeam);
-  const cancelledEffect = opponentEffects[0];
-  const cancelledTarget = cancelledEffect?.targetPlayerId
-    ? state.players.find((player) => player.id === cancelledEffect.targetPlayerId)
-    : null;
-  const cancelPosition = hasSkillShot ? { x: state.ball.x, y: state.ball.y }
-    : cancelledBarrier ? { x: cancelledBarrier.x + cancelledBarrier.facingX * cancelledBarrier.length / 2,
-      y: cancelledBarrier.y + cancelledBarrier.facingY * cancelledBarrier.length / 2 }
-      : cancelledTarget ? { x: cancelledTarget.x, y: cancelledTarget.y }
-        : cancelledEffect ? state.players.find((player) => player.id === cancelledEffect.sourcePlayerId)
-          ?? { x: FIELD.width / 2, y: FIELD.height / 2 }
-          : { x: state.ball.x, y: state.ball.y };
-  state.skillEffects = (state.skillEffects ?? []).filter((effect) => effect.team !== opposingTeam || effect.cancellationPulse);
-  state.powerBarriers = (state.powerBarriers ?? []).filter((effect) => effect.team !== opposingTeam);
-  for (const player of state.players) {
-    if (player.airborneFromTeam === opposingTeam) {
-      player.airborneSecondsRemaining = 0;
-      delete player.airborneFromTeam;
-    }
-    if (player.knockdownFromTeam === opposingTeam && player.knockdownSeconds > 0) {
-      player.knockdownSeconds = 0;
-      player.motionAction = 'recover';
-      delete player.knockdownFromTeam;
-    }
+  const opponentEffects = (state.skillEffects ?? []).filter((effect) => effect.team === opposingTeam
+    && !effect.cancellationPulse && effect.reflectedByTeam !== opposingTeam
+    && !['vacuumCleaner', 'rainbowReflect'].includes(effect.skillId));
+  const opponentBarriers = (state.powerBarriers ?? []).filter((effect) => effect.team === opposingTeam
+    && effect.reflectedByTeam !== opposingTeam);
+  const knockdowns = state.players.filter((player) => player.knockdownSeconds > 0
+    && player.knockdownFromTeam === opposingTeam && player.knockdownSkillId === 'eulryongta'
+    && player.knockdownReflectedByTeam !== opposingTeam);
+  const lifts = state.players.filter((player) => (player.airborneSecondsRemaining ?? 0) > 0
+    && player.airborneFromTeam === opposingTeam && player.airborneSkillId === 'tornadoShot'
+    && player.airborneReflectedByTeam !== opposingTeam);
+  const ballSkillId = state.ball?.skillId;
+  const activeShotSkill = state.ball?.flightKind === 'skill-shot'
+    && state.ball?.lastTouchTeam === opposingTeam
+    && ['eagleShot', 'tornadoShot'].includes(ballSkillId);
+  const activeEagleVolley = state.eagleVolley?.team === opposingTeam;
+  const activeTornado = state.tornadoShotEffect?.team === opposingTeam;
+  if (!opponentEffects.length && !opponentBarriers.length && !knockdowns.length && !lifts.length
+      && !activeShotSkill && !activeEagleVolley && !activeTornado) return null;
+
+  const firstKnockdown = knockdowns[0];
+  const firstLift = lifts[0];
+  const firstBarrier = opponentBarriers[0];
+  const firstEffect = opponentEffects[0];
+  const reflectedSourcePlayerId = firstBarrier?.sourcePlayerId ?? firstKnockdown?.knockdownSourcePlayerId
+    ?? firstLift?.airborneSourcePlayerId ?? firstEffect?.sourcePlayerId
+    ?? state.eagleVolley?.sourcePlayerId ?? state.tornadoShotEffect?.sourcePlayerId ?? null;
+  const cancelPosition = activeShotSkill ? { x: state.ball.x, y: state.ball.y }
+    : firstBarrier ? { x: firstBarrier.x + firstBarrier.facingX * firstBarrier.length / 2,
+      y: firstBarrier.y + firstBarrier.facingY * firstBarrier.length / 2 }
+      : firstKnockdown ? { x: firstKnockdown.x, y: firstKnockdown.y }
+        : firstLift ? { x: firstLift.x, y: firstLift.y }
+          : firstEffect ? state.players.find((player) => player.id === firstEffect.sourcePlayerId)
+            ?? { x: FIELD.width / 2, y: FIELD.height / 2 }
+            : { x: state.ball.x, y: state.ball.y };
+  const reflectedSkillId = activeShotSkill ? ballSkillId
+    : activeEagleVolley ? 'eagleShot'
+      : activeTornado ? 'tornadoShot'
+        : firstBarrier ? 'powerTackle'
+          : firstKnockdown ? 'eulryongta'
+            : firstLift ? 'tornadoShot'
+              : firstEffect?.skillId ?? null;
+
+  for (const effect of opponentEffects) {
+    effect.team = defendingTeam;
+    effect.reflectedByTeam = defendingTeam;
+    if (effect.targetPlayerId && effect.sourcePlayerId) effect.targetPlayerId = effect.sourcePlayerId;
   }
-  if (hasSkillShot) {
-    if (state.ball.skillId === 'tornadoShot') state.tornadoShotEffect = null;
-    state.ball.vx = 0;
-    state.ball.vy = 0;
-    state.ball.flightKind = 'ground';
-    delete state.ball.skillId;
-    delete state.ball.skillLevel;
-    delete state.ball.scoreValue;
-    state.skillProjectiles = [];
-    state.eagleVolley = null;
+
+  for (const barrier of opponentBarriers) {
+    barrier.team = defendingTeam;
+    barrier.reflectedByTeam = defendingTeam;
+    barrier.facingX = -(barrier.facingX ?? (opposingTeam === 'home' ? 1 : -1));
+    barrier.facingY = -(barrier.facingY ?? 0);
+  }
+
+  for (const affected of knockdowns) {
+    const source = state.players.find((player) => player.id === affected.knockdownSourcePlayerId);
+    if (!source || source.dismissed || source.team !== opposingTeam) continue;
+    affected.knockdownSeconds = 0;
+    affected.motionAction = 'recover';
+    affected.vx = 0;
+    affected.vy = 0;
+    delete affected.knockdownFromTeam;
+    delete affected.knockdownSourcePlayerId;
+    delete affected.knockdownSkillId;
+    const direction = unitVector(source.x - affected.x, source.y - affected.y);
+    source.knockdownSeconds = Math.max(source.knockdownSeconds ?? 0, 10);
+    source.knockdownFromTeam = defendingTeam;
+    source.knockdownSourcePlayerId = affected.id;
+    source.knockdownSkillId = 'eulryongta';
+    source.knockdownReflectedByTeam = defendingTeam;
+    source.knockdownDirectionX = direction.x;
+    source.knockdownDirectionY = direction.y;
+    source.motionAction = 'knockdown';
+    source.vx = 0;
+    source.vy = 0;
+  }
+
+  for (const affected of lifts) {
+    const source = state.players.find((player) => player.id === affected.airborneSourcePlayerId);
+    if (!source || source.dismissed || source.team !== opposingTeam) continue;
+    affected.airborneSecondsRemaining = 0;
+    delete affected.airborneFromTeam;
+    delete affected.airborneSourcePlayerId;
+    delete affected.airborneSkillId;
+    source.airborneSecondsRemaining = Math.max(source.airborneSecondsRemaining ?? 0, 5);
+    source.airborneFromTeam = defendingTeam;
+    source.airborneSourcePlayerId = affected.id;
+    source.airborneSkillId = 'tornadoShot';
+    source.airborneReflectedByTeam = defendingTeam;
+  }
+
+  if (activeShotSkill || activeEagleVolley || activeTornado) {
+    const attackGoalX = defendingTeam === 'home' ? FIELD.width : 0;
+    const dx = attackGoalX - state.ball.x;
+    const dy = FIELD.height / 2 - state.ball.y;
+    const length = Math.hypot(dx, dy) || 1;
+    const speed = 520;
     state.ball.x = clamp(state.ball.x, 0, FIELD.width);
     state.ball.y = clamp(state.ball.y, 0, FIELD.height);
+    state.ball.ownerId = null;
+    state.ball.vx = dx / length * speed;
+    state.ball.vy = dy / length * speed;
+    state.ball.height = 0;
+    state.ball.verticalVelocity = 0;
+    state.ball.flightKind = 'skill-shot';
+    state.ball.flightSeconds = 0;
+    delete state.ball.flightDurationSeconds;
+    state.ball.skillId = 'rainbowReflect';
+    state.ball.skillLevel = 1;
+    state.ball.lastTouchTeam = defendingTeam;
+    state.possessionTeam = defendingTeam;
+    delete state.ball.scoreValue;
+    delete state.ball.flightTarget;
+    delete state.ball.passTarget;
+    delete state.ball.passReceiverId;
+    delete state.ball.passTeam;
+    state.skillProjectiles = [];
+    state.eagleVolley = null;
+    state.tornadoShotEffect = null;
   }
+
   const reflector = state.players.filter((player) => player.team === defendingTeam && player.role !== 'goalkeeper' && !player.dismissed)
     .sort((a, b) => distance(a, cancelPosition) - distance(b, cancelPosition))[0];
   if (reflector) addSkillEffect(state, { skillId: 'rainbowReflect', team: defendingTeam,
     sourcePlayerId: reflector.id, position: cancelPosition, cancellationPulse: true, durationSeconds: 0.75 });
-  return { type: 'skillReflected', skillId: 'rainbowReflect', team: defendingTeam, automatic: true };
+  return { type: 'skillReflected', skillId: 'rainbowReflect', team: defendingTeam, automatic: true,
+    reflectedSkillId, sourcePlayerId: reflectedSourcePlayerId };
 }

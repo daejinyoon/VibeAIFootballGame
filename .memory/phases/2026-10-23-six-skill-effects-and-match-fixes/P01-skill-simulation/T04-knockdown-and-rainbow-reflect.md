@@ -1,6 +1,6 @@
 # Task: T04 Knockdown and Rainbow Reflect
 
-## Status: pending
+## Status: done
 
 ## Goal
 Keep Eulryongta's confirmed level-scaled ten-second knockdown behavior, and change Rainbow Reflect from deleting opponent skills to redirecting their gameplay effect back to the original caster or toward the opponent side.
@@ -53,10 +53,10 @@ Keep Eulryongta's confirmed level-scaled ten-second knockdown behavior, and chan
 - Preserve test that Vacuum Cleaner claims a ball at the opposite field corner, including when a wall is active.
 
 ## Acceptance Criteria
-- [ ] Eulryongta applies the confirmed 1/2/3 target rule and fixed ten-second fall status.
-- [ ] Rainbow Reflect applies at any field position and returns each opposing skill's gameplay effect to its source/opposite direction once.
-- [ ] Vacuum Cleaner remains an instant full-field pull and ignores barriers.
-- [ ] Passive reflection does not enter the ordered active-skill queue or alter the ten-second active team cooldown.
+- [x] Eulryongta applies the confirmed 1/2/3 target rule and fixed ten-second fall status.
+- [x] Rainbow Reflect applies at any field position and returns each opposing skill's gameplay effect to its source/opposite direction once.
+- [x] Vacuum Cleaner remains an instant full-field pull and ignores barriers.
+- [x] Passive reflection does not enter the ordered active-skill queue or alter the ten-second active team cooldown.
 
 ## Validation
 - `cd game; npm test -- --test-name-pattern="Eulryongta|Rainbow Reflect|Vacuum Cleaner"` — skill logic tests pass.
@@ -75,6 +75,6 @@ Task: T04-knockdown-and-rainbow-reflect
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed (`npm test`, 144/144; `npm run build`; focused skill tests)
+- commit: `TBD`
