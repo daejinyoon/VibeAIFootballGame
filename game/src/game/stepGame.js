@@ -92,11 +92,22 @@ function barrierSegment(barrier) {
   } };
 }
 
+function barrierSegments(barrier) {
+  const center = barrierSegment(barrier);
+  const offset = Math.max(0, barrier.wallOffset ?? 0);
+  if (offset === 0) return [center];
+  const normal = { x: -barrier.facingY, y: barrier.facingX };
+  return [-offset, offset].map((sideOffset) => ({
+    start: { x: center.start.x + normal.x * sideOffset, y: center.start.y + normal.y * sideOffset },
+    end: { x: center.end.x + normal.x * sideOffset, y: center.end.y + normal.y * sideOffset },
+  }));
+}
+
 function blockedByBarrier(state, point, radius = 0, objectHeight = 0) {
   return (state.powerBarriers ?? []).some((barrier) => {
     if (objectHeight > (barrier.height ?? 72)) return false;
-    const { start, end } = barrierSegment(barrier);
-    return segmentDistance(point, start, end) <= barrier.thickness / 2 + radius;
+    return barrierSegments(barrier).some(({ start, end }) =>
+      segmentDistance(point, start, end) <= barrier.thickness / 2 + radius);
   });
 }
 
@@ -119,21 +130,22 @@ function enforcePowerBarriers(state, frameStartPositions) {
     if (player.dismissed) continue;
     for (const barrier of state.powerBarriers ?? []) {
       if (barrier.sourcePlayerId === player.id) continue;
-      const { start, end } = barrierSegment(barrier);
-      if (segmentDistance(player, start, end) > barrier.thickness / 2 + 12) continue;
-      const normal = { x: -barrier.facingY, y: barrier.facingX };
-      const origin = frameStartPositions?.get(player.id) ?? player;
-      const startSide = (origin.x - barrier.x) * normal.x + (origin.y - barrier.y) * normal.y;
-      const signedSide = (player.x - barrier.x) * normal.x + (player.y - barrier.y) * normal.y;
-      const crossed = startSide !== 0 && Math.sign(startSide) !== Math.sign(signedSide);
-      const side = Math.sign(crossed ? startSide : signedSide || startSide || (player.vx * normal.x + player.vy * normal.y) || 1);
-      const projection = segmentProjection(player, start, end);
-      const center = { x: start.x + (end.x - start.x) * projection, y: start.y + (end.y - start.y) * projection };
-      player.x = clamp(center.x + normal.x * side * (barrier.thickness / 2 + 12), 0, FIELD.width);
-      player.y = clamp(center.y + normal.y * side * (barrier.thickness / 2 + 12), 0, FIELD.height);
-      if ((player.launchSecondsRemaining ?? 0) <= 0) {
-        player.vx = 0;
-        player.vy = 0;
+      for (const { start, end } of barrierSegments(barrier)) {
+        if (segmentDistance(player, start, end) > barrier.thickness / 2 + 12) continue;
+        const normal = { x: -barrier.facingY, y: barrier.facingX };
+        const origin = frameStartPositions?.get(player.id) ?? player;
+        const startSide = (origin.x - start.x) * normal.x + (origin.y - start.y) * normal.y;
+        const signedSide = (player.x - start.x) * normal.x + (player.y - start.y) * normal.y;
+        const crossed = startSide !== 0 && Math.sign(startSide) !== Math.sign(signedSide);
+        const side = Math.sign(crossed ? startSide : signedSide || startSide || (player.vx * normal.x + player.vy * normal.y) || 1);
+        const projection = segmentProjection(player, start, end);
+        const center = { x: start.x + (end.x - start.x) * projection, y: start.y + (end.y - start.y) * projection };
+        player.x = clamp(center.x + normal.x * side * (barrier.thickness / 2 + 12), 0, FIELD.width);
+        player.y = clamp(center.y + normal.y * side * (barrier.thickness / 2 + 12), 0, FIELD.height);
+        if ((player.launchSecondsRemaining ?? 0) <= 0) {
+          player.vx = 0;
+          player.vy = 0;
+        }
       }
     }
   }

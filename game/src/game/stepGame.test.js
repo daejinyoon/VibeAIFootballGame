@@ -171,6 +171,20 @@ test('World Split blocks a low ball and allows a ball above the wall', () => {
   assert.ok(high.ball.x > 400, 'a ball above the wall clears it');
 });
 
+test('World Split creates parallel walls on both sides of the slide lane', () => {
+  const state = createInitialGameState();
+  state.powerBarriers.push({ skillId: 'powerTackle', team: 'home', sourcePlayerId: 'home-fw',
+    x: 400, y: 190, facingX: 0, facingY: 1, length: 180, thickness: 20, wallOffset: 40,
+    height: 72, remainingSeconds: 3 });
+
+  for (const [x, velocity] of [[350, 200], [450, -200]]) {
+    Object.assign(state.ball, { ownerId: null, x, y: 270, vx: velocity, vy: 0, height: 0, flightKind: 'shot' });
+    stepGame(state, frame(), 0.05);
+    assert.equal(state.ball.x, x, 'both left and right wall rows stop a ground shot');
+    assert.equal(state.ball.vx, 0);
+  }
+});
+
 test('pressing F in the match creates a persistent World Split terrain barrier', () => {
   const state = createInitialGameState({ teamSkillDeck: [{ skillId: 'powerTackle', level: 1 }] });
   const source = state.players.find((player) => player.id === state.controlledPlayerId);

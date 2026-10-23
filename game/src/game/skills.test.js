@@ -206,7 +206,8 @@ test('World Split slides the caster along a long, three-second level-scaled grou
   assert.equal(result.ok, true);
   assert.equal(state.powerBarriers[0].length, 500);
   assert.ok(state.powerBarriers[0].length >= 8 * PLAYER_BODY_WIDTH);
-  assert.equal(state.powerBarriers[0].thickness, 64);
+  assert.equal(state.powerBarriers[0].thickness, 20);
+  assert.equal(state.powerBarriers[0].wallOffset, 40);
   assert.equal(state.powerBarriers[0].height, 72);
   assert.equal(state.powerBarriers[0].remainingSeconds, 3);
   assert.equal(user.motionAction, 'tackle');
@@ -214,7 +215,7 @@ test('World Split slides the caster along a long, three-second level-scaled grou
   assert.equal(user.worldSplitSlideDirectionX, 1);
   assert.ok(user.vx > 0, 'the caster slides forward along the barrier direction');
   assert.ok(state.players.find((player) => player.id === 'away-fw').knockdownSeconds > 0);
-  Object.assign(state.ball, { ownerId: null, x: 420, y: 270, vx: -400, vy: 0, flightKind: 'shot' });
+  Object.assign(state.ball, { ownerId: null, x: 420, y: 230, vx: -400, vy: 0, flightKind: 'shot' });
   stepGame(state, frame(), 0.05);
   assert.equal(state.ball.vx, 0);
   const crossingPlayer = state.players.find((player) => player.id === 'away-def-1');

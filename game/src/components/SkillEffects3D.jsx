@@ -24,8 +24,8 @@ const AIR_RING_GEOMETRY = new THREE.TorusGeometry(0.3, 0.025, 6, 28);
 const AIR_PARTICLE_GEOMETRY = new THREE.TetrahedronGeometry(0.06, 0);
 const BARRIER_GROUND_GEOMETRY = new THREE.BoxGeometry(1, 0.055, 0.34);
 const BARRIER_GLOW_GEOMETRY = new THREE.BoxGeometry(1, 0.035, 0.12);
-const BARRIER_PLATE_GEOMETRY = new THREE.BoxGeometry(0.062, 0.14, 0.43);
-const BARRIER_SHARD_GEOMETRY = new THREE.ConeGeometry(0.22, 0.78, 5, 1);
+const BARRIER_PLATE_GEOMETRY = new THREE.BoxGeometry(0.062, 0.96, 0.24);
+const BARRIER_SHARD_GEOMETRY = new THREE.ConeGeometry(0.25, 0.72, 5, 1);
 const BARRIER_GROUND_MATERIAL = new THREE.MeshStandardMaterial({ color: '#17151b', roughness: 1, emissive: '#080609', emissiveIntensity: 0.2, side: THREE.DoubleSide });
 const BARRIER_GLOW_MATERIAL = new THREE.MeshBasicMaterial({ color: '#ff7b31', transparent: true, opacity: 0.92, depthWrite: false, toneMapped: false });
 const BARRIER_PLATE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#655647', roughness: 0.98, emissive: '#261b14', emissiveIntensity: 0.24 });
@@ -92,17 +92,17 @@ function makeBarrierSlot() {
   for (let side = -1; side <= 1; side += 2) {
     for (let index = 0; index < 16; index += 1) {
       const plate = new THREE.Mesh(BARRIER_PLATE_GEOMETRY, BARRIER_PLATE_MATERIAL);
-      plate.position.set(-0.47 + index * 0.0625, 0.075 + ((index + (side > 0 ? 1 : 0)) % 3) * 0.018, side * 0.39);
+      plate.position.set(-0.47 + index * 0.0625, 0.48, side * 0.5);
       plate.rotation.set((index % 2 ? -1 : 1) * 0.05, (index % 2 ? 1 : -1) * 0.11, (index % 3 - 1) * 0.045);
       root.add(plate);
       plates.push(plate);
     }
   }
   const shards = [];
-  for (let index = 0; index < 11; index += 1) {
+  for (let index = 0; index < 14; index += 1) {
     const shard = new THREE.Mesh(BARRIER_SHARD_GEOMETRY, BARRIER_SHARD_MATERIAL);
-    shard.position.set(-0.46 + index * 0.092, 0.2 + (index % 3) * 0.035, (index % 2 ? 1 : -1) * 0.13);
-    shard.scale.set(0.68 + (index % 3) * 0.12, 0.56 + (index % 2) * 0.22, 0.72);
+    shard.position.set(-0.46 + index * 0.071, 0.96, (index % 2 ? 1 : -1) * 0.5);
+    shard.scale.set(0.72 + (index % 3) * 0.1, 0.75 + (index % 2) * 0.18, 0.8);
     shard.rotation.set((index % 2) * 0.16, index * 0.43, (index % 3 - 1) * 0.2);
     root.add(shard);
     shards.push(shard);
@@ -371,14 +371,22 @@ export function SkillEffects3D({ gameStateRef }) {
       slot.glow.material.color.set(teamGlow);
       slot.glow.material.opacity = pulse;
       slot.groundCrack.material.emissive.set(accent);
+      const rise = Math.min(1, Math.max(0, (barrier.elapsedSeconds ?? 0) / 0.35));
+      const wallOffset = (barrier.wallOffset ?? 40) / 80;
       slot.plates.forEach((plate, plateIndex) => {
-        const lift = Math.max(0, 0.16 - (barrier.elapsedSeconds ?? 0) * 0.24);
-        plate.position.y = 0.075 + lift + (plateIndex % 3) * 0.018;
+        const indexInRow = plateIndex % 16;
+        const side = plateIndex < 16 ? -1 : 1;
+        plate.position.set(-0.47 + indexInRow * 0.0625,
+          0.48 * rise + (indexInRow % 3) * 0.012,
+          side * wallOffset);
+        plate.scale.y = rise * (0.88 + (indexInRow % 4) * 0.045);
         plate.material.emissive.set(plateIndex % 2 ? '#342115' : '#1e2522');
       });
       slot.shards.forEach((shard, shardIndex) => {
         const age = barrier.elapsedSeconds ?? 0;
-        shard.position.y = 0.2 + (shardIndex % 3) * 0.035 + Math.max(0, 0.23 - age * 0.34);
+        const side = shardIndex % 2 ? 1 : -1;
+        shard.position.y = 0.96 * rise;
+        shard.position.z = side * wallOffset;
         shard.rotation.z = (shardIndex % 2 ? -1 : 1) * (0.08 + Math.sin(age * 11 + shardIndex) * 0.025);
       });
     }

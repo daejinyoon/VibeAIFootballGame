@@ -33,7 +33,8 @@ export const PLAYER_BODY_WIDTH = 24;
 // A clear fissure should span at least eight player body lengths even at level 1.
 export const WORLD_SPLIT_LENGTHS = Object.freeze([400, 500, 600]);
 export const WORLD_SPLIT_DURATION_SECONDS = 3;
-export const WORLD_SPLIT_THICKNESS = 64;
+export const WORLD_SPLIT_THICKNESS = 20;
+export const WORLD_SPLIT_WALL_OFFSET = 40;
 export const WORLD_SPLIT_HEIGHT = 72;
 export const WORLD_SPLIT_SLIDE_SECONDS = 0.95;
 export const WORLD_SPLIT_SLIDE_SPEED = 360;

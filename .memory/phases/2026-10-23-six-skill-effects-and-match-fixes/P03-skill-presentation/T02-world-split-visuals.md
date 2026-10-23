@@ -8,6 +8,7 @@ Make the field surface visibly split open along the caster's forward slide, at a
 ## Decision Summary
 - The player slides low and physically forward along the same direction as the newly split ground.
 - The ground itself visibly opens into a long dark fissure with separated, uneven earth plates on both sides; restrained glowing seam and rubble accents support this read.
+- Two parallel raised rock walls flank the slide lane and both are represented in player/ball collision.
 - Keep the impassable gameplay collision aligned with the fissure and use its actual 3-second timer.
 - Scale the fissure to lengths 400/500/600 at levels 1/2/3; level 1 is the minimum eight-player-length span.
 
@@ -64,8 +65,8 @@ Plan: 2026-10-23-six-skill-effects-and-match-fixes
 Phase: P03-skill-presentation
 Task: T02-world-split-visuals
 
-- Draw a long open trench with separated earth plates
-- Move the caster low along the split ground
+- Draw a long open trench with paired walls flanking separated earth plates
+- Move the caster low along the split ground and stop movement across either wall
 ```
 
 ## Progress
