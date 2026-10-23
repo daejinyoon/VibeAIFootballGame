@@ -764,3 +764,19 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
   .brand-option { min-height: 80px; }
   .team-customization-actions > div { gap: 8px; }
 }
+
+/* Skill deck and cooldown feedback in the desktop match HUD */
+.game-bottomline { grid-template-columns: minmax(170px, .85fr) minmax(280px, 1.55fr) minmax(170px, .85fr); }
+.team-skill-deck { align-items: stretch; gap: 6px; }
+.team-skill-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.team-skill-item { display: inline-flex; min-height: 21px; align-items: center; padding: 3px 6px; border: 1px solid #9bb9bb; background: #f8ffff; color: #294b5c; font-size: 9px; font-weight: 800; }
+.team-skill-item.is-next { border-color: #e99835; background: #fff1c4; color: #573311; box-shadow: inset 0 -2px #e99835; }
+.cooldown-track { height: 6px; overflow: hidden; border: 1px solid #456779; background: #132b3a; }
+.cooldown-track span { display: block; width: 100%; height: 100%; transform-origin: left center; background: linear-gradient(90deg, #42c8f1, #b9f66b); transition: transform .12s linear; }
+.away-skill-stock .cooldown-track span { background: linear-gradient(90deg, #f29d61, #e24a59); }
+.skill-cut-in-photo { position: absolute; z-index: 0; inset: 4% auto 4% 3%; width: 59%; height: 92%; border: 3px solid color-mix(in srgb, var(--cut-in-secondary) 75%, white); object-fit: cover; object-position: center 30%; box-shadow: 0 0 32px color-mix(in srgb, var(--cut-in-primary) 65%, transparent); }
+.skill-cut-in-eulryongta .skill-cut-in-character { display: none; }
+.skill-cut-in-eulryongta .skill-cut-in-copy { z-index: 2; right: 5%; bottom: 19%; width: 42%; }
+.skill-cut-in-eulryongta .skill-cut-in-art { z-index: 2; }
+.goal-score-toast { position: absolute; z-index: 3; top: 20%; left: 50%; padding: 10px 22px; border: 2px solid #fff3a0; background: linear-gradient(110deg, #102c50eF, #137d9beF); color: white; font: 1000 clamp(17px, 3vw, 30px) Consolas, monospace; text-shadow: 0 3px #10243c; transform: translateX(-50%); animation: goal-score-pop 2.1s cubic-bezier(.16,.82,.25,1) both; }
+@keyframes goal-score-pop { 0% { opacity: 0; transform: translate(-50%, 18px) scale(.8); } 12%, 78% { opacity: 1; transform: translate(-50%, 0) scale(1); } 100% { opacity: 0; transform: translate(-50%, -10px) scale(1.04); } }

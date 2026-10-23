@@ -112,8 +112,9 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
     if (body.current) {
       const knocked = displayAction === 'knockdown' || displayAction === 'recover';
       body.current.rotation.z = displayAction === 'knockdown'
-        ? (livePlayer.knockdownDirectionX < 0 ? -1 : 1) * 0.92
+        ? (livePlayer.knockdownDirectionX < 0 ? -1 : 1) * 1.36
         : displayAction === 'recover' ? (livePlayer.knockdownDirectionX < 0 ? -1 : 1) * 0.24 : 0;
+      body.current.position.y = displayAction === 'knockdown' ? 0.34 : 0;
       if (knocked && torso.current) torso.current.position.y = 0.31;
     }
     if (pose === 'cutIn') {

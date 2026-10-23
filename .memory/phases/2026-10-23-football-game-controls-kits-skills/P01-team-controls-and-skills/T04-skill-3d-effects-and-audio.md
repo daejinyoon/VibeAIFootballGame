@@ -1,6 +1,6 @@
 # Task: T04 Skill 3D Effects and Audio
 
-## Status: pending
+## Status: done
 
 ## Goal
 
@@ -98,5 +98,7 @@ Task: T04-skill-3d-effects-and-audio
 
 ## Progress
 
-- [ ] Implementation complete
-- [ ] Validation passed
+- [x] Implementation complete
+- [x] Automated validation passed (`npm test`, 129 tests; `npm run build`)
+- [x] Supplied photo copied to `game/public/images/skills/eulryongta-cutin.jpg`; source and built asset hashes match.
+- [x] Headless Edge opened the local app shell successfully. Interactive skill walkthrough could not be run in this environment.

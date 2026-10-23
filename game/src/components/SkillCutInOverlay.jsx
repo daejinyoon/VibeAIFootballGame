@@ -18,7 +18,7 @@ export function SkillCutInOverlay({ cue, player, teamBranding }) {
   return (
     <div
       key={cue.id}
-      className={`skill-cut-in skill-cut-in-${skill.type}`}
+      className={`skill-cut-in skill-cut-in-${skill.type}${cue.skillId === 'eulryongta' ? ' skill-cut-in-eulryongta' : ''}`}
       style={{
         '--cut-in-primary': primary,
         '--cut-in-secondary': secondary,
@@ -28,6 +28,7 @@ export function SkillCutInOverlay({ cue, player, teamBranding }) {
       aria-atomic="true"
     >
       <div className="skill-cut-in-rays" aria-hidden="true" />
+      {cue.skillId === 'eulryongta' && <img className="skill-cut-in-photo" src="/images/skills/eulryongta-cutin.jpg" alt="" aria-hidden="true" onError={(event) => { event.currentTarget.hidden = true; }} />}
       <div className="skill-cut-in-character" aria-hidden="true">
         <Canvas camera={{ position: [0, 0.76, 3.1], fov: 34 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true }}>
           <ambientLight intensity={1.5} />

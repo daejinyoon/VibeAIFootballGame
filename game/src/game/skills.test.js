@@ -181,7 +181,7 @@ test('Rainbow Reflect passively cancels opposing global effects and keeps own ef
   state.players.find((player) => player.id === 'away-mid-1').airborneFromTeam = 'away';
   const event = applyAutomaticRainbowReflect(state, 'home');
   assert.equal(event.skillId, 'rainbowReflect');
-  assert.deepEqual(state.skillEffects.map((effect) => effect.team), ['home']);
+  assert.deepEqual(state.skillEffects.map((effect) => [effect.team, effect.cancellationPulse === true]), [['home', false], ['home', true]]);
   assert.deepEqual(state.powerBarriers, []);
   assert.equal(state.players.find((player) => player.id === 'home-mid-1').knockdownSeconds, 0);
   assert.equal(state.players.find((player) => player.id === 'away-mid-1').airborneSecondsRemaining, 0);

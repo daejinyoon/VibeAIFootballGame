@@ -63,6 +63,19 @@ test('tracks held E sprint input with key state cleared on release', () => {
   controller.destroy();
 });
 
+test('prepares skill audio once on a fresh F key press', () => {
+  const target = createFakeWindow();
+  let prepared = 0;
+  const controller = createInputController(target, { onSkillInput: () => { prepared += 1; } });
+  target.emit('keydown', { key: 'f', preventDefault() {} });
+  target.emit('keydown', { key: 'f', repeat: true, preventDefault() {} });
+  assert.equal(prepared, 1);
+  target.emit('keyup', { key: 'f', preventDefault() {} });
+  target.emit('keydown', { key: 'F', preventDefault() {} });
+  assert.equal(prepared, 2);
+  controller.destroy();
+});
+
 test('movement axes are controlled by arrow keys and not WASD', () => {
   const target = createFakeWindow();
   const controller = createInputController(target);

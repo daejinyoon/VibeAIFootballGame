@@ -7,7 +7,7 @@
 | T01 | `done` | Add nine kit presets; fix kickoff selection and keyboard guide | [T01](./T01-kits-kickoff-and-controls.md) |
 | T02 | `done` | Create ordered shared team skill deck, reward/setup UI, and save migration | [T02](./T02-team-skill-deck-and-migration.md) |
 | T03 | `done` | Implement shared activation order/cooldown and all confirmed skill rules | [T03](./T03-shared-skill-simulation.md) |
-| T04 | `in_progress` | Present skill effects in 3D and add Eulryongta photo cut-in and impact sound | [T04](./T04-skill-3d-effects-and-audio.md) |
+| T04 | `done` | Present skill effects in 3D and add Eulryongta photo cut-in and impact sound | [T04](./T04-skill-3d-effects-and-audio.md) |
 
 ## Dependencies
 
@@ -18,4 +18,4 @@
 
 ## Progress
 
-- done: 3/4 (active: T04)
+- done: 4/4

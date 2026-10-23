@@ -18,8 +18,10 @@ export function formatMatchTime(seconds) {
 export default function GameScreen({ gameState, paused, errorMessage, onPause, onResume, onSaveAndExit, onGameEvents }) {
   const [viewState, setViewState] = useState(gameState);
   const [cutInCue, setCutInCue] = useState(null);
+  const [scoreToast, setScoreToast] = useState(null);
   const cutInRef = useRef(null);
   const cutInTimerRef = useRef(null);
+  const scoreTimerRef = useRef(null);
   const lastUpdate = useRef(0);
   const stage = gameState.stage;
   const isOvertime = viewState.phase === 'overtime';
@@ -46,9 +48,10 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
     return null;
   };
   const homeNextSkill = nextTeamSkill('home');
-  const awayNextSkill = nextTeamSkill('away');
   const homeCooldown = Math.max(0, viewState.skillCooldownRemaining?.home ?? 0);
   const awayCooldown = Math.max(0, viewState.skillCooldownRemaining?.away ?? 0);
+  const homeDeck = viewState.teamSkillDecks?.home ?? [];
+  const homeQueueIndex = homeNextSkill ? homeDeck.findIndex((entry) => entry.skillId === homeNextSkill.skillId) : -1;
   const homeBranding = viewState.teamBranding?.home ?? {};
   const awayBranding = viewState.teamBranding?.away ?? {};
   const homeName = homeBranding.displayName || 'DEX';
@@ -64,17 +67,24 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
 
   useEffect(() => () => {
     if (cutInTimerRef.current !== null) window.clearTimeout(cutInTimerRef.current);
+    if (scoreTimerRef.current !== null) window.clearTimeout(scoreTimerRef.current);
   }, []);
 
   const handleGameEvents = (events) => {
     for (const event of events) {
+      if (event.type === 'goal') {
+        const scoringTeamName = event.team === 'home' ? homeName : awayName;
+        setScoreToast({ id: `${event.team}-${performance.now()}`, label: `${scoringTeamName} +${event.points}` });
+        if (scoreTimerRef.current !== null) window.clearTimeout(scoreTimerRef.current);
+        scoreTimerRef.current = window.setTimeout(() => setScoreToast(null), 2100);
+      }
       if (event.type !== 'skillUsed' || event.automatic || !event.playerId || cutInRef.current) continue;
       const cue = {
         id: `${event.playerId}-${event.skillId}-${performance.now()}`,
         playerId: event.playerId,
         team: event.team,
         skillId: event.skillId,
-        durationSeconds: 0.72,
+        durationSeconds: event.skillId === 'eulryongta' ? 1.2 : 0.72,
       };
       cutInRef.current = cue;
       setCutInCue(cue);
@@ -110,6 +120,7 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
         }
         }} />
         <MatchMiniMap players={viewState.players} ball={viewState.ball} controlledPlayerId={viewState.controlledPlayerId} homeAccent={homeAccent} awayAccent={awayBranding.kit?.jersey || '#E94B55'} />
+        {scoreToast && <div key={scoreToast.id} className="goal-score-toast" aria-live="polite">{scoreToast.label}</div>}
         <SkillCutInOverlay cue={cutInCue} player={cutInPlayer} teamBranding={viewState.teamBranding} />
       </div>
       <div className="game-bottomline">
@@ -117,8 +128,30 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
           <div className="sprint-meter-label"><span>SPRINT STAMINA</span><b>{Math.round(stamina)}%</b></div>
           <progress max="100" value={stamina} aria-label="조작 선수 스프린트 스태미나" />
         </div>
-        <div className="skill-stock"><span>다음 팀 스킬</span><b>{homeNextSkill ? `${SKILLS[homeNextSkill.skillId]?.name} · Lv.${homeNextSkill.level}` : '사용 가능한 스킬 없음'}</b><small>{homeCooldown > 0 ? `팀 재사용 대기 ${homeCooldown.toFixed(1)}초` : 'F · 팀 공용 스킬'}</small></div>
-        <div className="skill-stock away-skill-stock"><span>상대 팀 다음 스킬</span><b>{awayNextSkill ? `${SKILLS[awayNextSkill.skillId]?.name} · Lv.${awayNextSkill.level}` : '사용 가능한 스킬 없음'}</b><small>{awayCooldown > 0 ? `재사용 대기 ${awayCooldown.toFixed(1)}초` : '발동 준비'}</small></div>
+        <div className="skill-stock team-skill-deck">
+          <span>우리 팀 필살기 순서</span>
+          <div className="team-skill-list">
+            {homeDeck.map((entry, index) => (
+              <span key={`${entry.skillId}-${index}`} className={index === homeQueueIndex && entry.skillId !== 'rainbowReflect' ? 'team-skill-item is-next' : 'team-skill-item'}>
+                {index + 1}. {SKILLS[entry.skillId]?.name ?? entry.skillId}{entry.skillId === 'rainbowReflect' ? ' · 패시브' : ` · Lv.${entry.level}`}
+              </span>
+            ))}
+            {!homeDeck.length && <span className="team-skill-item">아직 보유한 필살기가 없습니다</span>}
+          </div>
+          <small>{homeNextSkill ? `다음 사용: ${SKILLS[homeNextSkill.skillId]?.name} · F` : 'F · 팀 공용 필살기'}</small>
+          <div className="cooldown-track" role="progressbar" aria-label="우리 팀 필살기 재사용 대기시간" aria-valuemin="0" aria-valuemax="10" aria-valuenow={Math.max(0, 10 - homeCooldown)}>
+            <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, (10 - homeCooldown) / 10))})` }} />
+          </div>
+          <b>{homeCooldown > 0 ? `팀 재사용 대기 ${homeCooldown.toFixed(1)}초` : '팀 필살기 사용 가능'}</b>
+        </div>
+        <div className="skill-stock away-skill-stock">
+          <span>상대 팀 필살기</span>
+          <b>{awayCooldown > 0 ? '팀 재사용 대기 중' : '발동 준비'}</b>
+          <small>{awayCooldown > 0 ? `${awayCooldown.toFixed(1)}초 후 다시 사용 가능` : '상대 팀 쿨타임'}</small>
+          <div className="cooldown-track" role="progressbar" aria-label="상대 팀 필살기 재사용 대기시간" aria-valuemin="0" aria-valuemax="10" aria-valuenow={Math.max(0, 10 - awayCooldown)}>
+            <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, (10 - awayCooldown) / 10))})` }} />
+          </div>
+        </div>
         <p>{restartControls}</p>
       </div>
       {errorMessage && <p className="profile-error" role="alert">{errorMessage}</p>}

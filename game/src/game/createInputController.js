@@ -13,7 +13,7 @@ function axis(positive, negative) {
 }
 
 /** Track just the keyboard state needed by a focused match screen. */
-export function createInputController(targetWindow = typeof window === 'undefined' ? null : window) {
+export function createInputController(targetWindow = typeof window === 'undefined' ? null : window, { onSkillInput } = {}) {
   const down = new Set();
   const pressed = new Set();
   const released = new Set();
@@ -22,6 +22,7 @@ export function createInputController(targetWindow = typeof window === 'undefine
   const handleKeyDown = (event) => {
     const key = normalizeKey(event.key);
     if (!enabled || !GAME_KEYS.has(key)) return;
+    if (key === 'f' && !down.has(key)) onSkillInput?.();
     event.preventDefault?.();
     if (!down.has(key)) pressed.add(key);
     down.add(key);

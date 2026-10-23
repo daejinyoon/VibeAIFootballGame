@@ -1575,7 +1575,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
           team: skillEvent.team,
           skillId: skillEvent.skillId,
           elapsedSeconds: 0,
-          durationSeconds: 0.72,
+          durationSeconds: skillEvent.skillId === 'eulryongta' ? 1.2 : 0.72,
         };
       }
     }
@@ -1707,10 +1707,11 @@ function advanceSkillEffects(state, deltaSeconds) {
     effect.elapsedSeconds += deltaSeconds;
     if (effect.elapsedSeconds >= effect.durationSeconds) return false;
     if (effect.skillId === 'vacuumCleaner'
-        && state.vacuumEffect?.playerId !== effect.sourcePlayerId) return false;
+        && state.vacuumEffect?.playerId !== effect.sourcePlayerId
+        && state.vacuumPullVisual?.sourcePlayerId !== effect.sourcePlayerId) return false;
     if (effect.skillId === 'powerTackle' && !effect.targetPlayerId
         && !(state.powerBarriers ?? []).some((barrier) => barrier.sourcePlayerId === effect.sourcePlayerId)) return false;
-    if (effect.skillId === 'rainbowReflect'
+    if (effect.skillId === 'rainbowReflect' && !effect.cancellationPulse
         && state.rainbowReflection?.playerId !== effect.sourcePlayerId
         && !(state.ball.flightKind === 'skill-shot' && state.ball.skillId === 'rainbowReflect')) return false;
     if ((effect.skillId === 'eagleShot' || effect.skillId === 'tornadoShot')
