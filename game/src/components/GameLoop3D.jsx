@@ -55,11 +55,11 @@ export function GameLoop3D({
       const actor = actorsRef.current.players.get(player.id);
       if (!actor) continue;
       actor.visible = !player.dismissed;
-      actor.position.set(worldX(player.x), Math.max(0, player.jumpHeight ?? 0) / 80, worldZ(player.y));
+      actor.position.set(worldX(player.x), 0, worldZ(player.y));
       const marker = actorsRef.current.selectedMarkers.get(player.id);
       if (marker) {
         marker.visible = !player.dismissed && player.id === state.controlledPlayerId;
-        marker.position.y = 0.035 - Math.max(0, player.jumpHeight ?? 0) / 80;
+        marker.position.y = 0.035;
       }
     }
 

@@ -63,14 +63,17 @@ test('tracks held E sprint input with key state cleared on release', () => {
   controller.destroy();
 });
 
-test('reads Space by KeyboardEvent.code as a one-frame jump press', () => {
+test('leaves Space unbound and preserves browser key behavior', () => {
   const target = createFakeWindow();
   const controller = createInputController(target);
-  target.emit('keydown', { key: ' ', code: 'Space', preventDefault() {} });
-  assert.ok(controller.readFrame().pressed.has('Space'));
-  assert.ok(!controller.readFrame().pressed.has('Space'));
-  target.emit('keyup', { key: ' ', code: 'Space', preventDefault() {} });
-  assert.ok(controller.readFrame().released.has('Space'));
+  let prevented = false;
+  target.emit('keydown', { key: ' ', code: 'Space', preventDefault() { prevented = true; } });
+  const pressedFrame = controller.readFrame();
+  assert.equal(pressedFrame.down.size, 0);
+  assert.equal(pressedFrame.pressed.size, 0);
+  target.emit('keyup', { key: ' ', code: 'Space', preventDefault() { prevented = true; } });
+  assert.equal(controller.readFrame().released.size, 0);
+  assert.equal(prevented, false);
   controller.destroy();
 });
 

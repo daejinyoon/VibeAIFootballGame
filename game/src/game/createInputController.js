@@ -1,10 +1,9 @@
 const GAME_KEYS = new Set([
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-  'a', 's', 'd', 'f', 'e', 'Escape', 'Space',
+  'a', 's', 'd', 'f', 'e', 'Escape',
 ]);
 
 function normalizeKey(key) {
-  if (key === ' ') return 'Space';
   if (key.startsWith('Arrow') || key === 'Escape') return key;
   return key.length === 1 ? key.toLowerCase() : key;
 }
@@ -21,7 +20,7 @@ export function createInputController(targetWindow = typeof window === 'undefine
   let enabled = true;
 
   const handleKeyDown = (event) => {
-    const key = event.code === 'Space' ? 'Space' : normalizeKey(event.key);
+    const key = normalizeKey(event.key);
     if (!enabled || !GAME_KEYS.has(key)) return;
     event.preventDefault?.();
     if (!down.has(key)) pressed.add(key);
@@ -29,7 +28,7 @@ export function createInputController(targetWindow = typeof window === 'undefine
   };
 
   const handleKeyUp = (event) => {
-    const key = event.code === 'Space' ? 'Space' : normalizeKey(event.key);
+    const key = normalizeKey(event.key);
     if (!enabled || !GAME_KEYS.has(key)) return;
     event.preventDefault?.();
     if (down.delete(key)) released.add(key);

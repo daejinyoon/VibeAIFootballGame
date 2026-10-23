@@ -306,7 +306,7 @@ export default function App() {
       />}
       {screen === 'leaderboard' && <LeaderboardScreen records={records} onBack={() => setScreen('start')} />}
 
-      <footer className="footer"><span>DEX FOOTBALL ARCADE</span><span>방향키 이동 · A/S/D 액션 · F 스킬 · SPACE 점프</span></footer>
+      <footer className="footer"><span>DEX FOOTBALL ARCADE</span><span>E sprint &middot; A/S/D actions &middot; F skill</span></footer>
     </main>
   );
 }

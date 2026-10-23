@@ -39,7 +39,8 @@ export default function StartScreen({ hasSave, nickname, profileError, onNicknam
         <div><strong>공격</strong><span>A 로빙 패스 · S 패스 · D 슛</span></div>
         <div><strong>수비</strong><span>A 태클 · S 선수 전환 · D 압박</span></div>
         <div><strong>스킬</strong><span>F 발동</span></div>
-        <div><strong>점프</strong><span>Space 공중볼 경합 · 헤딩</span></div>
+        <div><strong>SPRINT</strong><span>Hold E while moving</span></div>
+        <div><strong>AERIAL</strong><span>Automatic headers and clearances</span></div>
       </div>
     </section>
   );

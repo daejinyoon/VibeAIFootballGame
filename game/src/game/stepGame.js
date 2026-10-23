@@ -8,10 +8,6 @@ import {
   HEADER_HEIGHT_MAX,
   HEADER_HEIGHT_MIN,
   HEADER_RADIUS,
-  JUMP_COOLDOWN_SECONDS,
-  JUMP_GRAVITY,
-  JUMP_INITIAL_VELOCITY,
-  JUMP_MAX_HEIGHT,
   LOB_CLEARANCE_DISTANCE,
   LOB_VERTICAL_VELOCITY,
   SHOT_ASSIST_DISTANCE,
@@ -33,7 +29,6 @@ const SLIDE_SPEED = 160;
 const SPRINT_SPEED_MULTIPLIER = 1.35;
 const MAX_DELTA = 0.05;
 const INTERCEPTION_RADIUS = 16;
-const AI_JUMP_REACH_RADIUS = 88;
 const AI_MIN_PASS_DISTANCE = 48;
 const AI_MAX_PASS_DISTANCE = 330;
 const KNOCKDOWN_SECONDS = 1;
@@ -912,53 +907,6 @@ function integrateLooseBall(state, deltaSeconds) {
   return [];
 }
 
-function predictedLandingPoint(ball) {
-  const height = Number.isFinite(ball.height) ? ball.height : 0;
-  const verticalVelocity = Number.isFinite(ball.verticalVelocity) ? ball.verticalVelocity : 0;
-  const discriminant = verticalVelocity * verticalVelocity + 2 * BALL_GRAVITY * height;
-  const time = (verticalVelocity + Math.sqrt(Math.max(0, discriminant))) / BALL_GRAVITY;
-  if (!Number.isFinite(time) || time < 0) return { x: ball.x, y: ball.y };
-  return {
-    x: clamp(ball.x + (Number.isFinite(ball.vx) ? ball.vx : 0) * time, 0, FIELD.width),
-    y: clamp(ball.y + (Number.isFinite(ball.vy) ? ball.vy : 0) * time, 0, FIELD.height),
-  };
-}
-
-function updateJumps(state, controlled, input, deltaSeconds) {
-  const { ball } = state;
-  const landingPoint = ball.height > 10 && ball.height <= HEADER_HEIGHT_MAX + 45 && ball.verticalVelocity < 0
-    ? predictedLandingPoint(ball)
-    : null;
-  const autoJumper = landingPoint
-    ? state.players
-      .filter((player) => !player.dismissed && player.role !== 'goalkeeper' && player.id !== controlled?.id
-        && player.knockdownSeconds <= 0 && player.jumpHeight <= 0 && player.jumpCooldownSeconds <= deltaSeconds)
-      .map((player, index) => ({ player, index, gap: distance(player, landingPoint) }))
-      .filter((entry) => entry.gap <= AI_JUMP_REACH_RADIUS)
-      .sort((left, right) => left.gap - right.gap || left.index - right.index)[0]?.player ?? null
-    : null;
-
-  for (const player of state.players) {
-    player.jumpCooldownSeconds = Math.max(0, (player.jumpCooldownSeconds ?? 0) - deltaSeconds);
-    if (player.dismissed || player.role === 'goalkeeper' || player.knockdownSeconds > 0 || player.motionAction === 'recover') continue;
-    if (player.id === controlled?.id && input.pressed.has('Space')
-        && player.jumpHeight <= 0 && player.jumpCooldownSeconds === 0) {
-      player.jumpVelocity = JUMP_INITIAL_VELOCITY;
-      player.jumpCooldownSeconds = JUMP_COOLDOWN_SECONDS;
-    }
-    if (player.id === autoJumper?.id
-        && player.jumpHeight <= 0 && player.jumpCooldownSeconds === 0) {
-      player.jumpVelocity = JUMP_INITIAL_VELOCITY;
-      player.jumpCooldownSeconds = JUMP_COOLDOWN_SECONDS;
-    }
-    if (player.jumpVelocity !== 0 || player.jumpHeight > 0) {
-      player.jumpVelocity -= JUMP_GRAVITY * deltaSeconds;
-      player.jumpHeight = clamp(player.jumpHeight + player.jumpVelocity * deltaSeconds, 0, JUMP_MAX_HEIGHT);
-      if (player.jumpHeight === 0) player.jumpVelocity = 0;
-    }
-  }
-}
-
 function resolveAerialHeader(state) {
   const { ball } = state;
   if (ball.ownerId || ball.height < HEADER_HEIGHT_MIN || ball.height > HEADER_HEIGHT_MAX) return [];
@@ -966,43 +914,43 @@ function resolveAerialHeader(state) {
   if (lastHeaderPlayer && distance(lastHeaderPlayer, ball) > HEADER_RADIUS) {
     delete ball.lastHeaderPlayerId;
   }
-  const jumper = state.players
+  const headerPlayer = state.players
     .filter((player) => !player.dismissed && player.role !== 'goalkeeper'
-      && player.knockdownSeconds <= 0 && player.id !== ball.lastHeaderPlayerId && player.jumpHeight > 0)
+      && player.knockdownSeconds <= 0 && player.id !== ball.lastHeaderPlayerId)
     .map((player, index) => ({ player, index, distance: distance(player, ball) }))
     .filter(({ distance: gap }) => gap <= HEADER_RADIUS)
     .sort((a, b) => a.distance - b.distance || a.index - b.index)[0]?.player;
-  if (!jumper) return [];
+  if (!headerPlayer) return [];
 
   const previousTeam = state.possessionTeam;
   const incomingPassTeam = ball.passTeam;
   const incomingPassKind = ball.flightKind;
-  const interceptedPass = incomingPassTeam && incomingPassTeam !== jumper.team
+  const interceptedPass = incomingPassTeam && incomingPassTeam !== headerPlayer.team
     && ['lob', 'cross'].includes(incomingPassKind);
-  const attackDirection = jumper.team === 'home' ? 1 : -1;
-  const facing = unit(jumper.facingX, jumper.facingY);
+  const attackDirection = headerPlayer.team === 'home' ? 1 : -1;
+  const facing = unit(headerPlayer.facingX, headerPlayer.facingY);
   ball.ownerId = null;
   ball.vx = (facing.x || attackDirection) * 360;
-  ball.vy = (facing.y || 0) * 360 + (jumper.team === 'home' ? 120 : -120);
-  ball.height = Math.max(HEADER_HEIGHT_MIN, jumper.jumpHeight + 22);
+  ball.vy = (facing.y || 0) * 360 + (headerPlayer.team === 'home' ? 120 : -120);
+  ball.height = clamp(ball.height, HEADER_HEIGHT_MIN, HEADER_HEIGHT_MAX);
   ball.verticalVelocity = 120;
   ball.flightKind = 'header';
   ball.flightSeconds = 0;
-  ball.lastHeaderPlayerId = jumper.id;
-  ball.lastTouchTeam = jumper.team;
+  ball.lastHeaderPlayerId = headerPlayer.id;
+  ball.lastTouchTeam = headerPlayer.team;
   delete ball.passTarget;
   delete ball.passReceiverId;
   ball.passProtectionSeconds = 0;
   delete ball.passTeam;
-  state.possessionTeam = jumper.team;
-  if (jumper.team === 'home') state.controlledPlayerId = jumper.id;
+  state.possessionTeam = headerPlayer.team;
+  if (headerPlayer.team === 'home') state.controlledPlayerId = headerPlayer.id;
   return [
-    { type: 'header', team: jumper.team, playerId: jumper.id },
+    { type: 'header', team: headerPlayer.team, playerId: headerPlayer.id },
     ...(interceptedPass ? [{
-      type: 'passIntercepted', team: jumper.team, playerId: jumper.id,
+      type: 'passIntercepted', team: headerPlayer.team, playerId: headerPlayer.id,
       fromTeam: incomingPassTeam, passKind: incomingPassKind,
     }] : []),
-    ...(previousTeam !== jumper.team ? [{ type: 'possessionChange', team: jumper.team, playerId: jumper.id }] : []),
+    ...(previousTeam !== headerPlayer.team ? [{ type: 'possessionChange', team: headerPlayer.team, playerId: headerPlayer.id }] : []),
   ];
 }
 
@@ -1653,8 +1601,6 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
     controlled = nearestPlayer(activePlayers(state, 'home'), state.ball) ?? null;
     state.controlledPlayerId = controlled?.id ?? null;
   }
-
-  updateJumps(state, controlled, input, dt);
 
   for (const team of ['home', 'away']) {
     const reflectionEvent = applyAutomaticRainbowReflect(state, team, dt);

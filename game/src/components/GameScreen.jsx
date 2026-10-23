@@ -21,7 +21,7 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
   const awayScore = Number.isFinite(viewState.score?.away) ? viewState.score.away : 0;
   const possession = viewState.possessionTeam === 'home' ? '우리 팀 공격' : viewState.possessionTeam === 'away' ? '상대 공격' : '공 경합 중';
   const restartControls = viewState.restart?.team !== 'home'
-    ? viewState.restart ? '상대 팀 재개 중' : '방향키 이동 · Space 점프·헤딩 · A 로빙 패스·걷어내기 · S 땅볼 패스(수비 시 선수 전환) · D 슛 · F 스킬'
+    ? viewState.restart ? '상대 팀 재개 중' : '방향키 이동 · E 스프린트 · 공중볼 자동 헤딩·걷어내기 · A 로빙 패스 · S 땅볼 패스(수비 시 선수 전환) · D 슛 · F 스킬'
     : viewState.restart.type === 'throwIn' ? '방향키로 방향 선택 · S 스로인'
       : viewState.restart.type === 'cornerKick' ? '방향키로 방향 선택 · A 크로스 · S 짧은 패스'
         : '방향키로 방향 선택 · A 장거리 킥 · S 짧은 패스';

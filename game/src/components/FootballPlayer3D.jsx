@@ -20,7 +20,6 @@ export function FootballPlayer3D({ player, selected = false, actorsRef }) {
   const kit = KITS[player.team === 'away' ? 'away' : 'home'];
   const isKeeper = player.role === 'goalkeeper';
   const jersey = isKeeper ? kit.keeper : kit.jersey;
-  const jumpHeight = Math.max(0, Number(player.jumpHeight) || 0) / 80;
   const facing = player.team === 'away' ? -Math.PI / 2 : Math.PI / 2;
   const x = (Number(player.x) || 0) / 80 - FIELD.width / 160;
   const z = ((Number(player.y) || FIELD.height / 2) - FIELD.height / 2) / 80;
@@ -38,7 +37,7 @@ export function FootballPlayer3D({ player, selected = false, actorsRef }) {
   };
 
   return (
-    <group ref={registerActor} position={[x, jumpHeight, z]} rotation={[0, facing, 0]}>
+    <group ref={registerActor} position={[x, 0, z]} rotation={[0, facing, 0]}>
       <mesh ref={registerSelectedMarker} visible={selected} position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.21, 0.28, 32]} />
           <meshStandardMaterial color="#dfff75" emissive="#b9ef4d" emissiveIntensity={0.8} />
