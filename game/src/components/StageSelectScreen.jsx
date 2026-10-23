@@ -1,10 +1,13 @@
 import { STAGE_COUNT } from '../game/constants.js';
 import { getUnlockedStage } from '../game/campaign.js';
+import { getOpponentBranding } from '../game/teamBranding.js';
+import { BrandLogo } from './BrandLogo.jsx';
 
-export default function StageSelectScreen({ campaign, stageResults = [], selectedStage, onSelectStage, onStartStage, onOpenLoadout, onHome }) {
+export default function StageSelectScreen({ campaign, teamCustomization, stageResults = [], selectedStage, onSelectStage, onStartStage, onOpenLoadout, onHome }) {
   const unlockedStage = getUnlockedStage(campaign);
   const resultByStage = new Map(stageResults.map((result) => [result.stage, result]));
   const selectedResult = resultByStage.get(selectedStage);
+  const selectedRival = getOpponentBranding(selectedStage, teamCustomization);
 
   return (
     <section className="screen-panel stage-select-panel" aria-labelledby="stage-select-title">
@@ -27,6 +30,7 @@ export default function StageSelectScreen({ campaign, stageResults = [], selecte
           const locked = stage > unlockedStage;
           const continuation = stage === campaign.currentStage && !clearedResult;
           const selected = stage === selectedStage;
+          const rival = locked ? null : getOpponentBranding(stage, teamCustomization);
           const status = locked ? '잠김' : clearedResult ? '클리어 · 재도전 가능' : '도전 가능';
           return (
             <button
@@ -36,6 +40,7 @@ export default function StageSelectScreen({ campaign, stageResults = [], selecte
               disabled={locked}
               aria-pressed={selected}
               aria-label={`스테이지 ${stage}, ${status}${clearedResult ? `, 이전 점수 ${clearedResult.homeGoals}대 ${clearedResult.awayGoals}` : ''}`}
+              aria-description={rival ? `${rival.displayName}, ${rival.kit.name}` : undefined}
               onClick={() => onSelectStage(stage)}
             >
               <span className="stage-card-topline"><span>STAGE</span><b>{String(stage).padStart(2, '0')}</b></span>
@@ -44,6 +49,11 @@ export default function StageSelectScreen({ campaign, stageResults = [], selecte
               <span className={`stage-card-status${locked ? ' locked' : clearedResult ? ' cleared' : ''}`}>
                 {locked ? '잠김' : clearedResult ? 'CLEAR · 재도전' : continuation ? 'NEXT · 이어하기' : '도전 가능'}
               </span>
+              {rival && <span className="stage-card-rival" aria-label={`${rival.displayName}, ${rival.kit.name}`}>
+                <BrandLogo logoId={rival.logoId} title="decorative" />
+                <span>{rival.displayName}</span>
+                <i aria-hidden="true" style={{ '--rival-jersey': rival.kit.jersey, '--rival-trim': rival.kit.trim }} />
+              </span>}
               {clearedResult
                 ? <span className="stage-card-score">최고 결과 <b>{clearedResult.homeGoals} : {clearedResult.awayGoals}</b></span>
                 : <span className="stage-card-score">{locked ? '이전 스테이지를 클리어하세요' : continuation ? '캠페인 진행 단계' : '새로운 라이벌이 기다려요'}</span>}
@@ -57,6 +67,13 @@ export default function StageSelectScreen({ campaign, stageResults = [], selecte
           <span>선택한 스테이지</span>
           <b>{String(selectedStage).padStart(2, '0')}</b>
           <small>{selectedResult ? `재도전 · 이전 ${selectedResult.homeGoals}:${selectedResult.awayGoals}` : '새로운 도전'}</small>
+        </div>
+        <div className={`stage-rival-summary${selectedStage === STAGE_COUNT ? ' is-boss' : ''}`} aria-label={`${selectedRival.displayName} 상대 유니폼: ${selectedRival.kit.name}`}>
+          <BrandLogo logoId={selectedRival.logoId} title="decorative" />
+          <span><small>STAGE {String(selectedStage).padStart(2, '0')} RIVAL</small><b>{selectedRival.displayName}</b><i>{selectedRival.kit.name}</i></span>
+          <span className="stage-rival-swatches" aria-hidden="true">
+            {[selectedRival.kit.jersey, selectedRival.kit.trim, selectedRival.kit.shorts, selectedRival.kit.boots].map((color) => <i key={color} style={{ backgroundColor: color }} />)}
+          </span>
         </div>
         <div className="stage-action-buttons">
           <button type="button" className="secondary-button" onClick={onOpenLoadout}>팀 편성</button>

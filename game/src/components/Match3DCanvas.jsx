@@ -159,7 +159,7 @@ export default function Match3DCanvas({
             <FootballPitch3D />
             <TrackingCamera3D ball={ball} gameStateRef={gameStateRef} />
             {players.map((player) => (
-              <FootballPlayer3D key={player.id} player={player} selected={player.id === selectedPlayerId} actorsRef={actorsRef} gameStateRef={gameStateRef} paused={paused} />
+              <FootballPlayer3D key={player.id} player={player} selected={player.id === selectedPlayerId} actorsRef={actorsRef} gameStateRef={gameStateRef} teamBranding={gameStateRef?.current?.teamBranding} paused={paused} />
             ))}
             <FootballBall3D ball={ball} actorsRef={actorsRef} />
             {gameStateRef && <PlayerMotionEffects3D gameStateRef={gameStateRef} paused={paused} />}

@@ -1,10 +1,10 @@
 const freezeOptions = (options) => Object.freeze(options.map((option) => Object.freeze(option)));
 
 export const LOGO_OPTIONS = freezeOptions([
-  { id: 'dex', displayName: 'DEX', assetPath: '/images/logos/dex.svg' },
-  { id: 'samsung', displayName: 'SAMSUNG', assetPath: '/images/logos/samsung.svg' },
-  { id: 'apple', displayName: 'APPLE', assetPath: '/images/logos/apple.svg' },
-  { id: 'google', displayName: 'GOOGLE', assetPath: '/images/logos/google.svg' },
+  { id: 'dex', displayName: 'DEX', assetPath: '/images/brands/dex.svg' },
+  { id: 'samsung', displayName: 'SAMSUNG', assetPath: '/images/brands/samsung.svg' },
+  { id: 'apple', displayName: 'APPLE', assetPath: '/images/brands/apple.svg' },
+  { id: 'google', displayName: 'GOOGLE', assetPath: '/images/brands/google.svg' },
 ]);
 
 export const KIT_PALETTES = freezeOptions([
@@ -64,4 +64,20 @@ export function getOpponentBranding(stage, homeCustomization) {
   const kit = getRivalPalette(safeStage, homePalette.jersey);
 
   return { logoId: logo.id, displayName: logo.displayName, kit };
+}
+
+export function getTeamBranding(stage, homeCustomization) {
+  const home = normalizeTeamCustomization(homeCustomization);
+  const logo = LOGO_OPTIONS.find(({ id }) => id === home.logoId);
+  const kit = KIT_PALETTES.find(({ id }) => id === home.paletteId);
+  return {
+    home: { logoId: logo.id, displayName: logo.displayName, kit },
+    away: getOpponentBranding(stage, home),
+  };
+}
+
+export function getAwayHudAccent(homeJersey) {
+  const red = '#ef4d51';
+  const blue = '#315ed8';
+  return colorDistance(homeJersey, red) < 95 ? blue : red;
 }

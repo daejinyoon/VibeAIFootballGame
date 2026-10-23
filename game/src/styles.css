@@ -661,24 +661,10 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
 .brand-option input, .kit-palette-card input { position: absolute; inset: 7px auto auto 7px; width: 16px; height: 16px; margin: 0; accent-color: #e95449; }
 .brand-option-mark { display: grid; min-height: 33px; place-items: center; }
 .brand-option-name { overflow: hidden; max-width: 100%; color: #526d7b; font: 900 8px Consolas, monospace; letter-spacing: .06em; text-overflow: ellipsis; }
-.brand-wordmark { display: inline-flex; align-items: center; justify-content: center; gap: 4px; color: #132432; font: 1000 12px Arial, sans-serif; letter-spacing: -.04em; white-space: nowrap; }
-.brand-wordmark-dex { color: #20272c; font-style: italic; letter-spacing: -.09em; }
-.brand-wordmark-dex i { color: #d6a900; font-size: 16px; font-style: normal; }
-.brand-wordmark-samsung { padding: 4px 8px; border-radius: 50%; background: #09101a; color: white; font-size: 8px; font-style: italic; letter-spacing: -.04em; }
-.brand-wordmark-google { gap: 0; font-size: 17px; letter-spacing: -.09em; }
-.brand-wordmark-google i { font-style: normal; }
-.brand-wordmark-apple { width: 30px; height: 30px; }
-.apple-mark { position: relative; display: block; width: 21px; height: 21px; border-radius: 45% 45% 48% 48%; background: #202329; }
-.apple-mark::before { position: absolute; top: -5px; left: 11px; width: 8px; height: 5px; border-radius: 100% 0 100% 0; background: #202329; content: ''; transform: rotate(-38deg); }
-.apple-mark::after { position: absolute; top: 6px; right: -2px; width: 7px; height: 8px; border-radius: 50%; background: white; content: ''; }
-.apple-mark i { position: absolute; bottom: 5px; left: -3px; width: 5px; height: 6px; border-radius: 50%; background: white; }
 .team-customization-preview { position: sticky; top: 18px; padding: 12px; border: 2px solid #15334f; border-radius: 17px 6px 17px 6px; background: #eaf8f7; box-shadow: 4px 5px 0 #15334f; }
 .kit-preview-stage { position: relative; display: grid; min-height: 305px; place-items: center; overflow: hidden; border: 2px solid #17384b; background: radial-gradient(ellipse at 50% 100%, #fff3cf 0, #a7dddc 53%, #72c6d1 100%); }
 .kit-preview-grid { position: absolute; inset: 0; opacity: .25; background: linear-gradient(90deg, transparent 49.7%, white 50%, transparent 50.3%), linear-gradient(0deg, transparent 49.7%, white 50%, transparent 50.3%); }
 .kit-preview-brand { position: absolute; z-index: 2; top: 12px; left: 12px; display: grid; min-width: 54px; min-height: 38px; place-items: center; padding: 5px 8px; border: 1px solid #19374a; border-radius: 8px 3px 8px 3px; background: #ffffffed; box-shadow: 2px 2px 0 #15334f55; }
-.kit-preview-brand .brand-wordmark { font-size: 14px; }
-.kit-preview-brand .brand-wordmark-samsung { font-size: 8px; }
-.kit-preview-brand .brand-wordmark-google { font-size: 19px; }
 .kit-player-silhouette { position: absolute; bottom: 35px; left: 50%; width: 150px; height: 235px; transform: translateX(-50%); filter: drop-shadow(7px 8px 0 #15334f33); }
 .kit-player-head { position: absolute; z-index: 2; top: 1px; left: 55px; width: 42px; height: 48px; border: 3px solid #15334f; border-radius: 44% 44% 48% 48%; background: #f1bd91; }
 .kit-player-head::before { position: absolute; top: -6px; left: -2px; width: 41px; height: 20px; border-radius: 55% 55% 20% 20%; background: #30283b; content: ''; }
@@ -705,6 +691,31 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
 .team-customization-error { margin: 14px 0 0; }
 .team-customization-entry { border-color: #15334f; background: #ddf4ff; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+.brand-logo { display: block; width: 100%; height: 100%; object-fit: contain; }
+.score-team-mark { overflow: hidden; border-radius: 4px; background: #fff; box-shadow: 0 0 0 1px #061b2e66; }
+.score-team-mark .brand-logo { width: 86%; height: 86%; }
+.score-team-home .score-team-mark, .score-team-away .score-team-mark { border-color: #fff; background: #fff; }
+.score-team-away .score-team-name { color: color-mix(in srgb, var(--away-team-accent, #ef4d51) 42%, white); }
+.match-score-hud { background: linear-gradient(105deg, color-mix(in srgb, var(--home-team-accent, #1ab6d1) 42%, #071a31), #102744 48%, color-mix(in srgb, var(--away-team-accent, #ef4d51) 40%, #251323)); }
+.minimap-player.is-away .minimap-player-dot { fill: var(--away-team-accent, #ff514b); }
+.brand-option-mark .brand-logo { width: min(96px, 100%); height: 35px; }
+.kit-preview-brand .brand-logo { width: 62px; height: 31px; }
+.stage-card-rival { display: flex; width: 100%; min-height: 22px; align-items: center; gap: 5px; margin-top: 8px; padding-top: 6px; border-top: 1px solid #d7e6e7; color: #456477; font: 900 7px Consolas, monospace; }
+.stage-card-rival .brand-logo { width: 28px; height: 17px; flex: 0 0 28px; }
+.stage-card-rival > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stage-card-rival > i { width: 25px; height: 8px; flex: 0 0 25px; margin-left: auto; border: 1px solid #23445b66; background: linear-gradient(90deg, var(--rival-jersey) 0 66%, var(--rival-trim) 66%); }
+.stage-rival-summary { display: flex; min-width: 220px; align-items: center; gap: 10px; padding: 8px 11px; border: 2px solid #9ab8c4; border-radius: 10px 4px 10px 4px; background: #edfaff; color: #17364f; box-shadow: 2px 3px 0 #15334f55; }
+.stage-rival-summary .brand-logo { width: 48px; height: 31px; flex: 0 0 48px; }
+.stage-rival-summary > span:nth-child(2) { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
+.stage-rival-summary small { color: #54758b; font: 900 7px Consolas, monospace; letter-spacing: .08em; }
+.stage-rival-summary b { overflow: hidden; font: 1000 11px Consolas, monospace; text-overflow: ellipsis; }
+.stage-rival-summary > span:nth-child(2) > i { color: #627d8d; font-size: 8px; font-style: normal; }
+.stage-rival-swatches { display: flex; flex: 0 0 auto; gap: 3px; }
+.stage-rival-swatches i { width: 8px; height: 22px; border: 1px solid #17364f55; }
+.stage-rival-summary.is-boss { border-color: #b99543; background: linear-gradient(120deg, #f3f0e7, #fff9e5); box-shadow: 2px 3px 0 #392f1e; }
+.stage-rival-summary.is-boss small { color: #805f18; }
+.stage-select-actions { flex-wrap: wrap; }
+.stage-select-actions .stage-rival-summary { margin-inline: auto; }
 @media (max-width: 850px) {
   .team-customization-layout { grid-template-columns: minmax(0, 1fr) minmax(240px, .72fr); gap: 15px; }
   .kit-preview-stage { min-height: 275px; }
@@ -719,6 +730,9 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
   .team-customization-actions { align-items: stretch; flex-direction: column; }
   .team-customization-actions > div { display: grid; grid-template-columns: 1fr 1fr; }
   .team-customization-actions .primary-button { min-width: 0; }
+  .stage-rival-summary { min-width: 0; width: 100%; order: 3; }
+  .stage-select-actions .stage-rival-summary { margin: 0; }
+  .stage-select-actions .stage-action-buttons { order: 4; }
 }
 @media (max-width: 420px) {
   .brand-option-grid { gap: 5px; }

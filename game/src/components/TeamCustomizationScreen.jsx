@@ -4,25 +4,7 @@ import {
   LOGO_OPTIONS,
   normalizeTeamCustomization,
 } from '../game/teamBranding.js';
-
-const GOOGLE_COLORS = ['#4285F4', '#EA4335', '#FBBC05', '#4285F4', '#34A853', '#EA4335'];
-
-function LogoWordmark({ logo, large = false }) {
-  if (logo.id === 'google') {
-    return <span className={`brand-wordmark brand-wordmark-google${large ? ' is-large' : ''}`} aria-label="GOOGLE">
-      {Array.from(logo.displayName).map((letter, index) => <i key={`${letter}-${index}`} style={{ color: GOOGLE_COLORS[index] }}>{letter}</i>)}
-    </span>;
-  }
-  if (logo.id === 'apple') {
-    return <span className={`brand-wordmark brand-wordmark-apple${large ? ' is-large' : ''}`}>
-      <span className="apple-mark" aria-hidden="true"><i /></span><span className="sr-only">APPLE</span>
-    </span>;
-  }
-  if (logo.id === 'samsung') {
-    return <span className={`brand-wordmark brand-wordmark-samsung${large ? ' is-large' : ''}`}>SAMSUNG</span>;
-  }
-  return <span className={`brand-wordmark brand-wordmark-dex${large ? ' is-large' : ''}`}><i aria-hidden="true">ϟ</i> DEX</span>;
-}
+import { BrandLogo } from './BrandLogo.jsx';
 
 function KitPreview({ logo, palette }) {
   return (
@@ -38,7 +20,7 @@ function KitPreview({ logo, palette }) {
       aria-label={`${logo.displayName} 로고, ${palette.name} 유니폼 미리보기`}
     >
       <div className="kit-preview-grid" aria-hidden="true" />
-      <div className="kit-preview-brand"><LogoWordmark logo={logo} /></div>
+      <div className="kit-preview-brand"><BrandLogo logoId={logo.id} title="decorative" /></div>
       <div className="kit-player-silhouette" aria-hidden="true">
         <span className="kit-player-head" />
         <span className="kit-player-neck" />
@@ -87,7 +69,7 @@ export default function TeamCustomizationScreen({ customization, onSave, onBack,
                     checked={draft.logoId === logo.id}
                     onChange={() => updateDraft('logoId', logo.id)}
                   />
-                  <span className="brand-option-mark"><LogoWordmark logo={logo} /></span>
+                  <span className="brand-option-mark"><BrandLogo logoId={logo.id} title="decorative" /></span>
                   <span className="brand-option-name">{logo.displayName}</span>
                 </label>
               ))}

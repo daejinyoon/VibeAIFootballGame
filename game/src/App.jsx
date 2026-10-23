@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import { assignOpponentSkills, createCampaign, finishStage, getUnlockedStage } from './game/campaign.js';
 import { createInitialGameState } from './game/createInitialGameState.js';
 import { FIELD_PLAYER_IDS, SKILLS, assignSkillCard, awardSkillCard } from './game/skills.js';
+import { getTeamBranding } from './game/teamBranding.js';
 import { createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
 import ResultsScreen from './components/ResultsScreen.jsx';
@@ -13,7 +14,7 @@ import TeamCustomizationScreen from './components/TeamCustomizationScreen.jsx';
 
 const GameScreen = lazy(() => import('./components/GameScreen.jsx'));
 
-function makeMatchState(campaign) {
+function makeMatchState(campaign, teamCustomization) {
   const assigned = assignOpponentSkills(
     createInitialGameState().players,
     campaign.opponentSkillSets[campaign.currentStage] ?? [],
@@ -25,6 +26,7 @@ function makeMatchState(campaign) {
     stage: campaign.currentStage,
     playerSkillStacks: campaign.playerSkillStacks,
     opponentSkillStacks,
+    teamBranding: getTeamBranding(campaign.currentStage, teamCustomization),
   });
 }
 
@@ -52,7 +54,7 @@ export default function App() {
   const startStage = (activeCampaign = campaign) => {
     if (!activeCampaign) return;
     activeMatchInstanceRef.current += 1;
-    setMatchState(makeMatchState(activeCampaign));
+    setMatchState(makeMatchState(activeCampaign, profile.teamCustomization));
     setScreen('match');
   };
 
@@ -275,6 +277,7 @@ export default function App() {
       />}
       {screen === 'stageSelect' && campaign && <StageSelectScreen
         campaign={campaign}
+        teamCustomization={profile.teamCustomization}
         stageResults={campaign.clearedStageResults}
         selectedStage={selectedStage}
         onSelectStage={selectStage}

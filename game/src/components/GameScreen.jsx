@@ -2,6 +2,8 @@
 import Match3DGame from './Match3DGame.jsx';
 import PauseMenu from './PauseMenu.jsx';
 import { SKILLS } from '../game/skills.js';
+import { getAwayHudAccent } from '../game/teamBranding.js';
+import { BrandLogo } from './BrandLogo.jsx';
 import { MatchMiniMap } from './MatchMiniMap.jsx';
 import { SkillCutInOverlay } from './SkillCutInOverlay.jsx';
 
@@ -38,8 +40,10 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
     .reduce((total, player) => total + player.skillUsesRemaining, 0);
   const homeBranding = viewState.teamBranding?.home ?? {};
   const awayBranding = viewState.teamBranding?.away ?? {};
-  const homeName = homeBranding.name || 'DEX FC';
-  const awayName = awayBranding.name || 'AI RIVALS';
+  const homeName = homeBranding.displayName || 'DEX';
+  const awayName = awayBranding.displayName || 'SAMSUNG';
+  const homeAccent = homeBranding.kit?.jersey || '#00A6C8';
+  const awayAccent = getAwayHudAccent(homeAccent);
   const stamina = Math.max(0, Math.min(100, Number.isFinite(controlledPlayer?.sprintStamina)
     ? controlledPlayer.sprintStamina
     : 0));
@@ -82,10 +86,10 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
         <span>ACTIVE PLAYERS <b>{activeHome}</b> : <b>{activeAway}</b> · {possession}</span>
       </div>
       <div className="game-canvas-wrap">
-        <div className="match-score-hud" style={{ '--home-team-accent': homeBranding.kit?.jersey || '#1ab6d1' }} role="group" aria-label={`${homeName} ${homeScore}, ${awayName} ${awayScore}, 남은 시간 ${timeLabel}`}>
-          <div className="score-team score-team-home"><span className="score-team-mark" aria-hidden="true">{homeBranding.logoUrl ? <img src={homeBranding.logoUrl} alt="" /> : 'DEX'}</span><span className="score-team-name">{homeName}</span><b>{homeScore}</b></div>
+        <div className="match-score-hud" style={{ '--home-team-accent': homeAccent, '--away-team-accent': awayAccent }} role="group" aria-label={`${homeName} ${homeScore}, ${awayName} ${awayScore}, 남은 시간 ${timeLabel}`}>
+          <div className="score-team score-team-home"><span className="score-team-mark"><BrandLogo logoId={homeBranding.logoId ?? 'dex'} title="decorative" /></span><span className="score-team-name">{homeName}</span><b>{homeScore}</b></div>
           <div className="score-clock"><small>{isOvertime ? 'GOLDEN GOAL' : 'MATCH TIME'}</small><strong>{timeLabel}</strong></div>
-          <div className="score-team score-team-away"><b>{awayScore}</b><span className="score-team-name">{awayName}</span><span className="score-team-mark" aria-hidden="true">{awayBranding.logoUrl ? <img src={awayBranding.logoUrl} alt="" /> : 'AI'}</span></div>
+          <div className="score-team score-team-away"><b>{awayScore}</b><span className="score-team-name">{awayName}</span><span className="score-team-mark"><BrandLogo logoId={awayBranding.logoId ?? 'samsung'} title="decorative" /></span></div>
         </div>
         <Match3DGame initialState={gameState} paused={paused} onGameEvents={handleGameEvents} onStateChange={(next) => {
         const now = performance.now();
@@ -94,7 +98,7 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
           setViewState(next);
         }
         }} />
-        <MatchMiniMap players={viewState.players} ball={viewState.ball} controlledPlayerId={viewState.controlledPlayerId} homeAccent={homeBranding.kit?.jersey || '#1ab6d1'} />
+        <MatchMiniMap players={viewState.players} ball={viewState.ball} controlledPlayerId={viewState.controlledPlayerId} homeAccent={homeAccent} awayAccent={awayBranding.kit?.jersey || '#E94B55'} />
         <SkillCutInOverlay cue={cutInCue} player={cutInPlayer} teamBranding={viewState.teamBranding} />
       </div>
       <div className="game-bottomline">

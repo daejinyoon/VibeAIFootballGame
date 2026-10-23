@@ -1,4 +1,5 @@
 import { FIELD, KICKOFF_CIRCLE_RADIUS, REGULATION_SECONDS, STAGE_COUNT } from './constants.js';
+import { getTeamBranding } from './teamBranding.js';
 
 const homeFormation = [
   { id: 'home-gk', role: 'goalkeeper', x: 55, y: 270 },
@@ -78,6 +79,7 @@ export function createInitialGameState({
   opponentSkillIds = [],
   playerSkillStacks = {},
   opponentSkillStacks = {},
+  teamBranding,
 } = {}) {
   const safeStage = Number.isInteger(stage) && stage >= 1 && stage <= STAGE_COUNT ? stage : 1;
   const safeLoadout = loadout && typeof loadout === 'object' ? loadout : {};
@@ -116,6 +118,7 @@ export function createInitialGameState({
 
   return {
     stage: safeStage,
+    teamBranding: teamBranding ?? getTeamBranding(safeStage),
     phase: 'playing',
     kickoffLocked: true,
     kickoffTakerId: 'home-fw',

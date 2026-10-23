@@ -1,5 +1,7 @@
 import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useLoader } from '@react-three/fiber';
+import { SRGBColorSpace, TextureLoader } from 'three';
+import { LOGO_OPTIONS } from '../game/teamBranding.js';
 
 const FACE_VARIANTS = [
   { skin: '#f2c49b', hair: '#3b3029', hairStyle: 0, eyeColor: '#293c48' },
@@ -52,7 +54,7 @@ function Hair({ style, color }) {
 }
 
 /** Shared procedural character model for field players and skill cut-ins. */
-export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1, paused = false, kit, isKeeper = false }) {
+export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1, paused = false, kit, logoId = 'dex', isKeeper = false }) {
   const leftArm = useRef(null);
   const rightArm = useRef(null);
   const leftLeg = useRef(null);
@@ -65,6 +67,9 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
   const recoveryPoseSeconds = useRef(0);
   const variant = FACE_VARIANTS[hashPlayerId(player?.id) % FACE_VARIANTS.length];
   const modelScale = scale * (pose === 'cutIn' ? 1.22 : 1);
+  const logo = LOGO_OPTIONS.find((option) => option.id === logoId) ?? LOGO_OPTIONS[0];
+  const logoTexture = useLoader(TextureLoader, logo.assetPath);
+  logoTexture.colorSpace = SRGBColorSpace;
 
   useFrame((_, delta) => {
     if (paused) return;
@@ -138,6 +143,14 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
         <mesh position={[0, 0.085, 0.103]}>
           <boxGeometry args={[0.105, 0.11, 0.018]} />
           <meshStandardMaterial color={kit.trim} roughness={0.5} />
+        </mesh>
+        <mesh position={[0, 0.085, 0.116]}>
+          <planeGeometry args={[0.082, 0.044]} />
+          <meshBasicMaterial color="white" toneMapped={false} />
+        </mesh>
+        <mesh position={[0, 0.085, 0.119]}>
+          <planeGeometry args={[0.073, logo.id === 'apple' ? 0.05 : 0.028]} />
+          <meshBasicMaterial map={logoTexture} transparent toneMapped={false} depthWrite={false} />
         </mesh>
       </group>
 

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FIELD, KICKOFF_CIRCLE_RADIUS } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
+import { getAwayHudAccent, getTeamBranding } from './teamBranding.js';
 
 test('creates eight unique players with three field players and a goalkeeper per team', () => {
   const state = createInitialGameState();
@@ -19,6 +20,9 @@ test('creates eight unique players with three field players and a goalkeeper per
 test('starts stage one at a home kickoff with a clean score and no skill gauges', () => {
   const state = createInitialGameState();
   assert.equal(state.stage, 1);
+  assert.equal(state.teamBranding.home.logoId, 'dex');
+  assert.equal(state.teamBranding.home.kit.id, 'cyan-lime');
+  assert.equal(state.teamBranding.away.logoId, 'samsung');
   assert.equal(state.phase, 'playing');
   assert.equal(state.kickoffLocked, true);
   assert.equal(state.kickoffTakerId, 'home-fw');
@@ -52,6 +56,8 @@ test('clamps stages to one through five and never equips the goalkeeper', () => 
   const homeKeeper = state.players.find((player) => player.id === 'home-gk');
   const awayKeeper = state.players.find((player) => player.id === 'away-gk');
   assert.equal(state.stage, 5);
+  assert.equal(state.teamBranding.away.logoId, 'apple');
+  assert.equal(state.teamBranding.away.kit.id, 'boss-black');
   assert.equal(invalidStage.stage, 1);
   assert.equal(homeForward.skillId, 'eagleShot');
   assert.equal(homeForward.skillUsesRemaining, 1);
@@ -79,4 +85,15 @@ test('mirrors the away formation across the middle of the pitch', () => {
     assert.equal(away[index].x, FIELD.width - player.x);
     assert.equal(away[index].y, player.y);
   });
+});
+
+test('derives stage rivals from the selected home identity and reserves the black kit for stage five', () => {
+  const customization = { logoId: 'apple', paletteId: 'crimson-ivory' };
+  const stages = [1, 2, 3, 4, 5].map((stage) => getTeamBranding(stage, customization));
+  assert.deepEqual(stages.slice(0, 4).map(({ away }) => away.logoId), ['dex', 'samsung', 'google', 'dex']);
+  assert.ok(stages.every(({ away }) => away.logoId !== customization.logoId));
+  assert.ok(stages.slice(0, 4).every(({ home, away }) => home.kit.jersey !== away.kit.jersey));
+  assert.equal(stages[4].away.kit.id, 'boss-black');
+  assert.equal(stages[4].away.kit.shorts, '#E7E5DD');
+  assert.equal(getAwayHudAccent(stages[0].home.kit.jersey), '#315ed8');
 });

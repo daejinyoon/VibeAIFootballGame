@@ -6,11 +6,11 @@ function isValidPosition(entity) {
     && entity.y >= 0 && entity.y <= FIELD.height;
 }
 
-export function MatchMiniMap({ players = [], ball, controlledPlayerId, homeAccent = '#1ab6d1' }) {
+export function MatchMiniMap({ players = [], ball, controlledPlayerId, homeAccent = '#1ab6d1', awayAccent = '#E94B55' }) {
   const activePlayers = players.filter((player) => !player.dismissed && isValidPosition(player));
 
   return (
-    <div className="match-minimap" style={{ '--home-team-accent': homeAccent }} role="img" aria-label="경기장 미니맵: 양 팀 선수, 공, 조작 선수 위치">
+    <div className="match-minimap" style={{ '--home-team-accent': homeAccent, '--away-team-accent': awayAccent }} role="img" aria-label="경기장 미니맵: 양 팀 선수, 공, 조작 선수 위치">
       <svg viewBox={`0 0 ${FIELD.width} ${FIELD.height}`} aria-hidden="true" focusable="false">
         <defs>
           <clipPath id="match-minimap-field-clip">

@@ -12,6 +12,8 @@ export function SkillCutInOverlay({ cue, player, teamBranding }) {
   const team = cue.team === 'away' ? 'away' : 'home';
   const [primary, secondary] = SKILL_EFFECT_COLORS[cue.skillId]?.[team]
     ?? SKILL_EFFECT_COLORS.eagleShot[team];
+  const logoId = teamBranding?.[team]?.logoId ?? (team === 'away' ? 'samsung' : 'dex');
+  const teamName = teamBranding?.[team]?.displayName ?? (team === 'away' ? 'SAMSUNG' : 'DEX');
 
   return (
     <div
@@ -30,11 +32,11 @@ export function SkillCutInOverlay({ cue, player, teamBranding }) {
         <Canvas camera={{ position: [0, 0.76, 3.1], fov: 34 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true }}>
           <ambientLight intensity={1.5} />
           <directionalLight position={[-2, 4, 5]} color="#fff4dd" intensity={2.2} />
-          <MiiPlayerModel player={player} pose="cutIn" scale={1.18} kit={getPlayerKit(player, teamBranding)} isKeeper={false} />
+          <MiiPlayerModel player={player} pose="cutIn" scale={1.18} kit={getPlayerKit(player, teamBranding)} logoId={logoId} isKeeper={false} />
         </Canvas>
       </div>
       <div className="skill-cut-in-copy">
-        <span className="skill-cut-in-label">{team === 'home' ? 'DEX SPECIAL MOVE' : 'RIVAL SPECIAL MOVE'}</span>
+        <span className="skill-cut-in-label">{teamName} SPECIAL MOVE</span>
         <h2>{skill.name}</h2>
         <span className="skill-cut-in-type">{skill.type.toUpperCase()}</span>
       </div>
