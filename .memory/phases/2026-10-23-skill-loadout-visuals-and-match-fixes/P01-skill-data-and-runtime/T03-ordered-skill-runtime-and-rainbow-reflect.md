@@ -1,6 +1,6 @@
 # Task: T03 Ordered Skill Runtime and Rainbow Reflect
 
-## Status: ready to commit
+## Status: done
 
 ## Goal
 Make F activate the next usable skill from the equipped ordered deck, give each skill its own 10-second cooldown, and implement Rainbow Reflect as an active transfer of the controlled player's negative status to the last opposing skill caster.
@@ -46,7 +46,7 @@ Make F activate the next usable skill from the equipped ordered deck, give each 
   - If the controlled player has no transferable status, return a failed result and leave status, queue position, and cooldowns unchanged.
   - On success, clear the transferred statuses from the user and apply them to the target even if the source skill was not what caused the user's status. Do not apply a range test.
   - Emit `skillUsed` plus a structured transfer event containing source/target IDs and transferred status types for the visual layer.
-- **Error & State Transition**: Invalid/missing last caster, no negative status, knocked-down source unable to cast, and invalid team/skill all fail without partial mutations.
+- **Error & State Transition**: Invalid/missing last caster, no negative status, and invalid team/skill all fail without partial mutations. Rainbow Reflect is the exception to the usual knockdown action lock: the controlled player can activate it while knocked down to clear that status, matching the confirmed "always clear my negative status" rule.
 
 ### I03. Runtime regression coverage
 - Related Files:
