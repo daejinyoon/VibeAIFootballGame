@@ -1,12 +1,19 @@
 import { STAGE_COUNT } from '../game/constants.js';
 import { createOpponentSkillSets } from '../game/campaign.js';
 import { FIELD_PLAYER_IDS, SKILL_IDS, validateSkillAssignments } from '../game/skills.js';
+import { DEFAULT_TEAM_CUSTOMIZATION, normalizeTeamCustomization } from '../game/teamBranding.js';
 
 export const STORAGE_KEY = 'dex-pixel-football:v1';
-const PROFILE_VERSION = 2;
+const PROFILE_VERSION = 3;
 
 export function createEmptyProfile() {
-  return { schemaVersion: PROFILE_VERSION, nickname: '', campaignSave: null, bestRecord: null };
+  return {
+    schemaVersion: PROFILE_VERSION,
+    nickname: '',
+    campaignSave: null,
+    bestRecord: null,
+    teamCustomization: { ...DEFAULT_TEAM_CUSTOMIZATION },
+  };
 }
 
 function getDefaultStorage() {
@@ -112,6 +119,21 @@ export function migrateProfileV1(parsedProfile) {
     nickname: parsedProfile.nickname,
     campaignSave: migratedCampaign,
     bestRecord: isBestRecord(parsedProfile.bestRecord) ? { ...parsedProfile.bestRecord } : null,
+    teamCustomization: { ...DEFAULT_TEAM_CUSTOMIZATION },
+  };
+}
+
+/** Adds the v3 branding preference without discarding an otherwise valid v2 save. */
+export function migrateProfileV2(parsedProfile) {
+  if (!parsedProfile || parsedProfile.schemaVersion !== 2 || typeof parsedProfile.nickname !== 'string') {
+    return createEmptyProfile();
+  }
+  return {
+    schemaVersion: PROFILE_VERSION,
+    nickname: parsedProfile.nickname,
+    campaignSave: isCampaignSave(parsedProfile.campaignSave) ? parsedProfile.campaignSave : null,
+    bestRecord: isBestRecord(parsedProfile.bestRecord) ? { ...parsedProfile.bestRecord } : null,
+    teamCustomization: { ...DEFAULT_TEAM_CUSTOMIZATION },
   };
 }
 
@@ -123,12 +145,14 @@ export function readProfile(storage = getDefaultStorage()) {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed.nickname !== 'string') return createEmptyProfile();
     if (parsed.schemaVersion === 1) return migrateProfileV1(parsed);
+    if (parsed.schemaVersion === 2) return migrateProfileV2(parsed);
     if (parsed.schemaVersion !== PROFILE_VERSION) return createEmptyProfile();
     return {
       schemaVersion: PROFILE_VERSION,
       nickname: parsed.nickname,
       campaignSave: isCampaignSave(parsed.campaignSave) ? parsed.campaignSave : null,
       bestRecord: isBestRecord(parsed.bestRecord) ? parsed.bestRecord : null,
+      teamCustomization: normalizeTeamCustomization(parsed.teamCustomization),
     };
   } catch {
     return createEmptyProfile();
@@ -142,6 +166,7 @@ export function writeProfile(profile, storage = getDefaultStorage()) {
     nickname: String(profile?.nickname ?? ''),
     campaignSave: isCampaignSave(profile?.campaignSave) ? profile.campaignSave : null,
     bestRecord: isBestRecord(profile?.bestRecord) ? profile.bestRecord : null,
+    teamCustomization: normalizeTeamCustomization(profile?.teamCustomization),
   };
   storage.setItem(STORAGE_KEY, JSON.stringify(normalized));
   return normalized;

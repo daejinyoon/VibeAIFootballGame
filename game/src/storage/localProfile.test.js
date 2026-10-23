@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createOpponentSkillSets } from '../game/campaign.js';
 import { SKILL_IDS } from '../game/skills.js';
+import { DEFAULT_TEAM_CUSTOMIZATION } from '../game/teamBranding.js';
 import {
   createCampaignSave,
   createEmptyProfile,
@@ -37,6 +38,7 @@ function createCampaign(currentStage = 2) {
 test('creates an empty profile and validates a trimmed nickname', () => {
   const empty = createEmptyProfile();
   assert.equal(empty.nickname, '');
+  assert.deepEqual(empty.teamCustomization, DEFAULT_TEAM_CUSTOMIZATION);
   assert.equal(setNickname(empty, '  Dex  ').nickname, 'Dex');
   assert.throws(() => setNickname(empty, ' '));
   assert.throws(() => setNickname(empty, 'x'));
@@ -46,7 +48,7 @@ test('creates an empty profile and validates a trimmed nickname', () => {
 test('recovers from malformed or unsupported browser profile data', () => {
   const broken = createMemoryStorage({ 'dex-pixel-football:v1': '{bad json' });
   assert.deepEqual(readProfile(broken), createEmptyProfile());
-  const old = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({ schemaVersion: 3, nickname: 'Dex' }) });
+  const old = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({ schemaVersion: 4, nickname: 'Dex' }) });
   assert.deepEqual(readProfile(old), createEmptyProfile());
 });
 
@@ -54,11 +56,15 @@ test('writes and reads skill stacks and inventory without match coordinates', ()
   const storage = createMemoryStorage();
   const campaign = createCampaign();
   const save = createCampaignSave(campaign);
-  const profile = writeProfile({ ...createEmptyProfile(), nickname: 'Dex', campaignSave: save }, storage);
+  const profile = writeProfile({
+    ...createEmptyProfile(), nickname: 'Dex', campaignSave: save,
+    teamCustomization: { logoId: 'apple', paletteId: 'violet-ice' },
+  }, storage);
   const loaded = readProfile(storage);
   assert.equal(loaded.nickname, 'Dex');
-  assert.equal(profile.schemaVersion, 2);
-  assert.equal(JSON.parse(storage.getItem('dex-pixel-football:v1')).schemaVersion, 2);
+  assert.equal(profile.schemaVersion, 3);
+  assert.equal(JSON.parse(storage.getItem('dex-pixel-football:v1')).schemaVersion, 3);
+  assert.deepEqual(loaded.teamCustomization, { logoId: 'apple', paletteId: 'violet-ice' });
   assert.equal(loaded.campaignSave.currentStage, 2);
   assert.deepEqual(loaded.campaignSave.playerSkillStacks, campaign.playerSkillStacks);
   assert.deepEqual(loaded.campaignSave.skillInventory, campaign.skillInventory);
@@ -105,7 +111,8 @@ test('migrates legacy six-person loadouts into inventory and leaves the new fiel
   }) });
   const profile = readProfile(storage);
   const saved = profile.campaignSave;
-  assert.equal(profile.schemaVersion, 2);
+  assert.equal(profile.schemaVersion, 3);
+  assert.deepEqual(profile.teamCustomization, DEFAULT_TEAM_CUSTOMIZATION);
   assert.equal(profile.nickname, 'Dex');
   assert.equal(profile.bestRecord.stageReached, 3);
   assert.equal(saved.currentStage, 2);
@@ -129,6 +136,28 @@ test('migrates previous skill-stack checkpoints without losing inventory, pendin
   assert.equal(migrated.skillInventory.eagleShot, 2);
   assert.deepEqual(migrated.pendingSkillOffer, campaign.pendingSkillOffer);
   assert.deepEqual(migrated.opponentSkillSets, campaign.opponentSkillSets);
+});
+
+test('migrates v2 profiles and repairs invalid v3 branding without losing campaign data', () => {
+  const campaignSave = createCampaignSave(createCampaign(3));
+  const bestRecord = { nickname: 'Dex', stageReached: 4, goalDifference: 7, updatedAt: '2026-10-22T00:00:00.000Z' };
+  const storage = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({
+    schemaVersion: 2, nickname: 'Dex', campaignSave, bestRecord,
+  }) });
+  const migrated = readProfile(storage);
+  assert.equal(migrated.schemaVersion, 3);
+  assert.deepEqual(migrated.teamCustomization, DEFAULT_TEAM_CUSTOMIZATION);
+  assert.deepEqual(migrated.campaignSave, campaignSave);
+  assert.deepEqual(migrated.bestRecord, bestRecord);
+
+  storage.setItem('dex-pixel-football:v1', JSON.stringify({
+    schemaVersion: 3, nickname: 'Dex', campaignSave, bestRecord,
+    teamCustomization: { logoId: 'not-a-logo', paletteId: 'not-a-palette' },
+  }));
+  const repaired = readProfile(storage);
+  assert.deepEqual(repaired.teamCustomization, DEFAULT_TEAM_CUSTOMIZATION);
+  assert.deepEqual(repaired.campaignSave, campaignSave);
+  assert.deepEqual(repaired.bestRecord, bestRecord);
 });
 
 test('persists a pending card offer and assignment prompt for campaign resume', () => {
