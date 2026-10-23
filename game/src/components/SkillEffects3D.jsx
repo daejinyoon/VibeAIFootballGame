@@ -24,12 +24,12 @@ const AIR_RING_GEOMETRY = new THREE.TorusGeometry(0.3, 0.025, 6, 28);
 const AIR_PARTICLE_GEOMETRY = new THREE.TetrahedronGeometry(0.06, 0);
 const BARRIER_GROUND_GEOMETRY = new THREE.BoxGeometry(1, 0.055, 0.34);
 const BARRIER_GLOW_GEOMETRY = new THREE.BoxGeometry(1, 0.035, 0.12);
-const BARRIER_PLATE_GEOMETRY = new THREE.BoxGeometry(0.062, 0.96, 0.24);
-const BARRIER_SHARD_GEOMETRY = new THREE.ConeGeometry(0.25, 0.72, 5, 1);
+const BARRIER_PLATE_GEOMETRY = new THREE.BoxGeometry(0.062, 1.8, 0.24);
+const BARRIER_SHARD_GEOMETRY = new THREE.ConeGeometry(0.3, 0.9, 5, 1);
 const BARRIER_GROUND_MATERIAL = new THREE.MeshStandardMaterial({ color: '#17151b', roughness: 1, emissive: '#080609', emissiveIntensity: 0.2, side: THREE.DoubleSide });
 const BARRIER_GLOW_MATERIAL = new THREE.MeshBasicMaterial({ color: '#ff7b31', transparent: true, opacity: 0.92, depthWrite: false, toneMapped: false });
-const BARRIER_PLATE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#655647', roughness: 0.98, emissive: '#261b14', emissiveIntensity: 0.24 });
-const BARRIER_SHARD_MATERIAL = new THREE.MeshStandardMaterial({ color: '#5e5148', roughness: 0.96, emissive: '#321d12', emissiveIntensity: 0.32 });
+const BARRIER_PLATE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#8a7357', roughness: 0.94, emissive: '#633113', emissiveIntensity: 0.42 });
+const BARRIER_SHARD_MATERIAL = new THREE.MeshStandardMaterial({ color: '#766149', roughness: 0.92, emissive: '#713112', emissiveIntensity: 0.48 });
 
 function makeMesh(geometry, color = '#ffffff', opacity = 0.8) {
   const material = new THREE.MeshBasicMaterial({
@@ -377,7 +377,7 @@ export function SkillEffects3D({ gameStateRef }) {
         const indexInRow = plateIndex % 16;
         const side = plateIndex < 16 ? -1 : 1;
         plate.position.set(-0.47 + indexInRow * 0.0625,
-          0.48 * rise + (indexInRow % 3) * 0.012,
+          0.9 * rise + (indexInRow % 3) * 0.018,
           side * wallOffset);
         plate.scale.y = rise * (0.88 + (indexInRow % 4) * 0.045);
         plate.material.emissive.set(plateIndex % 2 ? '#342115' : '#1e2522');
@@ -385,7 +385,7 @@ export function SkillEffects3D({ gameStateRef }) {
       slot.shards.forEach((shard, shardIndex) => {
         const age = barrier.elapsedSeconds ?? 0;
         const side = shardIndex % 2 ? 1 : -1;
-        shard.position.y = 0.96 * rise;
+        shard.position.y = 1.8 * rise;
         shard.position.z = side * wallOffset;
         shard.rotation.z = (shardIndex % 2 ? -1 : 1) * (0.08 + Math.sin(age * 11 + shardIndex) * 0.025);
       });

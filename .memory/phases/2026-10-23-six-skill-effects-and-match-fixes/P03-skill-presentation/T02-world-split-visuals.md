@@ -9,6 +9,7 @@ Make the field surface visibly split open along the caster's forward slide, at a
 - The player slides low and physically forward along the same direction as the newly split ground.
 - The ground itself visibly opens into a long dark fissure with separated, uneven earth plates on both sides; restrained glowing seam and rubble accents support this read.
 - Two parallel raised rock walls flank the slide lane and both are represented in player/ball collision.
+- Raise the paired walls to a clearly visible height above player models and light the rock faces/seam enough to read from the match camera.
 - Keep the impassable gameplay collision aligned with the fissure and use its actual 3-second timer.
 - Scale the fissure to lengths 400/500/600 at levels 1/2/3; level 1 is the minimum eight-player-length span.
 
