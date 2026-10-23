@@ -32,6 +32,7 @@ export default function Match3DGame({ initialState, paused, onGameEvents, onStat
       selectedPlayerId={initialState.controlledPlayerId}
       actorsRef={actorsRef}
       gameStateRef={gameStateRef}
+      paused={paused}
       onFocusCapture={() => setFocused(true)}
       onBlurCapture={handleBlurCapture}
       onClick={(event) => event.currentTarget.focus()}

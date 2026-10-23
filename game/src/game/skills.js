@@ -207,6 +207,8 @@ export function applySkill(state, playerId) {
   }
 
   player.skillUsesRemaining -= 1;
+  player.motionAction = 'skill';
+  player.motionTimerSeconds = 0.42;
   const targetId = events.find((event) => event.type === 'skillUsed')?.targetId ?? null;
   addSkillEffect(state, {
     skillId,

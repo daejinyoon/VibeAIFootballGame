@@ -53,6 +53,12 @@ const unit = (x, y) => {
   return length > 0 ? { x: x / length, y: y / length } : { x: 0, y: 0 };
 };
 
+function setTimedMotion(player, action, durationSeconds = 0.36) {
+  if (!player) return;
+  player.motionAction = action;
+  player.motionTimerSeconds = durationSeconds;
+}
+
 function byId(state, id) {
   return state.players.find((player) => player.id === id) ?? null;
 }
@@ -77,7 +83,7 @@ function moveToward(player, target, speed, deltaSeconds, allowSprint = true) {
   if (direction.x !== 0 || direction.y !== 0) {
     player.facingX = Math.sign(direction.x);
     player.facingY = Math.sign(direction.y);
-    player.motionAction = 'run';
+    if ((player.motionTimerSeconds ?? 0) <= 0) player.motionAction = 'run';
   }
 }
 
@@ -98,7 +104,7 @@ function moveByInput(player, moveX, moveY, speed, deltaSeconds, sprintRequested 
   if (direction.x !== 0 || direction.y !== 0) {
     player.facingX = Math.sign(direction.x);
     player.facingY = Math.sign(direction.y);
-    player.motionAction = 'run';
+    if ((player.motionTimerSeconds ?? 0) <= 0) player.motionAction = 'run';
   }
 }
 
@@ -242,6 +248,7 @@ function releasePass(state, player, kind, receiverOverride = null) {
   if (!state.hasMatchClockStarted && player.id === state.openingKickoffTakerId) {
     state.hasMatchClockStarted = true;
   }
+  setTimedMotion(player, 'pass', 0.32);
   const speed = kind === 'lobPass' ? 300 : 330;
   state.ball.ownerId = null;
   state.ball.vx = direction.x * speed;
@@ -290,6 +297,7 @@ function releaseShot(state, player) {
   if (!state.hasMatchClockStarted && player.id === state.openingKickoffTakerId) {
     state.hasMatchClockStarted = true;
   }
+  setTimedMotion(player, 'shot', 0.42);
   const start = { x: state.ball.x, y: state.ball.y };
   const goalX = attackDirection > 0 ? FIELD.width : 0;
   let direction = facing;
@@ -459,9 +467,9 @@ function knockDownPlayer(state, player, source, durationSeconds = KNOCKDOWN_SECO
 }
 
 function advancePlayerRecovery(player, deltaSeconds) {
-  if (player.motionAction === 'tackle') {
-    player.motionAction = 'idle';
-  }
+  player.motionTimerSeconds = Math.max(0, (player.motionTimerSeconds ?? 0) - deltaSeconds);
+  if (player.motionTimerSeconds === 0
+      && ['pass', 'shot', 'skill', 'tackle', 'header'].includes(player.motionAction)) player.motionAction = 'idle';
   if (player.knockdownSeconds > 0) {
     player.knockdownSeconds = Math.max(0, player.knockdownSeconds - deltaSeconds);
     if (player.knockdownSeconds === 0) {
@@ -507,6 +515,7 @@ function awardFoul(state, foulingPlayer, fouledPlayer, spot, severity = 'careles
     && (defendingTeam === 'home' ? foulSpot.x <= 132 : foulSpot.x >= FIELD.width - 132);
   const restart = inPenaltyArea ? 'penaltyKick' : 'freeKick';
   foulingPlayer.motionAction = 'tackle';
+  foulingPlayer.motionTimerSeconds = 0.32;
   foulingPlayer.foulCount = (foulingPlayer.foulCount ?? 0) + 1;
   let redCard = severity === 'excessiveForce';
   let secondCautionDismissal = false;
@@ -589,13 +598,14 @@ function resolveTackle(state, tackler, ballCarrier, powerTackleActive = false) {
     const severity = classifyFoulSeverity({
       behind,
       approachSpeed: Number.isFinite(rawApproachSpeed) ? Math.max(0, rawApproachSpeed) : 0,
-      sliding: (tackler.slideSeconds ?? 0) > 0 || tackler.motionAction === 'tackle',
+      sliding: (tackler.slideSeconds ?? 0) > 0,
       powerTackle: powered,
     });
     return awardFoul(state, tackler, ballCarrier, state.ball, severity);
   }
 
   tackler.motionAction = 'tackle';
+  tackler.motionTimerSeconds = 0.32;
   if (powered) addSkillEffect(state, {
     skillId: 'powerTackle', team: tackler.team, sourcePlayerId: tackler.id,
     targetPlayerId: ballCarrier.id, durationSeconds: 0.48,
@@ -943,6 +953,7 @@ function resolveAerialHeader(state) {
   ball.passProtectionSeconds = 0;
   delete ball.passTeam;
   state.possessionTeam = headerPlayer.team;
+  setTimedMotion(headerPlayer, 'header', 0.34);
   if (headerPlayer.team === 'home') state.controlledPlayerId = headerPlayer.id;
   return [
     { type: 'header', team: headerPlayer.team, playerId: headerPlayer.id },

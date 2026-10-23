@@ -237,6 +237,9 @@ test('A sends a lob pass and launches the ball into the air', () => {
   assert.ok(state.ball.verticalVelocity > 0);
   assert.ok(state.ball.vx < 0);
   assert.ok(events.some((event) => event.type === 'pass' && event.action === 'lobPass'));
+  const passer = state.players.find((player) => player.id === 'home-fw');
+  assert.equal(passer.motionAction, 'pass');
+  assert.ok(passer.motionTimerSeconds > 0);
 });
 
 test('A without possession does not initiate a home-team attack action', () => {
@@ -290,6 +293,7 @@ test('a reachable field player automatically heads a descending aerial ball', ()
   assert.equal(state.ball.ownerId, null);
   assert.ok(state.ball.verticalVelocity > 0);
   assert.equal(state.controlledPlayerId, headerPlayer.id);
+  assert.equal(headerPlayer.motionAction, 'header');
 });
 
 test('S releases a ground pass and transfers control to the receiver', () => {
@@ -318,6 +322,7 @@ test('D shoots immediately in the selected player facing direction', () => {
   assert.equal(state.ball.flightKind, 'shot');
   assert.ok(state.ball.vx > 0);
   assert.ok(events.some((event) => event.type === 'shot' && event.team === 'home'));
+  assert.equal(state.players.find((player) => player.id === 'home-fw').motionAction, 'shot');
 });
 
 test('shots retain all eight facing directions while correcting only toward the goal mouth', () => {
@@ -794,6 +799,8 @@ test('the defensive A action can win possession with a short slide tackle', () =
   assert.equal(state.ball.ownerId, defender.id);
   assert.equal(state.possessionTeam, 'home');
   assert.ok(events.some((event) => event.type === 'tackle'));
+  assert.equal(defender.motionAction, 'tackle');
+  assert.ok(defender.motionTimerSeconds > 0);
   assert.equal(opponent.knockdownSeconds, 1);
   assert.equal(opponent.motionAction, 'knockdown');
   const knockdown = events.find((event) => event.type === 'playerKnockedDown');

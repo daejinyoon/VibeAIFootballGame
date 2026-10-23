@@ -79,6 +79,7 @@ export default function Match3DCanvas({
   selectedPlayerId = 'home-fw',
   actorsRef,
   gameStateRef,
+  paused = false,
   containerRef,
   onFocusCapture,
   onBlurCapture,
@@ -157,7 +158,7 @@ export default function Match3DCanvas({
             <FootballPitch3D />
             <TrackingCamera3D ball={ball} gameStateRef={gameStateRef} />
             {players.map((player) => (
-              <FootballPlayer3D key={player.id} player={player} selected={player.id === selectedPlayerId} actorsRef={actorsRef} />
+              <FootballPlayer3D key={player.id} player={player} selected={player.id === selectedPlayerId} actorsRef={actorsRef} gameStateRef={gameStateRef} paused={paused} />
             ))}
             <FootballBall3D ball={ball} actorsRef={actorsRef} />
             {gameStateRef && <SkillEffects3D gameStateRef={gameStateRef} />}
