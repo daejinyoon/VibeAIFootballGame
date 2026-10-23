@@ -242,7 +242,7 @@ test('A sends a lob pass and launches the ball into the air', () => {
   assert.ok(passer.motionTimerSeconds > 0);
 });
 
-test('A without possession does not initiate a home-team attack action', () => {
+test('A without possession tackles the nearby carrier instead of passing or shooting', () => {
   const state = createInitialGameState();
   state.possessionTeam = 'away';
   state.ball.ownerId = 'away-fw';
@@ -250,7 +250,9 @@ test('A without possession does not initiate a home-team attack action', () => {
 
   const events = stepGame(state, frame({ pressed: ['a'] }), 0.05);
   assert.ok(!events.some((event) => event.team === 'home' && ['pass', 'shot'].includes(event.type)));
-  assert.equal(state.possessionTeam, 'away');
+  assert.ok(events.some((event) => event.type === 'tackle' && event.team === 'home'));
+  assert.equal(state.possessionTeam, 'home');
+  assert.equal(state.ball.ownerId, state.controlledPlayerId);
 });
 
 test('a forward lob from a wide lane is classified as a cross', () => {
@@ -872,7 +874,7 @@ test('knockdown timer respects the simulation delta clamp', () => {
   assert.equal(player.knockdownSeconds, 0.95);
 });
 
-test('a rear slide tackle gives a yellow, then a red card and switches control after dismissal', () => {
+test('a rear slide tackle steals the ball without issuing a card or stopping play', () => {
   const state = createInitialGameState();
   const tackler = state.players.find((player) => player.id === 'home-fw');
   const ballCarrier = state.players.find((player) => player.id === 'away-fw');
@@ -890,35 +892,16 @@ test('a rear slide tackle gives a yellow, then a red card and switches control a
   state.ball.y = 270;
 
   const first = stepGame(state, frame({ pressed: ['a'] }), 0.01);
-  assert.ok(first.some((event) => event.type === 'foul'));
-  assert.ok(first.some((event) => event.type === 'yellowCard'));
-  assert.equal(tackler.foulCount, 1);
-  assert.equal(tackler.card, 'yellow');
-  assert.equal(state.phase, 'freeKick');
-  assert.equal(state.possessionTeam, 'away');
-
-  state.phase = 'playing';
-  state.ball.ownerId = ballCarrier.id;
-  state.ball.x = 483;
-  state.ball.y = 270;
-  state.possessionTeam = 'away';
-  tackler.x = 514;
-  tackler.y = 270;
-  ballCarrier.x = 500;
-  ballCarrier.y = 270;
-  ballCarrier.knockdownSeconds = 0;
-  ballCarrier.motionAction = 'idle';
-  const second = stepGame(state, frame({ pressed: ['a'] }), 0.01);
-
-  assert.ok(second.some((event) => event.type === 'redCard'));
-  assert.ok(second.some((event) => event.type === 'playerDismissed'));
-  assert.equal(tackler.foulCount, 2);
-  assert.equal(tackler.dismissed, true);
-  assert.notEqual(state.controlledPlayerId, tackler.id);
-  assert.equal(state.players.filter((player) => player.team === 'home' && !player.dismissed).length, 3);
+  assert.ok(first.some((event) => event.type === 'tackle'));
+  assert.ok(first.some((event) => event.type === 'playerKnockedDown'));
+  assert.ok(!first.some((event) => ['foul', 'yellowCard', 'redCard', 'playerDismissed', 'freeKick', 'penaltyKick'].includes(event.type)));
+  assert.equal(state.ball.ownerId, tackler.id);
+  assert.equal(state.possessionTeam, 'home');
+  assert.equal(state.phase, 'playing');
+  assert.equal(tackler.dismissed, false);
 });
 
-test('a foul in the defending penalty area awards a penalty and excessive-force power tackles send players off', () => {
+test('a powered tackle steals the ball inside the penalty area without a card or penalty restart', () => {
   const state = createInitialGameState();
   const tackler = state.players.find((player) => player.id === 'home-fw');
   const ballCarrier = state.players.find((player) => player.id === 'away-fw');
@@ -933,33 +916,17 @@ test('a foul in the defending penalty area awards a penalty and excessive-force 
   state.ball.x = 83;
   state.ball.y = 270;
 
-  const penaltyEvents = stepGame(state, frame({ pressed: ['a'] }), 0.01);
-  assert.ok(penaltyEvents.some((event) => event.type === 'penaltyKick'));
-  assert.equal(state.phase, 'penaltyKick');
-
-  const protectedState = createInitialGameState();
-  const protectedTackler = protectedState.players.find((player) => player.id === 'home-fw');
-  const protectedCarrier = protectedState.players.find((player) => player.id === 'away-fw');
-  protectedTackler.x = 514;
-  protectedTackler.y = 270;
-  protectedTackler.powerTackleSeconds = 2;
-  protectedCarrier.x = 500;
-  protectedCarrier.y = 270;
-  protectedCarrier.facingX = -1;
-  protectedState.possessionTeam = 'away';
-  protectedState.controlledPlayerId = protectedTackler.id;
-  protectedState.ball.ownerId = protectedCarrier.id;
-  protectedState.ball.x = 483;
-  protectedState.ball.y = 270;
-
-  const protectedEvents = stepGame(protectedState, frame({ pressed: ['a'] }), 0.01);
-  assert.ok(protectedEvents.some((event) => event.type === 'foul' && event.severity === 'excessiveForce'));
-  assert.ok(protectedEvents.some((event) => event.type === 'redCard'));
-  assert.equal(protectedTackler.foulCount, 1);
-  assert.equal(protectedTackler.dismissed, true);
+  tackler.powerTackleSeconds = 2;
+  const tackleEvents = stepGame(state, frame({ pressed: ['a'] }), 0.01);
+  assert.ok(tackleEvents.some((event) => event.type === 'tackle'));
+  assert.ok(!tackleEvents.some((event) => ['foul', 'yellowCard', 'redCard', 'playerDismissed', 'penaltyKick'].includes(event.type)));
+  assert.equal(state.ball.ownerId, tackler.id);
+  assert.equal(state.possessionTeam, 'home');
+  assert.equal(state.phase, 'playing');
+  assert.equal(tackler.dismissed, false);
 });
 
-test('away defenders receive the same foul rules and dismissed keepers cannot catch shots', () => {
+test('away defenders can steal the ball without cards and dismissed keepers cannot catch shots', () => {
   const state = createInitialGameState();
   const attacker = state.players.find((player) => player.id === 'home-fw');
   attacker.x = 420;
@@ -977,15 +944,15 @@ test('away defenders receive the same foul rules and dismissed keepers cannot ca
   defender.x = 398;
   defender.y = 270;
 
-  const foulEvents = stepGame(state, frame(), 0.01);
-  assert.ok(foulEvents.some((event) => event.type === 'foul' && event.team === 'away'));
-  assert.ok(!foulEvents.some((event) => event.type === 'yellowCard' && event.team === 'away'));
-  assert.equal(defender.foulCount, 1);
+  const tackleEvents = stepGame(state, frame(), 0.01);
+  assert.ok(tackleEvents.some((event) => event.type === 'tackle' && event.team === 'away'));
+  assert.ok(!tackleEvents.some((event) => ['foul', 'yellowCard', 'redCard', 'playerDismissed'].includes(event.type)));
+  assert.equal(state.ball.ownerId, defender.id);
+  assert.equal(state.possessionTeam, 'away');
 
   const keeperState = createInitialGameState();
   const keeper = keeperState.players.find((player) => player.id === 'home-gk');
   keeper.dismissed = true;
-  keeper.card = 'red';
   Object.assign(keeperState.ball, { ownerId: null, x: 55, y: 270, vx: -30, vy: 0, flightKind: 'shot', lastTouchTeam: 'away' });
   const keeperEvents = stepGame(keeperState, frame(), 0.01);
   assert.ok(!keeperEvents.some((event) => event.type === 'keeperCatch'));

@@ -38,9 +38,6 @@ function createPlayer({ id, team, role, x, y, skillId = null, skillCopies = 0, a
     knockdownDirectionY: 0,
     motionAction: 'idle',
     motionTimerSeconds: 0,
-    foulCount: 0,
-    yellowCardCount: 0,
-    card: 'none',
     dismissed: false,
     aiTackleCooldownSeconds: 0,
     aiTarget: null,
@@ -155,8 +152,6 @@ export function createInitialGameState({
     nextSkillEffectId: 1,
     restart: null,
     aiRandomSeed: 0x6d2b79f5,
-    foulSpot: null,
-    foulNoticeSeconds: 0,
     opponentSkillIds: [...safeOpponentSkills],
   };
 }

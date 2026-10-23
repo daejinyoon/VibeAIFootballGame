@@ -21,7 +21,6 @@ import { createInitialGameState } from './createInitialGameState.js';
 import { addSkillEffect, applyAutomaticRainbowReflect, applySkill, SKILL_IDS } from './skills.js';
 
 const PLAYER_SPEED = 176;
-const FOUL_RECKLESS_APPROACH_SPEED = 120;
 const AI_SPEED = 136;
 const KEEPER_SPEED = 95;
 const PRESSURE_SPEED = 190;
@@ -377,12 +376,7 @@ function resetForKickoff(state, kickoffTeam) {
   const controlledPlayerId = state.controlledPlayerId;
   const controlledPlayer = byId(state, controlledPlayerId);
   const controlledPosition = controlledPlayer ? { x: controlledPlayer.x, y: controlledPlayer.y } : { x: FIELD.width / 2, y: FIELD.height / 2 };
-  const discipline = new Map(state.players.map((player) => [player.id, {
-    foulCount: player.foulCount ?? 0,
-    yellowCardCount: player.yellowCardCount ?? 0,
-    card: player.card ?? 'none',
-    dismissed: Boolean(player.dismissed),
-  }]));
+  const dismissals = new Map(state.players.map((player) => [player.id, Boolean(player.dismissed)]));
 
   Object.assign(state, fresh, {
     score,
@@ -392,7 +386,7 @@ function resetForKickoff(state, kickoffTeam) {
     overtimeRemainingSeconds,
   });
   for (const player of state.players) {
-    Object.assign(player, discipline.get(player.id));
+    player.dismissed = dismissals.get(player.id) ?? false;
     player.skillUsesRemaining = remainingUses.get(player.id) ?? player.skillUsesRemaining;
   }
   state.possessionTeam = kickoffTeam;
@@ -490,93 +484,6 @@ function nearestPlayer(players, point) {
     .sort((a, b) => a.distance - b.distance || a.index - b.index)[0]?.player ?? null;
 }
 
-function isBehindTackler(tackler, ballCarrier) {
-  const facingX = ballCarrier.facingX || (ballCarrier.team === 'home' ? 1 : -1);
-  return (tackler.x - ballCarrier.x) * facingX
-    + (tackler.y - ballCarrier.y) * ballCarrier.facingY < 0;
-}
-
-function classifyFoulSeverity(contact) {
-  if (contact.powerTackle
-      && (contact.behind || contact.approachSpeed >= SLIDE_SPEED * 0.9)) {
-    return 'excessiveForce';
-  }
-  if (contact.sliding
-      || (contact.behind && contact.approachSpeed >= FOUL_RECKLESS_APPROACH_SPEED)) {
-    return 'reckless';
-  }
-  return 'careless';
-}
-
-function awardFoul(state, foulingPlayer, fouledPlayer, spot, severity = 'careless') {
-  const foulSpot = { x: clamp(spot.x, 0, FIELD.width), y: clamp(spot.y, 0, FIELD.height) };
-  const defendingTeam = foulingPlayer.team;
-  const inPenaltyArea = Math.abs(foulSpot.y - FIELD.height / 2) <= 100
-    && (defendingTeam === 'home' ? foulSpot.x <= 132 : foulSpot.x >= FIELD.width - 132);
-  const restart = inPenaltyArea ? 'penaltyKick' : 'freeKick';
-  foulingPlayer.motionAction = 'tackle';
-  foulingPlayer.motionTimerSeconds = 0.32;
-  foulingPlayer.foulCount = (foulingPlayer.foulCount ?? 0) + 1;
-  let redCard = severity === 'excessiveForce';
-  let secondCautionDismissal = false;
-  const events = [{
-    type: 'foul', team: foulingPlayer.team, playerId: foulingPlayer.id,
-    spot: foulSpot, restart, severity,
-  }];
-
-  if (severity === 'reckless') {
-    foulingPlayer.yellowCardCount = (foulingPlayer.yellowCardCount ?? 0) + 1;
-    events.push({ type: 'yellowCard', team: foulingPlayer.team, playerId: foulingPlayer.id });
-    secondCautionDismissal = foulingPlayer.yellowCardCount >= 2;
-    redCard = secondCautionDismissal;
-    foulingPlayer.card = redCard ? 'red' : 'yellow';
-  } else if (severity === 'excessiveForce') {
-    foulingPlayer.card = 'red';
-  }
-  if (redCard) foulingPlayer.dismissed = true;
-
-  const taker = nearestPlayer(activePlayers(state, fouledPlayer.team), foulSpot);
-  state.foulSpot = foulSpot;
-  state.foulNoticeSeconds = 3;
-  state.lastFoul = {
-    team: foulingPlayer.team, playerId: foulingPlayer.id, restart, spot: foulSpot,
-    severity, secondCautionDismissal,
-  };
-  state.restart = null;
-  state.phase = restart;
-  state.phaseSeconds = 1;
-  state.possessionTeam = fouledPlayer.team;
-  if (taker) {
-    taker.x = foulSpot.x;
-    taker.y = foulSpot.y;
-    setBallOwner(state, taker);
-    putBallAtPlayer(state, taker);
-    if (taker.team === 'home') state.controlledPlayerId = taker.id;
-  } else {
-    state.ball.ownerId = null;
-    state.ball.x = foulSpot.x;
-    state.ball.y = foulSpot.y;
-    state.ball.vx = 0;
-    state.ball.vy = 0;
-  }
-
-  if (severity === 'excessiveForce') {
-    events.push({ type: 'redCard', team: foulingPlayer.team, playerId: foulingPlayer.id });
-  } else if (secondCautionDismissal) {
-    events.push({ type: 'redCard', team: foulingPlayer.team, playerId: foulingPlayer.id });
-  }
-  const knockdownEvent = knockDownPlayer(state, fouledPlayer, foulingPlayer);
-  if (knockdownEvent) events.push(knockdownEvent);
-  if (redCard) {
-    events.push({ type: 'playerDismissed', team: foulingPlayer.team, playerId: foulingPlayer.id });
-    if (state.controlledPlayerId === foulingPlayer.id) {
-      state.controlledPlayerId = nearestPlayer(activePlayers(state, 'home'), foulingPlayer)?.id ?? null;
-    }
-  }
-  events.push({ type: restart, team: fouledPlayer.team, playerId: taker?.id ?? null });
-  return events;
-}
-
 function resolveTackle(state, tackler, ballCarrier, powerTackleActive = false) {
   if (!tackler || !ballCarrier || tackler.dismissed || ballCarrier.dismissed
       || tackler.stunnedSeconds > 0 || tackler.knockdownSeconds > 0
@@ -584,26 +491,7 @@ function resolveTackle(state, tackler, ballCarrier, powerTackleActive = false) {
   const tackleRange = tackler.powerTackleSeconds > 0 ? 39 : 26;
   if (distance(tackler, ballCarrier) > tackleRange) return [];
 
-  const ballDistance = distance(tackler, state.ball);
-  const playerDistance = distance(tackler, ballCarrier);
-  const behind = isBehindTackler(tackler, ballCarrier);
   const powered = powerTackleActive || (tackler.powerTackleSeconds ?? 0) > 0;
-  if (playerDistance <= 22 && (behind || ballDistance > playerDistance)) {
-    if (powered) addSkillEffect(state, {
-      skillId: 'powerTackle', team: tackler.team, sourcePlayerId: tackler.id,
-      targetPlayerId: ballCarrier.id, durationSeconds: 0.48,
-    });
-    const approach = unit(ballCarrier.x - tackler.x, ballCarrier.y - tackler.y);
-    const rawApproachSpeed = tackler.vx * approach.x + tackler.vy * approach.y;
-    const severity = classifyFoulSeverity({
-      behind,
-      approachSpeed: Number.isFinite(rawApproachSpeed) ? Math.max(0, rawApproachSpeed) : 0,
-      sliding: (tackler.slideSeconds ?? 0) > 0,
-      powerTackle: powered,
-    });
-    return awardFoul(state, tackler, ballCarrier, state.ball, severity);
-  }
-
   tackler.motionAction = 'tackle';
   tackler.motionTimerSeconds = 0.32;
   if (powered) addSkillEffect(state, {
@@ -1611,7 +1499,6 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
     player.powerTackleSeconds = Math.max(0, (player.powerTackleSeconds ?? 0) - dt);
     player.aiTackleCooldownSeconds = Math.max(0, (player.aiTackleCooldownSeconds ?? 0) - dt);
   }
-  state.foulNoticeSeconds = Math.max(0, (state.foulNoticeSeconds ?? 0) - dt);
   releaseKickoffLockIfBallCleared(state);
 
   if (state.hasMatchClockStarted) {
