@@ -60,4 +60,4 @@ Task: T02-team-customization-screen
 ## Progress
 - [x] 구현 완료
 - [x] 검증 통과
-- commit: pending
+- commit: `ed49e39`
