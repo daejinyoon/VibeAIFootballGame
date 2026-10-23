@@ -60,4 +60,4 @@ Task: T01-match-hud-minimap
 ## Progress
 - [x] 구현 완료
 - [x] 검증 통과 (`npm run build`)
-- commit: pending
+- commit: `b764116`
