@@ -1,6 +1,6 @@
 # Task: T02 In-Match Kit Rendering
 
-## Status: pending
+## Status: done
 
 ## Goal
 Make the home team's saved kit palette and selected logo appear in the 3D match after the user saves team customization and starts a new match. Keep opponent stage palettes and logos unchanged.
@@ -52,10 +52,10 @@ Make the home team's saved kit palette and selected logo appear in the 3D match 
 - Build the application after changing the component prop flow to ensure the 3D render path accepts the explicit branding prop.
 
 ## Acceptance Criteria
-- [ ] A non-default saved home palette reaches the 3D field-player and goalkeeper models in a newly created match.
-- [ ] The selected company logo reaches the home chest logo texture.
-- [ ] Opponent stage colors/logo behavior and black stage-five kit are unchanged.
-- [ ] A missing branding object still displays the existing defaults.
+- [x] A non-default saved home palette reaches the 3D field-player and goalkeeper models in a newly created match.
+- [x] The selected company logo reaches the home chest logo texture.
+- [x] Opponent stage colors/logo behavior and black stage-five kit are unchanged.
+- [x] A missing branding object still displays the existing defaults.
 
 ## Validation
 - `cd game; npm test -- --test-name-pattern="kit|branding|stage five"` — palette and opponent rules pass.
@@ -74,6 +74,6 @@ Task: T02-in-match-kit-rendering
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed (`npm test`, 148/148; focused kit tests; `npm run build`)
+- commit: `a003b5f`

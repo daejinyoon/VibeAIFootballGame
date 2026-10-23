@@ -1,23 +1,8 @@
 import { FIELD } from '../game/constants.js';
+import { getPlayerKit } from '../game/playerKit.js';
 import { MiiPlayerModel } from './MiiPlayerModel.jsx';
 
-export const TEAM_KITS = {
-  home: { jersey: '#12a9bd', trim: '#d7ff74', shorts: '#f4fff7', boots: '#f5ff81', keeper: '#d7f26b', glove: '#f0ffab' },
-  away: { jersey: '#f36d62', trim: '#ffe083', shorts: '#fff3e5', boots: '#ffe083', keeper: '#ffcf70', glove: '#fff2a5' },
-};
-
-export function getPlayerKit(player, teamBranding) {
-  const team = player?.team === 'away' ? 'away' : 'home';
-  const fallback = TEAM_KITS[team];
-  const palette = { ...fallback, ...(teamBranding?.[team]?.kit ?? {}) };
-  if (player?.role !== 'goalkeeper') return palette;
-  return {
-    ...palette,
-    jersey: palette.keeper ?? palette.trim ?? fallback.keeper,
-    trim: palette.jersey,
-    glove: palette.jersey,
-  };
-}
+export { TEAM_KITS, getPlayerKit } from '../game/playerKit.js';
 
 export function FootballPlayer3D({ player, selected = false, actorsRef, gameStateRef, teamBranding, paused = false }) {
   if (!player || player.dismissed) return null;

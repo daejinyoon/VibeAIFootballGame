@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { SKILLS } from '../game/skills.js';
-import { getPlayerKit } from './FootballPlayer3D.jsx';
+import { getPlayerKit } from '../game/playerKit.js';
 import { MiiPlayerModel } from './MiiPlayerModel.jsx';
 import { SKILL_EFFECT_COLORS } from './SkillEffects3D.jsx';
 
