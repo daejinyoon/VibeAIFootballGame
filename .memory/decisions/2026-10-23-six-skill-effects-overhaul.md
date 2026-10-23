@@ -8,7 +8,7 @@
 - **Rationale**: The user wants the skill set to feel more expressive both visually and in play.
 
 ## D02. Eagle Shot
-- **Chosen**: On activation, the ball rises vertically, transforms into a stylized glowing energy eagle, then flies toward goal while the normal gameplay camera stays in place. It stays high over most of the field and makes a steep downward dive into the goal on its final approach, rather than cruising horizontally at a fixed height. The ball and transformation effect receive stronger visual emphasis without a camera cut.
+- **Chosen**: On activation, the ball rises vertically, transforms into a stylized glowing energy eagle, then flies toward goal along a cycloidal arc while the normal gameplay camera stays in place. The eagle rises above its launch height during the arc, then makes a steep downward dive into the goal instead of cruising horizontally at a fixed height. The ball and transformation effect receive stronger visual emphasis without a camera cut.
 - **Chosen**: Fire one eagle at level 1, two at level 2, and three at level 3. Fire them in quick succession and fan them across different goal angles. Award one point per eagle that enters the goal; resolve the volley as one scoring play and perform one kickoff afterward.
 - **Chosen**: Goalkeepers cannot block Eagle Shot. World Split collision uses the projectile's actual height and trajectory, so an eagle may clear the wall if it is high enough.
 - **Chosen**: After scoring, the ball shown for the next restart returns to its ordinary soccer-ball appearance.

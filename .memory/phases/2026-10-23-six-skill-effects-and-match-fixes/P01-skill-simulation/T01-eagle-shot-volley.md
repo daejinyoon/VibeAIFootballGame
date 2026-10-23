@@ -43,7 +43,7 @@ Replace the current single flat Eagle Shot with a vertical ball ascent followed 
   - Target lanes are the goal center plus offsets `[-0.22, 0, +0.22] * (FIELD.goalBottom - FIELD.goalTop)` for a three-shot volley; for two shots use the negative and positive outer lane. Clamp each `targetY` inside the goal opening by `BALL_RADIUS`.
 - **Execution Flow / Logic**:
   1. On `applySkill(... eagleShot ...)`, require the current player to own the ball as today, release the ordinary ball, create one volley descriptor, and schedule the first projectile. Do not change shared team cooldown or queue order.
-  2. During each `stepGame` frame, advance the volley timer. Spawn up to `level` projectiles at the fixed interval. A projectile first raises `height` linearly to `EAGLE_FLIGHT_HEIGHT` during `EAGLE_ASCENT_SECONDS`, then travels toward its `targetY` and the attack-side goal at current Eagle Shot speed. Keep it high for most of the flight, then smoothly lower its height over the final 30% of the path so it dives into the goal from above.
+  2. During each `stepGame` frame, advance the volley timer. Spawn up to `level` projectiles at the fixed interval. A projectile first raises `height` linearly to `EAGLE_FLIGHT_HEIGHT` during `EAGLE_ASCENT_SECONDS`, then flies toward its `targetY` and the attack-side goal on a cycloidal arc. Use normalized cycloid progress `(theta - sin(theta)) / (2 * PI)` for field travel and combine a descending baseline with the cycloid height `EAGLE_CYCLOID_RADIUS * (1 - cos(theta))`; this makes it rise above launch height before diving to goal height.
   3. Check every projectile segment against the World Split segment and its configured `height`; ignore goalkeeper contact for Eagle Shot. A projectile crossing the goal plane between `FIELD.goalTop` and `FIELD.goalBottom` increments score by one exactly once and emits `{type:'goal', team, points:1, skillId:'eagleShot'}`.
   4. Resolve missed projectiles at the appropriate goal-line restart. Finish the volley only after all `level` projectiles are resolved. If one or more scored, enter one `goalPause` and set `pendingKickoffTeam` once; use accumulated `points` in the final score event. If none scored, perform one normal goal-line restart.
   5. Clear `eagleVolley` and all projectiles on kickoff, match finish, and transient-state reset. Keep the ordinary ball's visual state ordinary during the following restart.
@@ -56,7 +56,7 @@ Replace the current single flat Eagle Shot with a vertical ball ascent followed 
   - `game/src/game/skills.test.js` :: Eagle activation tests; modify
   - `game/src/game/stepGame.test.js` :: Eagle volley scoring/restart tests; modify
 #### Details
-- Cover all three levels, vertical ascent before forward motion, lane spread, a high flight followed by a final downward dive, keeper bypass, individual scoring, exactly one kickoff, miss restart, barrier clear/block according to height, and reset of projectiles after goal.
+- Cover all three levels, vertical ascent before forward motion, lane spread, cycloidal field travel, height above launch altitude before the final downward dive, keeper bypass, individual scoring, exactly one kickoff, miss restart, barrier clear/block according to height, and reset of projectiles after goal.
 - Use fixed deltas and explicit state positions; assert event and score totals rather than wall-clock timing.
 
 ## Acceptance Criteria

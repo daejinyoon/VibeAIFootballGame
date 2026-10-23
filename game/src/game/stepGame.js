@@ -2,7 +2,7 @@ import {
   BALL_GRAVITY,
   BALL_RADIUS,
   EAGLE_ASCENT_SECONDS,
-  EAGLE_DIVE_START_PROGRESS,
+  EAGLE_CYCLOID_RADIUS,
   EAGLE_FLIGHT_HEIGHT,
   EAGLE_SHOT_INTERVAL_SECONDS,
   FIELD,
@@ -819,22 +819,27 @@ function advanceEagleVolley(state, deltaSeconds) {
         projectile.phase = 'flying';
         const goalX = projectile.team === 'home' ? FIELD.width + BALL_RADIUS + 1 : -BALL_RADIUS - 1;
         projectile.flightStartX = projectile.x;
+        projectile.flightStartY = projectile.y;
         projectile.flightGoalX = goalX;
         const dx = goalX - projectile.x;
         const dy = projectile.targetY - projectile.y;
         const length = Math.hypot(dx, dy) || 1;
-        projectile.vx = dx / length * 650;
-        projectile.vy = dy / length * 650;
+        projectile.flightDurationSeconds = length / 650;
+        projectile.flightElapsedSeconds = 0;
       }
     } else {
-      projectile.x += projectile.vx * deltaSeconds;
-      projectile.y += projectile.vy * deltaSeconds;
-      const flightDistance = projectile.flightGoalX - projectile.flightStartX;
-      const progress = Math.max(0, Math.min(1, (projectile.x - projectile.flightStartX) / (flightDistance || 1)));
-      const diveProgress = Math.max(0, Math.min(1,
-        (progress - EAGLE_DIVE_START_PROGRESS) / (1 - EAGLE_DIVE_START_PROGRESS)));
-      const easedDive = diveProgress * diveProgress * (3 - 2 * diveProgress);
-      projectile.height = EAGLE_FLIGHT_HEIGHT * (1 - easedDive);
+      projectile.flightElapsedSeconds += deltaSeconds;
+      const timeProgress = Math.max(0, Math.min(1,
+        projectile.flightElapsedSeconds / Math.max(0.001, projectile.flightDurationSeconds)));
+      const angle = timeProgress * Math.PI * 2;
+      const cycloidProgress = (angle - Math.sin(angle)) / (Math.PI * 2);
+      projectile.x = projectile.flightStartX + (projectile.flightGoalX - projectile.flightStartX) * cycloidProgress;
+      projectile.y = projectile.flightStartY + (projectile.targetY - projectile.flightStartY) * cycloidProgress;
+      projectile.height = Math.max(0,
+        EAGLE_FLIGHT_HEIGHT * (1 - cycloidProgress) + EAGLE_CYCLOID_RADIUS * (1 - Math.cos(angle)));
+      projectile.vx = (projectile.x - previous.x) / Math.max(0.001, deltaSeconds);
+      projectile.vy = (projectile.y - previous.y) / Math.max(0.001, deltaSeconds);
+      projectile.verticalVelocity = (projectile.height - previous.height) / Math.max(0.001, deltaSeconds);
     }
 
     const next = { x: projectile.x, y: projectile.y };

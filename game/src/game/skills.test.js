@@ -143,7 +143,7 @@ test('Eagle Shot clears a lower wall and is blocked by a wall above its flight h
   assert.equal(lowWall.state.score.home, 1);
   assert.ok(lowWall.events.some((event) => event.type === 'goal' && event.skillId === 'eagleShot'));
 
-  const highWall = runShot(200);
+  const highWall = runShot(300);
   assert.equal(highWall.state.score.home, 0);
   assert.ok(!highWall.events.some((event) => event.type === 'goal' && event.skillId === 'eagleShot'));
 });
@@ -155,11 +155,19 @@ test('Eagle Shot stays high across the field, then dives into the goal from abov
   for (let frameIndex = 0; frameIndex < 20 && state.skillProjectiles[0]?.phase === 'ascending'; frameIndex += 1) {
     stepGame(state, frame(), 0.05);
   }
+  const projectile = state.skillProjectiles[0];
+  const flightStartX = projectile.x;
+  const flightGoalX = projectile.flightGoalX;
+  while (projectile.flightElapsedSeconds < projectile.flightDurationSeconds * 0.5 && state.eagleVolley) {
+    stepGame(state, frame(), 0.05);
+  }
+  const midpointProgress = (projectile.x - flightStartX) / (flightGoalX - flightStartX);
+  assert.ok(Math.abs(midpointProgress - 0.5) < 0.1, `the cycloid curves smoothly across the field (${midpointProgress})`);
+  assert.ok(projectile.height > 180, 'the cycloid rises above the launch height before diving');
   for (let frameIndex = 0; frameIndex < 50 && state.skillProjectiles[0]?.height >= 170 && state.eagleVolley; frameIndex += 1) {
     stepGame(state, frame(), 0.05);
   }
 
-  const projectile = state.skillProjectiles[0];
   assert.equal(projectile.phase, 'flying');
   assert.ok(projectile.height < 180, 'the eagle loses height on its final approach');
   assert.ok(projectile.height > 0, 'the eagle remains above the ground before entering the goal');
