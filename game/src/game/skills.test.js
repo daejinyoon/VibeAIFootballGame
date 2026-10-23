@@ -5,7 +5,7 @@ import { FIELD, PLAYER_BODY_WIDTH } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
 import {
   SKILL_IDS, SKILL_MAX_LEVELS, SKILLS, activateNextTeamSkill,
-  applyAutomaticRainbowReflect, applySkill, createSkillCardOffer,
+  applySkill, createSkillCardOffer,
   validateTeamSkillInventory, validateTeamSkillLoadout,
 } from './skills.js';
 import { stepGame } from './stepGame.js';
@@ -50,7 +50,7 @@ test('validates owned inventory levels and the unique three-skill equipment subs
   assert.equal(validateTeamSkillLoadout(inventory, ['rainbowReflect']).valid, false);
 });
 
-test('F activates the first usable team skill, shares its ten-second cooldown, and wraps in deck order', () => {
+test('F activates skills in order with independent ten-second cooldowns', () => {
   const state = createInitialGameState({ teamSkillDeck: [
     { skillId: 'eagleShot', level: 1 }, { skillId: 'tornadoShot', level: 2 },
   ] });
@@ -60,21 +60,23 @@ test('F activates the first usable team skill, shares its ten-second cooldown, a
   assert.equal(state.eagleVolley.level, 1);
   assert.equal(state.ball.scoreValue, undefined);
   assert.equal(state.skillProjectiles.length, 1);
-  assert.equal(state.skillCooldownRemaining.home, 10);
+  assert.equal(state.skillCooldownRemaining.home.eagleShot, 10);
+  assert.equal(state.skillCooldownRemaining.home.tornadoShot, 0);
   assert.equal(state.skillQueueIndex.home, 1);
   assert.equal(striker.skillUsesRemaining, undefined);
   state.ball.flightKind = 'ground';
   state.ball.ownerId = striker.id;
   state.possessionTeam = 'home';
-  assert.equal(activateNextTeamSkill(state, 'home', striker.id).reason, 'cooldown');
-  state.skillCooldownRemaining.home = 0;
   const next = activateNextTeamSkill(state, 'home', striker.id);
   assert.equal(next.skillId, 'tornadoShot');
+  assert.equal(state.skillCooldownRemaining.home.eagleShot, 10);
+  assert.equal(state.skillCooldownRemaining.home.tornadoShot, 10);
   assert.equal(state.skillQueueIndex.home, 0);
   state.ball.ownerId = striker.id;
   state.possessionTeam = 'home';
-  state.skillCooldownRemaining.home = 0;
-  assert.equal(activateNextTeamSkill(state, 'home', striker.id).skillId, 'eagleShot', 'the team can reuse its deck after cooldown');
+  assert.equal(activateNextTeamSkill(state, 'home', striker.id).reason, 'noUsableSkill');
+  assert.equal(state.skillQueueIndex.home, 0, 'a failed full pass leaves the queue in place');
+  assert.equal(state.skillCooldownRemaining.home.eagleShot, 10);
 });
 
 test('unavailable ordered skills are skipped without consuming the queue slot on total failure', () => {
@@ -91,6 +93,19 @@ test('unavailable ordered skills are skipped without consuming the queue slot on
   unavailable.ball.ownerId = null;
   assert.equal(activateNextTeamSkill(unavailable, 'home', 'home-fw').ok, false);
   assert.equal(unavailable.skillQueueIndex.home, 0);
+});
+
+test('a cooling-down skill is skipped while a later equipped skill remains usable', () => {
+  const state = createInitialGameState({ teamSkillDeck: [
+    { skillId: 'eagleShot', level: 1 }, { skillId: 'tornadoShot', level: 1 },
+  ] });
+  const striker = carrier(state);
+  state.skillCooldownRemaining.home.eagleShot = 7;
+  const attempt = activateNextTeamSkill(state, 'home', striker.id);
+  assert.equal(attempt.skillId, 'tornadoShot');
+  assert.equal(state.skillCooldownRemaining.home.eagleShot, 7);
+  assert.equal(state.skillCooldownRemaining.home.tornadoShot, 10);
+  assert.equal(state.skillQueueIndex.home, 0);
 });
 
 test('Eagle Shot launches one, two, or three angled eagles and awards one point per goal', () => {
@@ -274,80 +289,121 @@ test('Vacuum Cleaner immediately claims the ball from anywhere on the field', ()
   assert.equal(state.ball.scoreValue, undefined);
 });
 
-test('Rainbow Reflect redirects Eagle and Tornado shots toward its attacking goal once', () => {
-  for (const skillId of ['eagleShot', 'tornadoShot']) {
-    const state = createInitialGameState({ teamSkillDeck: teamDeck('rainbowReflect'), opponentSkillDeck: teamDeck(skillId) });
-    carrier(state, 'away-fw');
-    assert.equal(applySkill(state, { team: 'away', sourcePlayerId: 'away-fw', skillId, level: 1 }).ok, true);
-    state.ball.x = 540;
-    state.ball.y = 290;
-    const event = applyAutomaticRainbowReflect(state, 'home');
-    assert.equal(event.reflectedSkillId, skillId);
-    assert.equal(event.sourcePlayerId, 'away-fw');
-    assert.equal(state.ball.skillId, 'rainbowReflect');
-    assert.equal(state.ball.flightKind, 'skill-shot');
-    assert.equal(state.ball.lastTouchTeam, 'home');
-    assert.equal(state.possessionTeam, 'home');
-    assert.ok(state.ball.vx > 0, 'the returned shot moves toward home attacking goal');
-    assert.ok(Math.abs(Math.hypot(state.ball.vx, state.ball.vy) - 520) < 0.001);
-    assert.equal(state.ball.scoreValue, undefined);
-    assert.equal(state.eagleVolley, null);
-    assert.deepEqual(state.skillProjectiles, []);
-    assert.equal(state.tornadoShotEffect, null);
-    assert.equal(applyAutomaticRainbowReflect(state, 'away'), null, 'a returned shot cannot ping-pong');
+test('Rainbow Reflect transfers all active negative statuses to the last opponent caster at their original durations', () => {
+  const state = createInitialGameState({ teamSkillDeck: teamDeck('rainbowReflect') });
+  const user = state.players.find((player) => player.id === 'home-def-1');
+  const distantLastCaster = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(distantLastCaster, { x: 940, y: 500 });
+  state.lastSkillCasterByTeam.away = distantLastCaster.id;
+  Object.assign(user, {
+    knockdownSeconds: 4,
+    airborneSecondsRemaining: 1.2,
+    stunnedSeconds: 0.3,
+    knockdownFromTeam: 'away',
+    knockdownSourcePlayerId: 'away-mid-1',
+    knockdownSkillId: 'powerTackle',
+    knockdownDirectionX: -1,
+    knockdownDirectionY: 0,
+    airborneFromTeam: 'away',
+    airborneSourcePlayerId: 'away-fw',
+    airborneSkillId: 'tornadoShot',
+    stunnedFromTeam: 'away',
+    stunnedSourcePlayerId: 'away-fw',
+    stunnedSkillId: 'eulryongta',
+    statusDurationSeconds: { knockdown: 0.8, airborne: 5, stunned: 2 },
+    motionAction: 'knockdown',
+  });
+
+  const attempt = activateNextTeamSkill(state, 'home', user.id);
+  assert.equal(attempt.ok, true);
+  assert.equal(attempt.skillId, 'rainbowReflect');
+  const transfer = attempt.events.find((event) => event.type === 'skillStatusTransferred');
+  assert.equal(transfer.sourcePlayerId, user.id);
+  assert.equal(transfer.targetPlayerId, distantLastCaster.id);
+  assert.deepEqual(transfer.transferredStatuses, [
+    { type: 'knockdown', durationSeconds: 0.8 },
+    { type: 'airborne', durationSeconds: 5 },
+    { type: 'stunned', durationSeconds: 2 },
+  ]);
+  assert.deepEqual([user.knockdownSeconds, user.airborneSecondsRemaining, user.stunnedSeconds], [0, 0, 0]);
+  assert.deepEqual([distantLastCaster.knockdownSeconds, distantLastCaster.airborneSecondsRemaining, distantLastCaster.stunnedSeconds], [0.8, 5, 2]);
+  assert.equal(distantLastCaster.knockdownDirectionX, -1);
+  assert.equal(distantLastCaster.knockdownSourcePlayerId, 'away-mid-1');
+  assert.equal(state.skillCooldownRemaining.home.rainbowReflect, 10);
+  assert.equal(state.lastSkillCasterByTeam.away, distantLastCaster.id, 'Rainbow does not replace the opposing caster record');
+  assert.equal(state.lastSkillCasterByTeam.home, user.id);
+});
+
+test('failed Rainbow activation preserves statuses, queue, cooldowns, and caster state', () => {
+  for (const failure of ['noStatus', 'noCaster', 'dismissedCaster']) {
+    const state = createInitialGameState({ teamSkillDeck: teamDeck('rainbowReflect') });
+    const user = state.players.find((player) => player.id === 'home-def-1');
+    const target = state.players.find((player) => player.id === 'away-fw');
+    Object.assign(user, { airborneSecondsRemaining: 1.4, statusDurationSeconds: { airborne: 5 } });
+    if (failure === 'noStatus') Object.assign(user, { airborneSecondsRemaining: 0, statusDurationSeconds: {} });
+    if (failure === 'dismissedCaster') {
+      state.lastSkillCasterByTeam.away = target.id;
+      target.dismissed = true;
+    }
+    const beforeUser = structuredClone(user);
+    const beforeQueue = state.skillQueueIndex.home;
+    const beforeLastCasters = structuredClone(state.lastSkillCasterByTeam);
+    const attempt = activateNextTeamSkill(state, 'home', user.id);
+    assert.equal(attempt.ok, false, failure);
+    assert.deepEqual(user, beforeUser, `${failure}: source status stays intact`);
+    assert.equal(state.skillQueueIndex.home, beforeQueue, `${failure}: queue stays in place`);
+    assert.equal(state.skillCooldownRemaining.home.rainbowReflect, 0, `${failure}: cooldown is not consumed`);
+    assert.deepEqual(state.lastSkillCasterByTeam, beforeLastCasters, `${failure}: caster records stay intact`);
   }
 });
 
-test('Rainbow Reflect returns Eulryongta and Tornado status to the distant original caster once', () => {
-  const eulryongState = createInitialGameState({ teamSkillDeck: teamDeck('rainbowReflect') });
-  const attacker = eulryongState.players.find((player) => player.id === 'away-fw');
-  const affected = eulryongState.players.find((player) => player.id === 'home-mid-1');
-  Object.assign(attacker, { x: 800, y: 200, facingX: -1, facingY: 0 });
-  Object.assign(affected, { x: 720, y: 200 });
-  assert.equal(applySkill(eulryongState, { team: 'away', sourcePlayerId: attacker.id, skillId: 'eulryongta', level: 1 }).ok, true);
-  const knockdownReflection = applyAutomaticRainbowReflect(eulryongState, 'home');
-  assert.equal(knockdownReflection.reflectedSkillId, 'eulryongta');
-  assert.equal(affected.knockdownSeconds, 0);
-  assert.equal(attacker.knockdownSeconds, 10);
-  assert.equal(attacker.knockdownReflectedByTeam, 'home');
-  assert.equal(applyAutomaticRainbowReflect(eulryongState, 'away'), null, 'reflected knockdown cannot ping-pong');
+test('Rainbow Reflect has no automatic effect and away AI can activate it from its ordered deck', () => {
+  const passiveCheck = createInitialGameState({ teamSkillDeck: teamDeck('rainbowReflect') });
+  passiveCheck.lastSkillCasterByTeam.away = 'away-fw';
+  passiveCheck.ball.flightKind = 'skill-shot';
+  passiveCheck.ball.skillId = 'tornadoShot';
+  passiveCheck.ball.lastTouchTeam = 'away';
+  const passiveEvents = stepGame(passiveCheck, frame(), 0.01);
+  assert.ok(!passiveEvents.some((event) => event.type === 'skillReflected'));
+  assert.equal(passiveCheck.ball.lastTouchTeam, 'away');
 
-  const tornadoState = createInitialGameState({ teamSkillDeck: teamDeck('rainbowReflect') });
-  const tornadoCaster = tornadoState.players.find((player) => player.id === 'away-fw');
-  const lifted = tornadoState.players.find((player) => player.id === 'home-mid-1');
-  Object.assign(tornadoCaster, { x: 850, y: 220 });
-  Object.assign(lifted, { x: 120, y: 300, airborneSecondsRemaining: 2.5, airborneFromTeam: 'away',
-    airborneSourcePlayerId: tornadoCaster.id, airborneSkillId: 'tornadoShot' });
-  const liftReflection = applyAutomaticRainbowReflect(tornadoState, 'home');
-  assert.equal(liftReflection.reflectedSkillId, 'tornadoShot');
-  assert.equal(lifted.airborneSecondsRemaining, 0);
-  assert.equal(tornadoCaster.airborneSecondsRemaining, 5);
-  assert.equal(tornadoCaster.airborneReflectedByTeam, 'home');
-  assert.equal(applyAutomaticRainbowReflect(tornadoState, 'away'), null, 'reflected lift cannot ping-pong');
+  const aiState = createInitialGameState({ opponentSkillDeck: teamDeck('rainbowReflect') });
+  const awayCarrier = carrier(aiState, 'away-fw');
+  const homeLastCaster = aiState.players.find((player) => player.id === 'home-fw');
+  aiState.lastSkillCasterByTeam.home = homeLastCaster.id;
+  Object.assign(awayCarrier, { stunnedSeconds: 0.4, statusDurationSeconds: { stunned: 2 } });
+  const aiEvents = stepGame(aiState, frame(), 0.01);
+  assert.ok(aiEvents.some((event) => event.type === 'skillUsed' && event.skillId === 'rainbowReflect' && event.team === 'away'));
+  assert.equal(awayCarrier.stunnedSeconds, 0);
+  assert.equal(homeLastCaster.stunnedSeconds, 2);
+  assert.equal(aiState.skillCooldownRemaining.away.rainbowReflect, 10);
 });
 
-test('Rainbow Reflect reverses World Split at its original origin and preserves its lifetime', () => {
+test('F activates Rainbow Reflect to clear the controlled player even while knocked down', () => {
   const state = createInitialGameState({ teamSkillDeck: teamDeck('rainbowReflect') });
-  const barrier = { skillId: 'powerTackle', team: 'away', sourcePlayerId: 'away-fw', x: 700, y: 230,
-    facingX: -1, facingY: 0, length: 500, thickness: 20, wallOffset: 40, remainingSeconds: 2.4 };
-  state.powerBarriers.push(barrier);
-  const event = applyAutomaticRainbowReflect(state, 'home');
-  assert.equal(event.reflectedSkillId, 'powerTackle');
-  assert.equal(barrier.team, 'home');
-  assert.equal(barrier.facingX, 1);
-  assert.equal(barrier.x, 700, 'the barrier keeps its original cast origin');
-  assert.equal(barrier.y, 230);
-  assert.equal(barrier.length, 500);
-  assert.equal(barrier.remainingSeconds, 2.4);
-  assert.equal(applyAutomaticRainbowReflect(state, 'away'), null, 'reflected terrain cannot ping-pong');
+  const user = state.players.find((player) => player.id === 'home-def-1');
+  const opponentCaster = state.players.find((player) => player.id === 'away-fw');
+  state.controlledPlayerId = user.id;
+  state.lastSkillCasterByTeam.away = opponentCaster.id;
+  Object.assign(user, {
+    knockdownSeconds: 4,
+    knockdownDirectionX: -1,
+    knockdownDirectionY: 0,
+    statusDurationSeconds: { knockdown: 10 },
+    motionAction: 'knockdown',
+  });
+  const events = stepGame(state, frame(['f']), 0.01);
+  assert.ok(events.some((event) => event.type === 'skillUsed' && event.skillId === 'rainbowReflect'));
+  assert.equal(user.knockdownSeconds, 0);
+  assert.equal(opponentCaster.knockdownSeconds, 10);
+  assert.equal(state.skillCooldownRemaining.home.rainbowReflect, 10);
 });
-
-test('away AI activates its shared deck and cooldown prevents repeat activation', () => {
+test('away AI activates its ordered deck and respects each skill cooldown', () => {
   const state = createInitialGameState({ opponentSkillDeck: teamDeck('eagleShot', 2) });
   carrier(state, 'away-fw');
   const events = stepGame(state, frame(), 0.01);
   assert.ok(events.some((event) => event.type === 'skillUsed' && event.team === 'away'));
-  assert.equal(state.skillCooldownRemaining.away, 10);
+  assert.equal(state.skillCooldownRemaining.away.eagleShot, 10);
   assert.equal(state.eagleVolley.level, 2);
   assert.equal(state.skillProjectiles.length, 1);
   const nextEvents = stepGame(state, frame(), 0.05);

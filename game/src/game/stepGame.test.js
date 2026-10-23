@@ -819,10 +819,11 @@ test('a goal restarts from the center for the conceding team', () => {
   assert.deepEqual(state.score, { home: 1, away: 0 });
 });
 
-test('a goal kickoff preserves team deck, activation order, and cooldown', () => {
+test('a goal kickoff preserves team deck, activation order, caster record, and skill cooldowns', () => {
   const state = createInitialGameState({ teamSkillDeck: [{ skillId: 'eagleShot', level: 2 }] });
   state.skillQueueIndex.home = 1;
-  state.skillCooldownRemaining.home = 4;
+  state.skillCooldownRemaining.home.eagleShot = 4;
+  state.lastSkillCasterByTeam.home = 'home-fw';
   state.phase = 'goalPause';
   state.phaseSeconds = 0.01;
   state.pendingKickoffTeam = 'away';
@@ -831,7 +832,8 @@ test('a goal kickoff preserves team deck, activation order, and cooldown', () =>
 
   assert.deepEqual(state.teamSkillDecks.home, [{ skillId: 'eagleShot', level: 2 }]);
   assert.equal(state.skillQueueIndex.home, 1);
-  assert.ok(state.skillCooldownRemaining.home > 3.9 && state.skillCooldownRemaining.home < 4);
+  assert.ok(state.skillCooldownRemaining.home.eagleShot > 3.9 && state.skillCooldownRemaining.home.eagleShot < 4);
+  assert.equal(state.lastSkillCasterByTeam.home, 'home-fw');
   assert.deepEqual(state.skillEffects, []);
 });
 

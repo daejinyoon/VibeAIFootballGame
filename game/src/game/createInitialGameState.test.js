@@ -62,8 +62,12 @@ test('clamps stage and sanitizes both shared skill decks', () => {
     home: [{ skillId: 'eagleShot', level: 2 }, { skillId: 'powerTackle', level: 3 }],
     away: [{ skillId: 'rainbowReflect', level: 1 }],
   });
-  assert.deepEqual(state.skillCooldownRemaining, { home: 0, away: 0 });
+  assert.deepEqual(state.skillCooldownRemaining, {
+    home: { eagleShot: 0, powerTackle: 0 },
+    away: { rainbowReflect: 0 },
+  });
   assert.deepEqual(state.skillQueueIndex, { home: 0, away: 0 });
+  assert.deepEqual(state.lastSkillCasterByTeam, { home: null, away: null });
   assert.ok(state.players.every((player) => !('skillUsesRemaining' in player)));
   assert.ok(state.players.every((player) => player.x >= 0 && player.x <= FIELD.width));
   assert.ok(state.players.every((player) => player.y >= 0 && player.y <= FIELD.height));

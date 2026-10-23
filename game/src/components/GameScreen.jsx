@@ -37,21 +37,31 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
   const activeHome = viewState.players.filter((player) => player.team === 'home' && !player.dismissed).length;
   const activeAway = viewState.players.filter((player) => player.team === 'away' && !player.dismissed).length;
   const controlledPlayer = viewState.players.find((player) => player.id === viewState.controlledPlayerId);
+  const cooldownFor = (team, skillId) => Math.max(0, viewState.skillCooldownRemaining?.[team]?.[skillId] ?? 0);
   const nextTeamSkill = (team) => {
     const deck = viewState.teamSkillDecks?.[team] ?? [];
     if (!deck.length) return null;
     const start = (viewState.skillQueueIndex?.[team] ?? 0) % deck.length;
+    const opposingTeam = team === 'home' ? 'away' : 'home';
+    const activeLastCaster = viewState.players.some((player) => player.id === viewState.lastSkillCasterByTeam?.[opposingTeam]
+      && player.team === opposingTeam && !player.dismissed);
+    const rainbowUserHasStatus = team === 'home'
+      ? Boolean(controlledPlayer && (controlledPlayer.knockdownSeconds > 0
+        || controlledPlayer.airborneSecondsRemaining > 0 || controlledPlayer.stunnedSeconds > 0))
+      : viewState.players.some((player) => player.team === team && !player.dismissed
+        && (player.knockdownSeconds > 0 || player.airborneSecondsRemaining > 0 || player.stunnedSeconds > 0));
     for (let offset = 0; offset < deck.length; offset += 1) {
       const entry = deck[(start + offset) % deck.length];
-      if (entry.skillId !== 'rainbowReflect') return entry;
+      if (cooldownFor(team, entry.skillId) > 0) continue;
+      if (entry.skillId === 'rainbowReflect' && (!activeLastCaster || !rainbowUserHasStatus)) continue;
+      return entry;
     }
     return null;
   };
   const homeNextSkill = nextTeamSkill('home');
-  const homeCooldown = Math.max(0, viewState.skillCooldownRemaining?.home ?? 0);
-  const awayCooldown = Math.max(0, viewState.skillCooldownRemaining?.away ?? 0);
+  const awayNextSkill = nextTeamSkill('away');
   const homeDeck = viewState.teamSkillDecks?.home ?? [];
-  const homeQueueIndex = homeNextSkill ? homeDeck.findIndex((entry) => entry.skillId === homeNextSkill.skillId) : -1;
+  const awayDeck = viewState.teamSkillDecks?.away ?? [];
   const homeBranding = viewState.teamBranding?.home ?? {};
   const awayBranding = viewState.teamBranding?.away ?? {};
   const homeName = homeBranding.displayName || 'DEX';
@@ -132,24 +142,26 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
           <span>우리 팀 필살기 순서</span>
           <div className="team-skill-list">
             {homeDeck.map((entry, index) => (
-              <span key={`${entry.skillId}-${index}`} className={index === homeQueueIndex && entry.skillId !== 'rainbowReflect' ? 'team-skill-item is-next' : 'team-skill-item'}>
+              <span key={`${entry.skillId}-${index}`} className={`team-skill-item${entry.skillId === homeNextSkill?.skillId ? ' is-next' : ''}`}>
                 {index + 1}. {SKILLS[entry.skillId]?.name ?? entry.skillId} · Lv.{entry.level}
+                <small>{cooldownFor('home', entry.skillId) > 0 ? `대기 ${cooldownFor('home', entry.skillId).toFixed(1)}초` : '준비 완료'}</small>
               </span>
             ))}
             {!homeDeck.length && <span className="team-skill-item">아직 보유한 필살기가 없습니다</span>}
           </div>
           <small>{homeNextSkill ? `다음 사용: ${SKILLS[homeNextSkill.skillId]?.name} · F` : 'F · 장착한 스킬 순서대로 사용'}</small>
-          <div className="cooldown-track" role="progressbar" aria-label="필살기 재사용 대기시간" aria-valuemin="0" aria-valuemax="10" aria-valuenow={Math.max(0, 10 - homeCooldown)}>
-            <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, (10 - homeCooldown) / 10))})` }} />
-          </div>
-          <b>{homeCooldown > 0 ? `${homeCooldown.toFixed(1)}초 후 사용 가능` : '필살기 사용 가능'}</b>
         </div>
         <div className="skill-stock away-skill-stock">
           <span>상대 필살기</span>
-          <b>{awayCooldown > 0 ? '재사용 대기 중' : '발동 준비'}</b>
-          <small>{awayCooldown > 0 ? `${awayCooldown.toFixed(1)}초 후 다시 사용 가능` : '다음 발동 대기 중'}</small>
-          <div className="cooldown-track" role="progressbar" aria-label="상대 필살기 재사용 대기시간" aria-valuemin="0" aria-valuemax="10" aria-valuenow={Math.max(0, 10 - awayCooldown)}>
-            <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, (10 - awayCooldown) / 10))})` }} />
+          <small>{awayNextSkill ? `다음 사용: ${SKILLS[awayNextSkill.skillId]?.name}` : '모든 스킬이 준비 중'}</small>
+          <div className="team-skill-list away-team-skill-list">
+            {awayDeck.map((entry, index) => (
+              <span key={`${entry.skillId}-${index}`} className="team-skill-item">
+                {index + 1}. {SKILLS[entry.skillId]?.name ?? entry.skillId} · Lv.{entry.level}
+                <small>{cooldownFor('away', entry.skillId) > 0 ? `대기 ${cooldownFor('away', entry.skillId).toFixed(1)}초` : '준비 완료'}</small>
+              </span>
+            ))}
+            {!awayDeck.length && <span className="team-skill-item">보유 스킬 없음</span>}
           </div>
         </div>
         <p>{restartControls}</p>
