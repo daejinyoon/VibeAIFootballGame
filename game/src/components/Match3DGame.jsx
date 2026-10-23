@@ -16,6 +16,10 @@ export default function Match3DGame({ initialState, paused, onGameEvents, onStat
   }
 
   useEffect(() => {
+    canvasContainerRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => {
     if (previousPausedRef.current && !paused) canvasContainerRef.current?.focus();
     previousPausedRef.current = paused;
   }, [paused]);

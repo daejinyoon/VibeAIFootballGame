@@ -84,7 +84,7 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
         playerId: event.playerId,
         team: event.team,
         skillId: event.skillId,
-        durationSeconds: event.skillId === 'eulryongta' ? 1.2 : 0.72,
+        durationSeconds: ['eulryongta', 'tornadoShot', 'powerTackle'].includes(event.skillId) ? 1.35 : 0.9,
       };
       cutInRef.current = cue;
       setCutInCue(cue);

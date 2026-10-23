@@ -75,3 +75,8 @@ Task: T02-tornado-shot-contact
 - [x] Implementation complete
 - [x] Validation passed
 - commit: specified message used; recorded in Git history.
+
+## Visibility Follow-up (2026-10-23)
+- Added a large animated 3D funnel, rotating wind bands, and rising particles around the moving ball.
+- Skill preview matches now receive keyboard focus on entry; the move cut-in remains visible for 1.35 seconds.
+- Automated tests validate simulation, while visual intensity still needs player review in the preview link.

@@ -22,11 +22,11 @@ const BEAM_GEOMETRY = new THREE.CylinderGeometry(0.045, 0.12, 1, 10, 1, true);
 const RAINBOW_GEOMETRIES = RAINBOW.map(() => new THREE.TorusGeometry(0.53, 0.025, 6, 24, Math.PI));
 const AIR_RING_GEOMETRY = new THREE.TorusGeometry(0.3, 0.025, 6, 28);
 const AIR_PARTICLE_GEOMETRY = new THREE.TetrahedronGeometry(0.06, 0);
-const BARRIER_BASE_GEOMETRY = new THREE.BoxGeometry(1, 0.34, 0.34);
-const BARRIER_SHARD_GEOMETRY = new THREE.DodecahedronGeometry(0.16, 0);
-const BARRIER_CRACK_GEOMETRY = new THREE.BoxGeometry(0.018, 0.28, 0.02);
-const BARRIER_BASE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#4b382a', roughness: 0.96 });
-const BARRIER_SHARD_MATERIAL = new THREE.MeshStandardMaterial({ color: '#756451', roughness: 0.92 });
+const BARRIER_BASE_GEOMETRY = new THREE.BoxGeometry(1, 0.82, 0.42);
+const BARRIER_SHARD_GEOMETRY = new THREE.DodecahedronGeometry(0.28, 0);
+const BARRIER_CRACK_GEOMETRY = new THREE.BoxGeometry(0.035, 0.58, 0.035);
+const BARRIER_BASE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#332d38', roughness: 0.96 });
+const BARRIER_SHARD_MATERIAL = new THREE.MeshStandardMaterial({ color: '#675e68', roughness: 0.92, emissive: '#302338', emissiveIntensity: 0.42 });
 
 function makeMesh(geometry, color = '#ffffff', opacity = 0.8) {
   const material = new THREE.MeshBasicMaterial({
@@ -80,13 +80,13 @@ function makeAirSlot() {
 function makeBarrierSlot() {
   const root = new THREE.Group();
   const base = new THREE.Mesh(BARRIER_BASE_GEOMETRY, BARRIER_BASE_MATERIAL);
-  base.position.y = 0.19;
+  base.position.y = 0.36;
   root.add(base);
   const shards = [];
-  for (let index = 0; index < 9; index += 1) {
+  for (let index = 0; index < 13; index += 1) {
     const shard = new THREE.Mesh(BARRIER_SHARD_GEOMETRY, BARRIER_SHARD_MATERIAL);
-    shard.position.set(-0.43 + index * 0.108, 0.28 + (index % 3) * 0.035, (index % 2 ? 1 : -1) * 0.015);
-    shard.scale.set(0.8 + (index % 3) * 0.16, 1.05 + (index % 2) * 0.28, 0.85);
+    shard.position.set(-0.46 + index * 0.077, 0.55 + (index % 3) * 0.11, (index % 2 ? 1 : -1) * 0.035);
+    shard.scale.set(0.75 + (index % 3) * 0.18, 1.25 + (index % 2) * 0.48, 0.9);
     shard.rotation.set((index % 2) * 0.16, index * 0.43, (index % 3 - 1) * 0.16);
     root.add(shard);
     shards.push(shard);
@@ -100,6 +100,30 @@ function makeBarrierSlot() {
     return crack;
   });
   return { root, shards, cracks };
+}
+
+function makeTornadoSlot() {
+  const root = new THREE.Group();
+  const funnel = new THREE.Mesh(new THREE.ConeGeometry(0.82, 1.72, 28, 1, true), new THREE.MeshBasicMaterial({
+    color: '#5bd9f0', transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false, toneMapped: false,
+  }));
+  funnel.position.y = 0.86;
+  root.add(funnel);
+  const rings = [0, 1, 2, 3].map((index) => {
+    const ring = makeMesh(RING_GEOMETRY, index % 2 ? '#e5ffff' : '#53dff5', 0.9);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.2 + index * 0.38;
+    const radius = 1.08 - index * 0.19;
+    ring.scale.set(radius, radius, radius);
+    root.add(ring);
+    return ring;
+  });
+  const particles = Array.from({ length: 18 }, (_, index) => {
+    const particle = makeMesh(PARTICLE_GEOMETRY, index % 2 ? '#cbfbff' : '#54d8ef', 0.95);
+    root.add(particle);
+    return particle;
+  });
+  return { root, funnel, rings, particles };
 }
 
 function worldX(x) {
@@ -120,13 +144,15 @@ export function SkillEffects3D({ gameStateRef }) {
   const slots = useMemo(() => Array.from({ length: SLOT_COUNT }, makeSlot), []);
   const airSlots = useMemo(() => Array.from({ length: AIR_SLOT_COUNT }, makeAirSlot), []);
   const barrierSlots = useMemo(() => Array.from({ length: BARRIER_SLOT_COUNT }, makeBarrierSlot), []);
+  const tornadoSlots = useMemo(() => Array.from({ length: 2 }, makeTornadoSlot), []);
   const scene = useMemo(() => {
     const group = new THREE.Group();
     for (const slot of slots) group.add(slot.root);
     for (const slot of airSlots) group.add(slot.root);
     for (const slot of barrierSlots) group.add(slot.root);
+    for (const slot of tornadoSlots) group.add(slot.root);
     return group;
-  }, [slots, airSlots, barrierSlots]);
+  }, [slots, airSlots, barrierSlots, tornadoSlots]);
 
   useEffect(() => () => {
     for (const slot of slots) {
@@ -136,7 +162,11 @@ export function SkillEffects3D({ gameStateRef }) {
       for (const mesh of [...slot.rings, ...slot.particles]) mesh.material.dispose();
     }
     for (const slot of barrierSlots) for (const crack of slot.cracks) crack.material.dispose();
-  }, [slots, airSlots, barrierSlots]);
+    for (const slot of tornadoSlots) {
+      slot.funnel.material.dispose();
+      for (const mesh of [...slot.rings, ...slot.particles]) mesh.material.dispose();
+    }
+  }, [slots, airSlots, barrierSlots, tornadoSlots]);
 
   useFrame((_, delta) => {
     const state = gameStateRef?.current;
@@ -330,6 +360,43 @@ export function SkillEffects3D({ gameStateRef }) {
       const pulse = 0.82 + Math.sin((barrier.remainingSeconds ?? 0) * 10) * 0.12;
       slot.root.children[0].material.emissive?.set('#21160e');
       slot.cracks.forEach((crack, crackIndex) => { crack.material.opacity = pulse - crackIndex * 0.025; });
+    }
+
+    const tornadoEffects = effects.filter((effect) => effect.skillId === 'tornadoShot');
+    for (let index = 0; index < tornadoSlots.length; index += 1) {
+      const slot = tornadoSlots[index];
+      const effect = tornadoEffects[index];
+      if (!effect) {
+        slot.root.visible = false;
+        continue;
+      }
+      const ball = state.ball;
+      const [primary, secondary] = SKILL_EFFECT_COLORS.tornadoShot[effect.team === 'away' ? 'away' : 'home'];
+      const time = effect.elapsedSeconds;
+      const scale = 1 + (Math.max(1, effect.level ?? 1) - 1) * 0.18;
+      slot.root.visible = true;
+      slot.root.position.set(worldX(ball.x), 0.015, worldZ(ball.y));
+      slot.root.scale.setScalar(scale);
+      slot.root.rotation.y = time * 1.8;
+      slot.funnel.material.color.set(primary);
+      slot.funnel.material.opacity = 0.22 + Math.sin(time * 8) * 0.045;
+      slot.rings.forEach((ring, ringIndex) => {
+        const spin = time * (ringIndex % 2 ? -5 : 4) + ringIndex * 0.7;
+        ring.rotation.set(Math.PI / 2, spin * 0.18, spin);
+        ring.material.color.set(ringIndex % 2 ? secondary : primary);
+        ring.material.opacity = 0.78 + Math.sin(time * 12 + ringIndex) * 0.18;
+        ring.scale.setScalar((1.06 - ringIndex * 0.19) * (0.9 + Math.sin(time * 9 + ringIndex) * 0.08));
+      });
+      slot.particles.forEach((particle, particleIndex) => {
+        const height = (particleIndex % 6) / 5 * 1.56;
+        const angle = particleIndex * 2.399 + time * (particleIndex % 2 ? -5.5 : 5.5);
+        const radius = 0.28 + height * 0.39 + Math.sin(time * 8 + particleIndex) * 0.06;
+        particle.position.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
+        particle.rotation.set(time * 3, angle, time * 2);
+        particle.scale.setScalar(0.75 + (particleIndex % 3) * 0.22);
+        particle.material.color.set(particleIndex % 2 ? secondary : primary);
+        particle.material.opacity = 0.9;
+      });
     }
   });
 

@@ -1793,7 +1793,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
           team: skillEvent.team,
           skillId: skillEvent.skillId,
           elapsedSeconds: 0,
-          durationSeconds: skillEvent.skillId === 'eulryongta' ? 1.2 : 0.72,
+          durationSeconds: ['eulryongta', 'tornadoShot', 'powerTackle'].includes(skillEvent.skillId) ? 1.35 : 0.9,
         };
       }
     }

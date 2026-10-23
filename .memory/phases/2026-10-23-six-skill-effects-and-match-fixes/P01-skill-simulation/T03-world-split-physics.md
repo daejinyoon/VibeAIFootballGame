@@ -87,4 +87,9 @@ Task: T03-world-split-physics
 ## Progress
 - [x] Implementation complete
 - [x] Validation passed
-- commit: pending
+- commit: 3270df8
+
+## Visibility Follow-up (2026-10-23)
+- Increased the fissure wall height and shard size, added stronger emissive stone and crack accents, and lengthened the skill cut-in.
+- Match canvas now takes keyboard focus on entry so F works immediately in a direct skill preview.
+- Automated tests validate simulation, while visual intensity still needs player review in the preview link.
