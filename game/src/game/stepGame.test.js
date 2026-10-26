@@ -98,6 +98,39 @@ test('only the opening kickoff taker can start the clock, and later kickoffs pre
   assert.ok(state.remainingSeconds < beforeGoalRestart);
 });
 
+test('both teams wait for the opening kickoff to start the clock before using skills', () => {
+  const homeState = createGameState({ teamSkillDeck: [{ skillId: 'eagleShot', level: 1 }] });
+  const homeBeforeKickoff = stepGame(homeState, frame({ pressed: ['f'] }), 0.05);
+  assert.equal(homeBeforeKickoff.some((event) => event.type === 'skillUsed'), false);
+  assert.equal(homeState.eagleVolley, null);
+  assert.equal(homeState.remainingSeconds, 60);
+
+  homeState.hasMatchClockStarted = true;
+  const homeAfterKickoff = stepGame(homeState, frame({ pressed: ['f'] }), 0.05);
+  assert.ok(homeAfterKickoff.some((event) => event.type === 'skillUsed' && event.team === 'home' && event.skillId === 'eagleShot'));
+  assert.ok(homeState.eagleVolley);
+
+  const awayState = createGameState({ opponentSkillDeck: [{ skillId: 'eulryongta', level: 1 }] });
+  awayState.kickoffLocked = false;
+  awayState.kickoffTakerId = null;
+  awayState.ball.ownerId = 'away-fw';
+  awayState.possessionTeam = 'away';
+  const awayCaster = awayState.players.find((player) => player.id === 'away-fw');
+  const homeTarget = awayState.players.find((player) => player.id === 'home-mid-1');
+  Object.assign(awayCaster, { x: 600, y: 270, facingX: -1, facingY: 0 });
+  Object.assign(homeTarget, { x: 550, y: 270 });
+
+  const awayBeforeKickoff = stepGame(awayState, frame(), 0.05);
+  assert.equal(awayBeforeKickoff.some((event) => event.type === 'skillUsed'), false);
+  assert.equal(homeTarget.knockdownSeconds, 0);
+  assert.equal(awayState.remainingSeconds, 60);
+
+  awayState.hasMatchClockStarted = true;
+  const awayAfterKickoff = stepGame(awayState, frame(), 0.05);
+  assert.ok(awayAfterKickoff.some((event) => event.type === 'skillUsed' && event.team === 'away' && event.skillId === 'eulryongta'));
+  assert.ok(homeTarget.knockdownSeconds > 0);
+});
+
 test('Tornado path contact lifts both teams and keepers once while skipping the caster and missed players', () => {
   const state = createInitialGameState();
   state.players.forEach((player, index) => Object.assign(player, { x: 400 + index * 45, y: 450 }));

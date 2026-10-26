@@ -1737,6 +1737,7 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
 }
 
 function maybeUseAiSkill(state, team, events) {
+  if (!state.hasMatchClockStarted) return;
   const candidates = activePlayers(state, team).filter((player) => player.role !== 'goalkeeper'
     && player.knockdownSeconds <= 0 && player.motionAction !== 'recover'
     && (player.airborneSecondsRemaining ?? 0) <= 0);
@@ -2060,7 +2061,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
 
   const frameStartPositions = new Map(state.players.map((player) => [player.id, { x: player.x, y: player.y }]));
 
-  if (controlled && input.pressed.has('f')
+  if (state.hasMatchClockStarted && controlled && input.pressed.has('f')
       && (controlled.knockdownSeconds <= 0 && controlled.motionAction !== 'recover'
         || (state.teamSkillDecks?.home ?? []).some(({ skillId }) => skillId === 'rainbowReflect'))) {
     const attempt = activateNextTeamSkill(state, 'home', controlled.id);
