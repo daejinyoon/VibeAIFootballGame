@@ -40,6 +40,12 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
   const activeAway = viewState.players.filter((player) => player.team === 'away' && !player.dismissed).length;
   const controlledPlayer = viewState.players.find((player) => player.id === viewState.controlledPlayerId);
   const cooldownFor = (team, skillId) => Math.max(0, viewState.skillCooldownRemaining?.[team]?.[skillId] ?? 0);
+  const teamGlobalCooldownFor = (team) => {
+    const remaining = viewState.teamSkillGlobalCooldownRemaining?.[team];
+    return Number.isFinite(remaining) ? Math.max(0, remaining) : 0;
+  };
+  const homeTeamGlobalCooldown = teamGlobalCooldownFor('home');
+  const awayTeamGlobalCooldown = teamGlobalCooldownFor('away');
   const nextTeamSkill = (team) => {
     const deck = viewState.teamSkillDecks?.[team] ?? [];
     if (!deck.length) return null;
@@ -151,6 +157,7 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
         </div>
         <div className="skill-stock team-skill-deck">
           <span>우리 팀 필살기 순서</span>
+          {homeTeamGlobalCooldown > 0 && <small>우리 팀 공통 대기 {homeTeamGlobalCooldown.toFixed(1)}초</small>}
           <div className="team-skill-list">
             {homeDeck.map((entry, index) => (
               <span key={`${entry.skillId}-${index}`} className={`team-skill-item${entry.skillId === homeNextSkill?.skillId ? ' is-next' : ''}`}>
@@ -164,6 +171,7 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
         </div>
         <div className="skill-stock away-skill-stock">
           <span>상대 필살기</span>
+          {awayTeamGlobalCooldown > 0 && <small>상대 팀 공통 대기 {awayTeamGlobalCooldown.toFixed(1)}초</small>}
           <small>{awayNextSkill ? `다음 사용: ${SKILLS[awayNextSkill.skillId]?.name}` : '모든 스킬이 준비 중'}</small>
           <div className="team-skill-list away-team-skill-list">
             {awayDeck.map((entry, index) => (
