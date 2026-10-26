@@ -429,6 +429,25 @@ test('home support players retarget deterministically into short outlet and forw
   assert.ok(teammate.aiTarget.y >= 0 && teammate.aiTarget.y <= FIELD.height);
 });
 
+test('home support targets form two deterministic diagonal passing lanes', () => {
+  const state = createInitialGameState();
+  const carrier = state.players.find((player) => player.id === 'home-fw');
+  Object.assign(carrier, { x: 400, y: 16 });
+
+  stepGame(state, frame(), 0.05);
+
+  const support = state.players.filter((player) => player.team === 'home'
+    && player.role !== 'goalkeeper' && player.id !== carrier.id);
+  assert.equal(support.length, 2);
+  const [shortOutlet, forwardOutlet] = support.sort((a, b) => Math.hypot(a.aiTarget.x - carrier.x, a.aiTarget.y - carrier.y)
+    - Math.hypot(b.aiTarget.x - carrier.x, b.aiTarget.y - carrier.y) || a.id.localeCompare(b.id));
+  assert.ok(shortOutlet.aiTarget.x > carrier.x);
+  assert.ok(forwardOutlet.aiTarget.x > shortOutlet.aiTarget.x);
+  assert.ok(Math.abs(shortOutlet.aiTarget.y - forwardOutlet.aiTarget.y) >= 90);
+  assert.ok(support.every((player) => player.aiTarget.x >= 0 && player.aiTarget.x <= FIELD.width
+    && player.aiTarget.y >= 0 && player.aiTarget.y <= FIELD.height));
+});
+
 test('role support movement excludes the controlled player and goalkeeper while defense recovers', () => {
   const state = createInitialGameState();
   const controlled = state.players.find((player) => player.id === 'home-fw');
@@ -861,9 +880,25 @@ test('goal-line goal kicks reset both teams while keeping the awarded goalkeeper
           x: scenario.team === 'home' ? 70 : FIELD.width - 70,
           y: FIELD.height / 2,
         });
+      } else if (scenario.team === 'away' && player.team === 'home' && player.role !== 'goalkeeper') {
+        assert.ok(player.aiTarget === null);
+        assert.ok(player.x >= 0 && player.x <= FIELD.width && player.y >= 0 && player.y <= FIELD.height);
       } else {
         assert.deepEqual({ x: player.x, y: player.y }, basePositions.get(player.id));
       }
+    }
+    if (scenario.team === 'away') {
+      const homeFieldPlayers = state.players.filter((player) => player.team === 'home' && player.role !== 'goalkeeper');
+      const xs = homeFieldPlayers.map((player) => player.x);
+      const ys = homeFieldPlayers.map((player) => player.y);
+      assert.ok(new Set(xs).size > 1 && new Set(ys).size > 1);
+      const central = homeFieldPlayers.find((player) => Math.abs(player.x - FIELD.width * 0.70) < 1);
+      assert.ok(central);
+      const [first, second, third] = homeFieldPlayers;
+      const doubledArea = Math.abs((second.x - first.x) * (third.y - first.y)
+        - (second.y - first.y) * (third.x - first.x));
+      assert.ok(doubledArea > 1, 'home field players form a non-collinear triangle');
+      assert.equal(state.ball.ownerId, scenario.keeperId);
     }
   }
 });
@@ -1815,6 +1850,7 @@ test('the nearest away defender presses while remaining defenders cover separate
   assert.equal(state.aiPressingPlayerId, presser.id);
   assert.ok(coverOne.aiTarget && coverTwo.aiTarget);
   assert.notDeepEqual(coverOne.aiTarget, coverTwo.aiTarget);
+  assert.ok(Math.abs(coverOne.aiTarget.y - coverTwo.aiTarget.y) >= 70);
   const initialPresserId = state.aiPressingPlayerId;
   const initialMarks = { ...state.aiMarkingAssignments };
   stepGame(state, frame(), 0.05);

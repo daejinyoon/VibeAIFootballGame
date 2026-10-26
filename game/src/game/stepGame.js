@@ -838,6 +838,7 @@ function beginManualRestart(state, type, restartTeam, spot) {
     taker.x = restartTeam === 'home' ? 70 : FIELD.width - 70;
     taker.y = FIELD.height / 2;
     spot = { x: taker.x, y: taker.y };
+    if (restartTeam === 'away') positionHomeGoalKickTriangle(state);
   } else {
     taker.x = spot.x;
     taker.y = type === 'throwIn'
@@ -860,6 +861,24 @@ function beginManualRestart(state, type, restartTeam, spot) {
   delete state.phaseSeconds;
   if (restartTeam === 'home') state.controlledPlayerId = taker.id;
   return [{ type, team: restartTeam, playerId: taker.id }];
+}
+
+function positionHomeGoalKickTriangle(state) {
+  const homeFieldPlayers = activePlayers(state, 'home')
+    .filter((player) => player.role !== 'goalkeeper')
+    .sort((a, b) => a.role.localeCompare(b.role) || a.id.localeCompare(b.id));
+  const centerY = FIELD.height / 2;
+  const vertices = [
+    { x: FIELD.width * 0.70, y: centerY },
+    { x: FIELD.width * 0.60, y: centerY - FIELD.height * 0.19 },
+    { x: FIELD.width * 0.60, y: centerY + FIELD.height * 0.19 },
+  ];
+  homeFieldPlayers.forEach((player, index) => {
+    const target = vertices[index];
+    if (!target) return;
+    player.x = clamp(target.x, 20, FIELD.width - 20);
+    player.y = clamp(target.y, 12, FIELD.height - 12);
+  });
 }
 
 function restartThrowIn(state, restartTeam, exitX, exitY) {
@@ -1397,21 +1416,27 @@ function updateHomeSupportAi(state, controlled, deltaSeconds) {
 }
 
 function homeSupportTarget(state, player, ballCarrier, isShortOutlet) {
-  const attackDirection = 1;
-  const lane = player.y < FIELD.height / 2 ? -1 : 1;
+  const carrierIsAboveCenter = ballCarrier.y < FIELD.height / 2;
+  const shortLane = carrierIsAboveCenter ? 1 : -1;
   const supportRadius = getAiTuning(state.stage).teammateSupportRadius;
-  if (isShortOutlet) {
-    return {
-      x: clamp(ballCarrier.x + attackDirection * Math.min(92, supportRadius * 0.7), 28, FIELD.width - 28),
-      y: clamp(ballCarrier.y + lane * 54, 18, FIELD.height - 18),
-    };
-  }
   const defensiveLine = Math.max(...activePlayers(state, 'away')
     .filter((candidate) => candidate.role !== 'goalkeeper')
     .map((candidate) => candidate.x), ballCarrier.x + 90);
+  const rawShortY = ballCarrier.y + shortLane * 55;
+  const rawForwardY = ballCarrier.y - shortLane * 105;
+  const minY = Math.min(rawShortY, rawForwardY);
+  const maxY = Math.max(rawShortY, rawForwardY);
+  let yShift = 0;
+  if (minY < 18) yShift = 18 - minY;
+  if (maxY + yShift > FIELD.height - 18) yShift -= maxY + yShift - (FIELD.height - 18);
+  const shortTarget = {
+    x: clamp(ballCarrier.x + Math.min(92, supportRadius * 0.7), 28, FIELD.width - 28),
+    y: rawShortY + yShift,
+  };
+  if (isShortOutlet) return shortTarget;
   return {
     x: clamp(Math.max(ballCarrier.x + 145, defensiveLine + 28), 28, FIELD.width - 28),
-    y: clamp(ballCarrier.y + lane * Math.max(88, supportRadius * 0.62), 18, FIELD.height - 18),
+    y: rawForwardY + yShift,
   };
 }
 
@@ -1494,7 +1519,7 @@ function updateAwayDefense(state, deltaSeconds, events, defendingTeam = 'away', 
       .sort((a, b) => distance(a, attacker) - distance(b, attacker) || a.id.localeCompare(b.id))[0];
     if (nearestCover) state.aiMarkingAssignments[nearestCover.id] = attacker.id;
   }
-  coverers.forEach((player) => {
+  const coverTargets = coverers.map((player) => {
     const receiver = byId(state, state.aiMarkingAssignments[player.id]);
     const base = receiver
       ? { x: (defendingCarrier.x * 0.34) + (receiver.x * 0.66), y: (defendingCarrier.y * 0.34) + (receiver.y * 0.66) }
@@ -1505,7 +1530,24 @@ function updateAwayDefense(state, deltaSeconds, events, defendingTeam = 'away', 
       x: base.x + towardGoal.x * 26,
       y: base.y + towardGoal.y * 26,
     } : base;
-    player.aiTarget = { x: clamp(target.x, 20, FIELD.width - 20), y: clamp(target.y, 12, FIELD.height - 12) };
+    return { player, target: { x: clamp(target.x, 20, FIELD.width - 20), y: clamp(target.y, 12, FIELD.height - 12) } };
+  });
+  if (coverTargets.length >= 2) {
+    const ordered = [...coverTargets].sort((a, b) => a.target.y - b.target.y || a.player.id.localeCompare(b.player.id));
+    const top = ordered[0].target.y;
+    const bottom = ordered[ordered.length - 1].target.y;
+    if (bottom - top < 90) {
+      const middle = (top + bottom) / 2;
+      let upperY = middle - 45;
+      let lowerY = middle + 45;
+      if (upperY < 12) { lowerY += 12 - upperY; upperY = 12; }
+      if (lowerY > FIELD.height - 12) { upperY -= lowerY - (FIELD.height - 12); lowerY = FIELD.height - 12; }
+      ordered[0].target.y = upperY;
+      ordered[ordered.length - 1].target.y = lowerY;
+    }
+  }
+  coverTargets.forEach(({ player, target }) => {
+    player.aiTarget = target;
     moveToward(player, player.aiTarget, AI_SPEED, deltaSeconds);
   });
 
