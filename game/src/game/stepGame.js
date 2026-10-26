@@ -541,6 +541,9 @@ function resetForKickoff(state, kickoffTeam) {
   const skillCooldownRemaining = Object.fromEntries(['home', 'away'].map((team) => [
     team, { ...(state.skillCooldownRemaining?.[team] ?? {}) },
   ]));
+  const teamSkillGlobalCooldownRemaining = Object.fromEntries(['home', 'away'].map((team) => [
+    team, state.teamSkillGlobalCooldownRemaining?.[team] ?? 0,
+  ]));
   const skillQueueIndex = { ...(state.skillQueueIndex ?? { home: 0, away: 0 }) };
   const lastSkillCasterByTeam = { ...(state.lastSkillCasterByTeam ?? { home: null, away: null }) };
   const controlledPlayerId = state.controlledPlayerId;
@@ -556,6 +559,7 @@ function resetForKickoff(state, kickoffTeam) {
     overtimeRemainingSeconds,
     teamSkillDecks,
     skillCooldownRemaining,
+    teamSkillGlobalCooldownRemaining,
     skillQueueIndex,
     lastSkillCasterByTeam,
   });
@@ -2052,6 +2056,11 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
       cooldowns[skillId] = Math.max(0, remaining - dt);
     }
   }
+  const teamGlobalCooldowns = state.teamSkillGlobalCooldownRemaining ?? {};
+  state.teamSkillGlobalCooldownRemaining = Object.fromEntries(['home', 'away'].map((team) => {
+    const remaining = (teamGlobalCooldowns[team] ?? 0) - dt;
+    return [team, remaining <= 1e-9 ? 0 : remaining];
+  }));
   state.powerBarriers = (state.powerBarriers ?? []).map((barrier) => ({
     ...barrier,
     elapsedSeconds: (barrier.elapsedSeconds ?? 0) + dt,

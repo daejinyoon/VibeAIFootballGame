@@ -50,9 +50,9 @@ test('validates owned inventory levels and the unique three-skill equipment subs
   assert.equal(validateTeamSkillLoadout(inventory, ['unknownSkill']).valid, false);
 });
 
-test('F activates skills in order with independent ten-second cooldowns', () => {
+test('team global cooldown starts on a successful cast, blocks the next skill, and expires after three seconds', () => {
   const state = createInitialGameState({ teamSkillDeck: [
-    { skillId: 'eagleShot', level: 1 }, { skillId: 'tornadoShot', level: 2 },
+    { skillId: 'eagleShot', level: 1 }, { skillId: 'powerTackle', level: 2 },
   ] });
   state.hasMatchClockStarted = true;
   const striker = carrier(state);
@@ -62,22 +62,43 @@ test('F activates skills in order with independent ten-second cooldowns', () => 
   assert.equal(state.ball.scoreValue, undefined);
   assert.equal(state.skillProjectiles.length, 1);
   assert.equal(state.skillCooldownRemaining.home.eagleShot, 10);
-  assert.equal(state.skillCooldownRemaining.home.tornadoShot, 0);
+  assert.equal(state.skillCooldownRemaining.home.powerTackle, 0);
+  assert.equal(state.teamSkillGlobalCooldownRemaining.home, 3);
+  assert.equal(state.teamSkillGlobalCooldownRemaining.away, 0);
   assert.equal(state.skillQueueIndex.home, 1);
   assert.equal(striker.skillUsesRemaining, undefined);
-  state.ball.flightKind = 'ground';
-  state.ball.ownerId = striker.id;
-  state.possessionTeam = 'home';
+  const blocked = activateNextTeamSkill(state, 'home', striker.id);
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.reason, 'teamCooldown');
+  assert.equal(state.skillCooldownRemaining.home.powerTackle, 0);
+  assert.equal(state.skillQueueIndex.home, 1, 'a blocked activation does not advance the queue');
+
+  state.hasMatchClockStarted = false;
+  for (let index = 0; index < 60; index += 1) stepGame(state, frame(), 0.05);
+  assert.equal(state.teamSkillGlobalCooldownRemaining.home, 0);
+  assert.ok(state.skillCooldownRemaining.home.eagleShot > 6.9 && state.skillCooldownRemaining.home.eagleShot < 7.1);
+  carrier(state, striker.id);
   const next = activateNextTeamSkill(state, 'home', striker.id);
-  assert.equal(next.skillId, 'tornadoShot');
-  assert.equal(state.skillCooldownRemaining.home.eagleShot, 10);
-  assert.equal(state.skillCooldownRemaining.home.tornadoShot, 10);
+  assert.equal(next.skillId, 'powerTackle');
+  assert.equal(state.skillCooldownRemaining.home.powerTackle, 10);
   assert.equal(state.skillQueueIndex.home, 0);
-  state.ball.ownerId = striker.id;
-  state.possessionTeam = 'home';
-  assert.equal(activateNextTeamSkill(state, 'home', striker.id).reason, 'noUsableSkill');
-  assert.equal(state.skillQueueIndex.home, 0, 'a failed full pass leaves the queue in place');
-  assert.equal(state.skillCooldownRemaining.home.eagleShot, 10);
+  assert.equal(state.teamSkillGlobalCooldownRemaining.home, 3);
+});
+
+test('team global cooldowns do not block the opposing team', () => {
+  const awayReady = createInitialGameState({
+    teamSkillDeck: teamDeck('powerTackle'), opponentSkillDeck: teamDeck('powerTackle'),
+  });
+  awayReady.teamSkillGlobalCooldownRemaining = { home: 3, away: 0 };
+  assert.equal(activateNextTeamSkill(awayReady, 'away', 'away-fw').ok, true);
+  assert.deepEqual(awayReady.teamSkillGlobalCooldownRemaining, { home: 3, away: 3 });
+
+  const homeReady = createInitialGameState({
+    teamSkillDeck: teamDeck('powerTackle'), opponentSkillDeck: teamDeck('powerTackle'),
+  });
+  homeReady.teamSkillGlobalCooldownRemaining = { home: 0, away: 3 };
+  assert.equal(activateNextTeamSkill(homeReady, 'home', 'home-fw').ok, true);
+  assert.deepEqual(homeReady.teamSkillGlobalCooldownRemaining, { home: 3, away: 3 });
 });
 
 test('unavailable ordered skills are skipped without consuming the queue slot on total failure', () => {
@@ -93,7 +114,9 @@ test('unavailable ordered skills are skipped without consuming the queue slot on
   const unavailable = createInitialGameState({ teamSkillDeck: teamDeck('eagleShot') });
   unavailable.ball.ownerId = null;
   assert.equal(activateNextTeamSkill(unavailable, 'home', 'home-fw').ok, false);
+  assert.equal(activateNextTeamSkill(unavailable, 'home', 'home-fw').reason, 'noUsableSkill');
   assert.equal(unavailable.skillQueueIndex.home, 0);
+  assert.deepEqual(unavailable.teamSkillGlobalCooldownRemaining, { home: 0, away: 0 });
 });
 
 test('goalkeepers can use skills while normal possession and target requirements still apply', () => {

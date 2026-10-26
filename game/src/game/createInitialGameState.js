@@ -157,6 +157,7 @@ export function createInitialGameState({
       home: Object.fromEntries(homeDeck.map(({ skillId }) => [skillId, 0])),
       away: Object.fromEntries(awayDeck.map(({ skillId }) => [skillId, 0])),
     },
+    teamSkillGlobalCooldownRemaining: { home: 0, away: 0 },
     skillQueueIndex: { home: 0, away: 0 },
     lastSkillCasterByTeam: { home: null, away: null },
     skillCutIn: null,

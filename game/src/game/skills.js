@@ -1,4 +1,4 @@
-import { BALL_RADIUS, EAGLE_SHOT_INTERVAL_SECONDS, FIELD, PLAYER_BODY_WIDTH, TEAM_SKILL_COOLDOWN_SECONDS, WORLD_SPLIT_DURATION_SECONDS, WORLD_SPLIT_HEIGHT, WORLD_SPLIT_LENGTHS, WORLD_SPLIT_SLIDE_SECONDS, WORLD_SPLIT_SLIDE_SPEED, WORLD_SPLIT_THICKNESS, WORLD_SPLIT_WALL_OFFSET } from './constants.js';
+import { BALL_RADIUS, EAGLE_SHOT_INTERVAL_SECONDS, FIELD, PLAYER_BODY_WIDTH, TEAM_SKILL_COOLDOWN_SECONDS, TEAM_SKILL_GLOBAL_COOLDOWN_SECONDS, WORLD_SPLIT_DURATION_SECONDS, WORLD_SPLIT_HEIGHT, WORLD_SPLIT_LENGTHS, WORLD_SPLIT_SLIDE_SECONDS, WORLD_SPLIT_SLIDE_SPEED, WORLD_SPLIT_THICKNESS, WORLD_SPLIT_WALL_OFFSET } from './constants.js';
 
 export const SKILL_IDS = Object.freeze([
   'eagleShot',
@@ -515,6 +515,9 @@ function setBallOwner(state, player) {
 }
 
 export function activateNextTeamSkill(state, team, sourcePlayerId) {
+  if ((state?.teamSkillGlobalCooldownRemaining?.[team] ?? 0) > 0) {
+    return result(false, null, team, 'teamCooldown');
+  }
   const deck = state?.teamSkillDecks?.[team] ?? [];
   if (!deck.length) return result(false, null, team, 'emptyDeck');
   const start = ((state.skillQueueIndex?.[team] ?? 0) % deck.length + deck.length) % deck.length;
@@ -529,6 +532,14 @@ export function activateNextTeamSkill(state, team, sourcePlayerId) {
       ...(state.skillCooldownRemaining[team] ?? {}),
       [entry.skillId]: TEAM_SKILL_COOLDOWN_SECONDS,
     };
+    if (team === 'home' || team === 'away') {
+      state.teamSkillGlobalCooldownRemaining = {
+        home: 0,
+        away: 0,
+        ...(state.teamSkillGlobalCooldownRemaining ?? {}),
+        [team]: TEAM_SKILL_GLOBAL_COOLDOWN_SECONDS,
+      };
+    }
     return attempt;
   }
   return result(false, null, team, 'noUsableSkill');

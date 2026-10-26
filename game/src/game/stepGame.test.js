@@ -169,6 +169,29 @@ test('home and away goalkeepers use team skills after kickoff without bypassing 
   assert.equal(homeTarget.knockdownSeconds, 5);
 });
 
+test('rapid F presses cannot activate a second skill during the team global cooldown', () => {
+  const state = createInitialGameState({ teamSkillDeck: [
+    { skillId: 'powerTackle', level: 1 }, { skillId: 'eagleShot', level: 1 },
+  ] });
+  const striker = state.players.find((player) => player.id === 'home-fw');
+  state.controlledPlayerId = striker.id;
+  state.ball.ownerId = striker.id;
+  state.ball.x = striker.x;
+  state.ball.y = striker.y;
+  state.possessionTeam = 'home';
+
+  const firstEvents = stepGame(state, frame({ pressed: ['f'] }), 0.01);
+  assert.ok(firstEvents.some((event) => event.type === 'skillUsed' && event.skillId === 'powerTackle'));
+  assert.equal(state.teamSkillGlobalCooldownRemaining.home, 3);
+  assert.equal(state.skillQueueIndex.home, 1);
+
+  const rapidEvents = stepGame(state, frame({ pressed: ['f'] }), 0.05);
+  assert.equal(rapidEvents.some((event) => event.type === 'skillUsed'), false);
+  assert.ok(state.teamSkillGlobalCooldownRemaining.home > 2.94 && state.teamSkillGlobalCooldownRemaining.home < 2.96);
+  assert.equal(state.skillQueueIndex.home, 1);
+  assert.equal(state.skillCooldownRemaining.home.eagleShot, 0);
+});
+
 test('Tornado path contact lifts both teams and keepers once while skipping the caster and missed players', () => {
   const state = createInitialGameState();
   state.players.forEach((player, index) => Object.assign(player, { x: 400 + index * 45, y: 450 }));
@@ -961,6 +984,7 @@ test('a goal kickoff preserves team deck, activation order, caster record, and s
   const state = createInitialGameState({ teamSkillDeck: [{ skillId: 'eagleShot', level: 2 }] });
   state.skillQueueIndex.home = 1;
   state.skillCooldownRemaining.home.eagleShot = 4;
+  state.teamSkillGlobalCooldownRemaining = { home: 2.25, away: 1.25 };
   state.lastSkillCasterByTeam.home = 'home-fw';
   state.phase = 'goalPause';
   state.phaseSeconds = 0.01;
@@ -971,6 +995,8 @@ test('a goal kickoff preserves team deck, activation order, caster record, and s
   assert.deepEqual(state.teamSkillDecks.home, [{ skillId: 'eagleShot', level: 2 }]);
   assert.equal(state.skillQueueIndex.home, 1);
   assert.ok(state.skillCooldownRemaining.home.eagleShot > 3.9 && state.skillCooldownRemaining.home.eagleShot < 4);
+  assert.ok(state.teamSkillGlobalCooldownRemaining.home > 2.19 && state.teamSkillGlobalCooldownRemaining.home < 2.21);
+  assert.ok(state.teamSkillGlobalCooldownRemaining.away > 1.19 && state.teamSkillGlobalCooldownRemaining.away < 1.21);
   assert.equal(state.lastSkillCasterByTeam.home, 'home-fw');
   assert.deepEqual(state.skillEffects, []);
 });

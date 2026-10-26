@@ -65,6 +65,7 @@ test('clamps stage and sanitizes both shared skill decks', () => {
     home: { eagleShot: 0, powerTackle: 0 },
     away: {},
   });
+  assert.deepEqual(state.teamSkillGlobalCooldownRemaining, { home: 0, away: 0 });
   assert.deepEqual(state.skillQueueIndex, { home: 0, away: 0 });
   assert.deepEqual(state.lastSkillCasterByTeam, { home: null, away: null });
   assert.ok(state.players.every((player) => !('skillUsesRemaining' in player)));
