@@ -231,7 +231,7 @@ test('World Split slides the caster along a long, three-second level-scaled grou
   assert.ok(state.powerBarriers[0].length >= 8 * PLAYER_BODY_WIDTH);
   assert.equal(state.powerBarriers[0].thickness, 20);
   assert.equal(state.powerBarriers[0].wallOffset, 40);
-  assert.equal(state.powerBarriers[0].height, 144);
+  assert.equal(state.powerBarriers[0].height, 72);
   assert.equal(state.powerBarriers[0].remainingSeconds, 3);
   assert.equal(user.motionAction, 'tackle');
   assert.equal(user.worldSplitSlideSecondsRemaining, 0.95);
@@ -250,6 +250,7 @@ test('World Split slides the caster along a long, three-second level-scaled grou
     const source = levelState.players.find((player) => player.id === 'home-fw');
     assert.equal(applySkill(levelState, { team: 'home', sourcePlayerId: source.id, skillId: 'powerTackle', level }).ok, true);
     assert.equal(levelState.powerBarriers[0].length, length);
+    assert.equal(levelState.powerBarriers[0].height, 72);
     assert.equal(levelState.powerBarriers[0].remainingSeconds, 3);
   }
 });
