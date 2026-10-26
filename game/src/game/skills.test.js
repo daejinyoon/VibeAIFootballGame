@@ -5,7 +5,7 @@ import { FIELD, PLAYER_BODY_WIDTH } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
 import {
   SKILL_IDS, SKILL_MAX_LEVELS, SKILLS, activateNextTeamSkill,
-  applySkill, createSkillCardOffer,
+  applySkill, createSkillCardOffer, spawnNextEagleProjectile,
   validateTeamSkillInventory, validateTeamSkillLoadout,
 } from './skills.js';
 import { stepGame } from './stepGame.js';
@@ -145,6 +145,45 @@ test('Eagle Shot launches one, two, or three angled eagles and awards one point 
       kickoffCount += stepGame(state, frame(), 0.05).filter((event) => event.type === 'kickoff').length;
     }
     assert.equal(kickoffCount, 1);
+  }
+});
+
+test('away Eagle Shot is the 180-degree field-center rotation of the home cycloid', () => {
+  const homeState = createInitialGameState();
+  const awayState = createInitialGameState();
+  const homeLaunch = { x: 220, y: 160 };
+  const homeSource = homeState.players.find((player) => player.id === 'home-fw');
+  const awaySource = awayState.players.find((player) => player.id === 'away-fw');
+  Object.assign(homeSource, { ...homeLaunch, facingX: 1, facingY: 0 });
+  Object.assign(awaySource, { x: FIELD.width - homeLaunch.x, y: FIELD.height - homeLaunch.y, facingX: -1, facingY: 0 });
+  carrier(homeState, homeSource.id);
+  carrier(awayState, awaySource.id);
+  homeState.hasMatchClockStarted = true;
+  awayState.hasMatchClockStarted = true;
+
+  assert.equal(applySkill(homeState, { team: 'home', sourcePlayerId: homeSource.id, skillId: 'eagleShot', level: 2 }).ok, true);
+  assert.equal(applySkill(awayState, { team: 'away', sourcePlayerId: awaySource.id, skillId: 'eagleShot', level: 2 }).ok, true);
+  assert.equal(homeState.eagleVolley.targetYs.length, 2);
+  assert.equal(awayState.eagleVolley.targetYs.length, 2);
+  for (let index = 0; index < 2; index += 1) {
+    assert.equal(awayState.eagleVolley.targetYs[index], FIELD.height - homeState.eagleVolley.targetYs[index]);
+  }
+  homeState.eagleVolley.nextLaunchSeconds = 100;
+  awayState.eagleVolley.nextLaunchSeconds = 100;
+  spawnNextEagleProjectile(homeState);
+  spawnNextEagleProjectile(awayState);
+
+  for (let frameIndex = 0; frameIndex < 14; frameIndex += 1) {
+    stepGame(homeState, frame(), 0.05);
+    stepGame(awayState, frame(), 0.05);
+  }
+  assert.equal(homeState.skillProjectiles.length, awayState.skillProjectiles.length);
+  for (let index = 0; index < homeState.skillProjectiles.length; index += 1) {
+    const homeProjectile = homeState.skillProjectiles[index];
+    const awayProjectile = awayState.skillProjectiles[index];
+    assert.ok(Math.abs(homeProjectile.x + awayProjectile.x - FIELD.width) < 1e-8);
+    assert.ok(Math.abs(homeProjectile.y + awayProjectile.y - FIELD.height) < 1e-8);
+    assert.ok(Math.abs(homeProjectile.height - awayProjectile.height) < 1e-8);
   }
 });
 

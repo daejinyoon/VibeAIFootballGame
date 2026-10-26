@@ -321,7 +321,8 @@ export function spawnNextEagleProjectile(state) {
 }
 
 function launchEagleVolley(state, player, level) {
-  const targetYs = eagleTargetYs(level);
+  const targetYs = eagleTargetYs(level).map((targetY) =>
+    player.team === 'away' ? FIELD.height - targetY : targetY);
   const volley = {
     team: player.team,
     sourcePlayerId: player.id,
