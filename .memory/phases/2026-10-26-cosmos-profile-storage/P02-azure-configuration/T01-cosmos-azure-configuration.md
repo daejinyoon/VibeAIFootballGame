@@ -112,7 +112,7 @@ Configure the existing Cosmos DB account and football Static Web App so the depl
 
 #### Details
 
-- Return only safe Cosmos error category/status/substatus fields in 503 responses; never include exception messages, connection strings, account keys, or bearer tokens.
+- Return safe storage error category/status/substatus fields in every 503 response; never include exception messages, connection strings, account keys, or bearer tokens.
 - Identify a missing `COSMOS_CONNECTION_STRING` explicitly.
 - Use the returned diagnostic to correct the production setting or isolated database/container configuration, then remove temporary diagnostics after hosted sync succeeds.
 
@@ -134,13 +134,13 @@ Configure the existing Cosmos DB account and football Static Web App so the depl
 ## Commit Message
 
 ```text
-fix(storage): add safe Cosmos diagnostics
+fix(storage): always include safe diagnostics
 
 Plan: 2026-10-26-cosmos-profile-storage
 Phase: P02-azure-configuration
 Task: T01-cosmos-azure-configuration
 
-- Return only non-secret Cosmos failure categories in API responses
+- Return safe storage failure categories in every 503 response
 - Continue hosted profile-sync verification
 ```
 

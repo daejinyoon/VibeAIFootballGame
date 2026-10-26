@@ -22,10 +22,17 @@ function errorResponse(error) {
     });
   }
   if (error?.status === 503 || error?.name === 'ProfileStorageError') {
+    const reason = typeof error?.code === 'string' || typeof error?.code === 'number'
+      ? String(error.code)
+      : typeof error?.name === 'string' ? error.name : 'UNCLASSIFIED_STORAGE_FAILURE';
+    const statusCode = Number.isInteger(error?.statusCode) ? error.statusCode : undefined;
     return jsonResponse(503, {
       code: 'PROFILE_STORAGE_UNAVAILABLE',
       message: 'Profile storage is unavailable. Please retry.',
-      ...(error.diagnostic ? { details: error.diagnostic } : {}),
+      details: error.diagnostic ?? {
+        reason,
+        ...(statusCode !== undefined ? { statusCode } : {}),
+      },
     });
   }
   return jsonResponse(500, { code: 'PROFILE_REQUEST_FAILED', message: 'The profile request could not be completed.' });

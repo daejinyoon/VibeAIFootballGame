@@ -53,7 +53,9 @@ function getContainer(env = process.env) {
 function requireAccountKey({ tenantId, objectId } = {}) {
   if (typeof tenantId !== 'string' || !tenantId.trim()
       || typeof objectId !== 'string' || !objectId.trim()) {
-    throw createStorageError('The verified account key is unavailable.');
+    throw createStorageError('The verified account key is unavailable.', undefined, {
+      reason: 'VERIFIED_ACCOUNT_KEY_MISSING',
+    });
   }
 }
 
@@ -75,7 +77,9 @@ export async function getProfile({ tenantId, objectId }, env = process.env) {
 
   const document = response.resource;
   if (!document || typeof document.profile !== 'object' || document.profile === null) {
-    throw createStorageError('The stored profile could not be read.');
+    throw createStorageError('The stored profile could not be read.', undefined, {
+      reason: 'STORED_PROFILE_INVALID',
+    });
   }
 
   return {
