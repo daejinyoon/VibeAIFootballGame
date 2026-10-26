@@ -56,11 +56,23 @@ Configure the existing Cosmos DB account and football Static Web App so the depl
 - Confirm one account cannot read another account's document and the existing `maze-rescue` database remains unchanged.
 - If sync still fails, inspect the API status and Azure Static Web App/Application Insights logs without exposing connection strings or bearer tokens.
 
+### I04. Compare Entra tenant GUIDs safely
+
+- Related Files:
+  - `game/api/src/auth/entra.js` :: `requireEntraCaller`
+
+#### Details
+
+- Normalize the configured tenant ID and token `tid` GUIDs to lowercase before comparison, since GUID comparisons must not depend on hexadecimal letter casing.
+- Keep rejecting tokens issued by a different tenant; this change only makes equivalent GUID casing compare correctly.
+- Re-run the API syntax check, deploy, then repeat the hosted login and profile-sync verification.
+
 ## Acceptance Criteria
 
 - [ ] `football/profiles` exists with partition key `/tenantId`, or has been safely created by the user in the portal.
 - [ ] Production API settings include matching Entra IDs and `COSMOS_CONNECTION_STRING`.
 - [ ] Successful GitHub Actions deployment includes the Cosmos-backed API.
+- [ ] API accepts the configured tenant GUID regardless of letter casing and continues to reject a different tenant.
 - [ ] Hosted sign-in, first-login migration, repeat load/save, and account separation succeed.
 - [ ] No existing non-football database/container was modified and no secret was committed or shared.
 

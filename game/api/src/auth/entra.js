@@ -37,7 +37,9 @@ function readBearerToken(request) {
  * used by the profile API. No identity value is read from request JSON.
  */
 export async function requireEntraCaller(request, env = process.env) {
-  const tenantId = env.ENTRA_TENANT_ID?.trim();
+  // Entra tenant IDs are GUIDs, so compare them case-insensitively even if a
+  // portal setting or token serializes the hexadecimal letters differently.
+  const tenantId = env.ENTRA_TENANT_ID?.trim().toLowerCase();
   const clientId = env.ENTRA_CLIENT_ID?.trim();
   if (!tenantId || !clientId) {
     reject(500, 'AUTH_NOT_CONFIGURED', 'Entra API authentication is not configured.');
@@ -53,7 +55,7 @@ export async function requireEntraCaller(request, env = process.env) {
 
   // Reject other tenants before verification. This is safe because it only denies;
   // an unverified claim can never authorize a caller.
-  if (untrustedClaims.tid !== tenantId) {
+  if (typeof untrustedClaims.tid !== 'string' || untrustedClaims.tid.toLowerCase() !== tenantId) {
     reject(403, 'TENANT_NOT_ALLOWED', 'This tenant is not allowed to use the profile API.');
   }
 
@@ -73,7 +75,7 @@ export async function requireEntraCaller(request, env = process.env) {
   if (!audienceMatches) {
     reject(403, 'AUDIENCE_NOT_ALLOWED', 'The token was not issued for this application.');
   }
-  if (claims.tid !== tenantId) {
+  if (typeof claims.tid !== 'string' || claims.tid.toLowerCase() !== tenantId) {
     reject(403, 'TENANT_NOT_ALLOWED', 'This tenant is not allowed to use the profile API.');
   }
   if (typeof claims.oid !== 'string' || !claims.oid.trim()) {
