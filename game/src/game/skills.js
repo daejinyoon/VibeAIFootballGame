@@ -13,7 +13,7 @@ export const SKILLS = Object.freeze({
   eagleShot: Object.freeze({ name: '독수리슛', type: 'attack', description: '일반 골키퍼가 막을 수 없는 필살 슛', artwork: '/images/skills/eagle-shot.png' }),
   tornadoShot: Object.freeze({ name: '회오리슛', type: 'attack', description: '수비수를 휘어 지나가는 슛', artwork: '/images/skills/tornado-shot.png' }),
   powerTackle: Object.freeze({ name: '세계의 분리', type: 'defense', description: '슬라이딩 태클로 3초간 지형 장벽을 세운다', artwork: '/images/skills/world-split.svg' }),
-  eulryongta: Object.freeze({ name: '을룡타', type: 'defense', description: '앞에 있는 상대 한 명을 2초 기절시킴', artwork: '/images/skills/eulryongta.png' }),
+  eulryongta: Object.freeze({ name: '을룡타', type: 'defense', description: '앞에 있는 상대를 최대 3명까지 5초간 기절시킴', artwork: '/images/skills/eulryongta.png' }),
   vacuumCleaner: Object.freeze({ name: '진공청소기', type: 'utility', description: '주변 공을 사용자에게 끌어옴', artwork: '/images/skills/vacuum-cleaner.png' }),
   rainbowReflect: Object.freeze({ name: '무지개반사', type: 'utility', description: '상대 필살기를 상대 골문 쪽으로 되돌림', artwork: '/images/skills/rainbow-reflect.png' }),
 });
@@ -124,7 +124,7 @@ function getTransferableStatuses(player) {
   return TRANSFERABLE_STATUSES.flatMap(({ type, timerField, metadataFields }) => {
     if (!(player[timerField] > 0)) return [];
     const fallbackDuration = type === 'knockdown'
-      ? (player.knockdownSkillId === 'eulryongta' ? 10 : player[timerField])
+      ? (player.knockdownSkillId === 'eulryongta' ? 5 : player[timerField])
       : type === 'airborne' ? 5 : player[timerField];
     return [{
       type,
@@ -491,8 +491,8 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
     if (!targets.length) return result(false, skillId, player.team, 'noTargetInFront');
     for (const target of targets) {
       const direction = unitVector(target.x - player.x, target.y - player.y);
-      target.knockdownSeconds = 10;
-      setStatusDuration(target, 'knockdown', 10);
+      target.knockdownSeconds = 5;
+      setStatusDuration(target, 'knockdown', 5);
       target.knockdownFromTeam = player.team;
       target.knockdownSourcePlayerId = player.id;
       target.knockdownSkillId = 'eulryongta';
@@ -501,7 +501,7 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
       target.motionAction = 'knockdown';
       target.vx = 0;
       target.vy = 0;
-      events.push({ type: 'playerKnockedDown', team: target.team, playerId: target.id, durationSeconds: 10, direction });
+      events.push({ type: 'playerKnockedDown', team: target.team, playerId: target.id, durationSeconds: 5, direction });
     }
     events.unshift({ type: 'skillUsed', skillId, team: player.team, playerId: player.id });
   } else if (skillId === 'vacuumCleaner') {
