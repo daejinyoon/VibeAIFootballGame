@@ -1,6 +1,6 @@
 # Task: T02 Migrate Saved Skills
 
-## Status: pending
+## Status: done
 
 ## Goal
 
@@ -56,11 +56,11 @@ Upgrade local profile schema version 6 to version 7 and sanitize existing campai
 
 ## Acceptance Criteria
 
-- [ ] Schema-v6 saves migrate to schema version 7 and remain playable when all non-World-Split campaign data is valid.
-- [ ] World Split is removed from ownership, equipment, pending rewards, and opponent skill sets without granting compensation.
-- [ ] Other skill levels and relative order, stage progress, results, nickname, customization, and best record are preserved.
-- [ ] Older profile migrations still load and sanitize removed skills.
-- [ ] Storage migration tests pass.
+- [x] Schema-v6 saves migrate to schema version 7 and remain playable when all non-World-Split campaign data is valid.
+- [x] World Split is removed from ownership, equipment, pending rewards, and opponent skill sets without granting compensation.
+- [x] Other skill levels and relative order, stage progress, results, nickname, customization, and best record are preserved.
+- [x] Older profile migrations still load and sanitize removed skills.
+- [x] Storage migration tests pass.
 
 ## Validation
 
@@ -82,6 +82,6 @@ Task: T02-migrate-saved-skills
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
+- [x] Implementation complete
+- [x] Validation passed
 - commit: pending

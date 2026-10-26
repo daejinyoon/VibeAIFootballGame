@@ -10,7 +10,8 @@ import {
 import { DEFAULT_TEAM_CUSTOMIZATION, normalizeTeamCustomization } from '../game/teamBranding.js';
 
 export const STORAGE_KEY = 'dex-pixel-football:v1';
-const PROFILE_VERSION = 6;
+const PROFILE_VERSION = 7;
+const REMOVED_SKILL_IDS = new Set(['rainbowReflect', 'powerTackle']);
 
 export function createEmptyProfile() {
   return {
@@ -51,7 +52,7 @@ function isOpponentSkillSets(value) {
 function withoutRemovedOpponentSkills(value) {
   if (!value || typeof value !== 'object') return null;
   const filtered = Object.fromEntries(Object.entries(value).map(([stage, skills]) => [stage,
-    Array.isArray(skills) ? skills.filter((skillId) => skillId !== 'rainbowReflect') : skills]));
+    Array.isArray(skills) ? skills.filter((skillId) => !REMOVED_SKILL_IDS.has(skillId)) : skills]));
   return isOpponentSkillSets(filtered) ? filtered : null;
 }
 
@@ -224,11 +225,28 @@ export function migrateProfileV4(parsedProfile) {
 
 function migrateV5Campaign(campaignSave) {
   if (!campaignSave || typeof campaignSave !== 'object') return null;
-  const filterIds = (ids) => Array.isArray(ids) ? ids.filter((skillId) => skillId !== 'rainbowReflect') : ids;
+  const filterIds = (ids) => Array.isArray(ids) ? ids.filter((skillId) => !REMOVED_SKILL_IDS.has(skillId)) : ids;
   const migrated = {
     ...campaignSave,
     ownedTeamSkills: Array.isArray(campaignSave.ownedTeamSkills)
-      ? campaignSave.ownedTeamSkills.filter((entry) => entry?.skillId !== 'rainbowReflect') : campaignSave.ownedTeamSkills,
+      ? campaignSave.ownedTeamSkills.filter((entry) => !REMOVED_SKILL_IDS.has(entry?.skillId)) : campaignSave.ownedTeamSkills,
+    equippedTeamSkillIds: filterIds(campaignSave.equippedTeamSkillIds),
+    pendingSkillOffer: filterIds(campaignSave.pendingSkillOffer),
+    opponentSkillSets: campaignSave.opponentSkillSets && typeof campaignSave.opponentSkillSets === 'object'
+      ? Object.fromEntries(Object.entries(campaignSave.opponentSkillSets).map(([stage, ids]) => [stage, filterIds(ids)]))
+      : campaignSave.opponentSkillSets,
+  };
+  if (Array.isArray(migrated.pendingSkillOffer) && migrated.pendingSkillOffer.length === 0) migrated.pendingSkillOffer = null;
+  return migrated;
+}
+
+function migrateV6Campaign(campaignSave) {
+  if (!campaignSave || typeof campaignSave !== 'object') return null;
+  const filterIds = (ids) => Array.isArray(ids) ? ids.filter((skillId) => skillId !== 'powerTackle') : ids;
+  const migrated = {
+    ...campaignSave,
+    ownedTeamSkills: Array.isArray(campaignSave.ownedTeamSkills)
+      ? campaignSave.ownedTeamSkills.filter((entry) => entry?.skillId !== 'powerTackle') : campaignSave.ownedTeamSkills,
     equippedTeamSkillIds: filterIds(campaignSave.equippedTeamSkillIds),
     pendingSkillOffer: filterIds(campaignSave.pendingSkillOffer),
     opponentSkillSets: campaignSave.opponentSkillSets && typeof campaignSave.opponentSkillSets === 'object'
@@ -254,6 +272,22 @@ export function migrateProfileV5(parsedProfile) {
   return migrated;
 }
 
+/** Removes World Split from the v6 campaign schema and upgrades the profile to v7. */
+export function migrateProfileV6(parsedProfile) {
+  if (!parsedProfile || parsedProfile.schemaVersion !== 6 || typeof parsedProfile.nickname !== 'string') {
+    return createEmptyProfile();
+  }
+  const migrated = {
+    schemaVersion: PROFILE_VERSION,
+    nickname: parsedProfile.nickname,
+    campaignSave: migrateV6Campaign(parsedProfile.campaignSave),
+    bestRecord: isBestRecord(parsedProfile.bestRecord) ? { ...parsedProfile.bestRecord } : null,
+    teamCustomization: normalizeTeamCustomization(parsedProfile.teamCustomization),
+  };
+  if (!isCampaignSave(migrated.campaignSave)) migrated.campaignSave = null;
+  return migrated;
+}
+
 export function readProfile(storage = getDefaultStorage()) {
   if (!storage) return createEmptyProfile();
   try {
@@ -266,6 +300,7 @@ export function readProfile(storage = getDefaultStorage()) {
     if (parsed.schemaVersion === 3) return migrateProfileV3(parsed);
     if (parsed.schemaVersion === 4) return migrateProfileV4(parsed);
     if (parsed.schemaVersion === 5) return migrateProfileV5(parsed);
+    if (parsed.schemaVersion === 6) return migrateProfileV6(parsed);
     if (parsed.schemaVersion !== PROFILE_VERSION) return createEmptyProfile();
     return {
       schemaVersion: PROFILE_VERSION,
