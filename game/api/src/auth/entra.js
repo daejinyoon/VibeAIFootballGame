@@ -5,11 +5,12 @@ const REQUIRED_SCOPE = 'access_as_user';
 const jwksByTenant = new Map();
 
 export class EntraAuthError extends Error {
-  constructor(status, code, message) {
+  constructor(status, code, message, details = undefined) {
     super(message);
     this.name = 'EntraAuthError';
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -56,7 +57,10 @@ export async function requireEntraCaller(request, env = process.env) {
   // Reject other tenants before verification. This is safe because it only denies;
   // an unverified claim can never authorize a caller.
   if (typeof untrustedClaims.tid !== 'string' || untrustedClaims.tid.toLowerCase() !== tenantId) {
-    reject(403, 'TENANT_NOT_ALLOWED', 'This tenant is not allowed to use the profile API.');
+    reject(403, 'TENANT_NOT_ALLOWED', 'The token tenant does not match the API tenant configuration.', {
+      tokenTenantId: typeof untrustedClaims.tid === 'string' ? untrustedClaims.tid : null,
+      configuredTenantId: tenantId,
+    });
   }
 
   const issuer = `${AUTHORITY_HOST}/${tenantId}/v2.0`;
@@ -76,7 +80,10 @@ export async function requireEntraCaller(request, env = process.env) {
     reject(403, 'AUDIENCE_NOT_ALLOWED', 'The token was not issued for this application.');
   }
   if (typeof claims.tid !== 'string' || claims.tid.toLowerCase() !== tenantId) {
-    reject(403, 'TENANT_NOT_ALLOWED', 'This tenant is not allowed to use the profile API.');
+    reject(403, 'TENANT_NOT_ALLOWED', 'The token tenant does not match the API tenant configuration.', {
+      tokenTenantId: typeof claims.tid === 'string' ? claims.tid : null,
+      configuredTenantId: tenantId,
+    });
   }
   if (typeof claims.oid !== 'string' || !claims.oid.trim()) {
     reject(401, 'OBJECT_ID_REQUIRED', 'The token does not contain a usable account identifier.');

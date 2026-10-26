@@ -15,7 +15,11 @@ function jsonResponse(status, body) {
 
 function errorResponse(error) {
   if (error instanceof EntraAuthError || error instanceof ProfileValidationError) {
-    return jsonResponse(error.status, { code: error.code, message: error.message });
+    return jsonResponse(error.status, {
+      code: error.code,
+      message: error.message,
+      ...(error.details ? { details: error.details } : {}),
+    });
   }
   if (error?.status === 503 || error?.name === 'ProfileStorageError') {
     return jsonResponse(503, { code: 'PROFILE_STORAGE_UNAVAILABLE', message: 'Profile storage is unavailable. Please retry.' });

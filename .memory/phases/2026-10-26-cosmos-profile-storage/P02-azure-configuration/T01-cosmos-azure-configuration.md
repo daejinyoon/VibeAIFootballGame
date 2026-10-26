@@ -67,6 +67,18 @@ Configure the existing Cosmos DB account and football Static Web App so the depl
 - Keep rejecting tokens issued by a different tenant; this change only makes equivalent GUID casing compare correctly.
 - Re-run the API syntax check, deploy, then repeat the hosted login and profile-sync verification.
 
+### I05. Diagnose the live tenant mismatch
+
+- Related Files:
+  - `game/api/src/auth/entra.js` :: `EntraAuthError`, `requireEntraCaller`
+  - `game/api/src/functions/profile.js` :: `errorResponse`
+
+#### Details
+
+- For a tenant mismatch only, include the token `tid` and configured `ENTRA_TENANT_ID` in the API response so the production configuration can be compared without exposing a bearer token or Cosmos secret.
+- Remove this temporary diagnostic after resolving the mismatch.
+- Re-run the API syntax check and deploy before checking the response body in the browser Network panel.
+
 ## Acceptance Criteria
 
 - [ ] `football/profiles` exists with partition key `/tenantId`, or has been safely created by the user in the portal.
