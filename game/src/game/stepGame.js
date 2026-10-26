@@ -1796,8 +1796,7 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
 
 function maybeUseAiSkill(state, team, events) {
   if (!state.hasMatchClockStarted) return;
-  const candidates = activePlayers(state, team).filter((player) => player.role !== 'goalkeeper'
-    && player.knockdownSeconds <= 0 && player.motionAction !== 'recover'
+  const candidates = activePlayers(state, team).filter((player) => player.knockdownSeconds <= 0 && player.motionAction !== 'recover'
     && (player.airborneSecondsRemaining ?? 0) <= 0);
   const actor = candidates.find((player) => player.id === state.ball.ownerId)
     ?? nearestPlayer(candidates, state.ball);

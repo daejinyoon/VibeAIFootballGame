@@ -131,6 +131,44 @@ test('both teams wait for the opening kickoff to start the clock before using sk
   assert.ok(homeTarget.knockdownSeconds > 0);
 });
 
+test('home and away goalkeepers use team skills after kickoff without bypassing the clock gate', () => {
+  const homeState = createGameState({ teamSkillDeck: [{ skillId: 'eagleShot', level: 1 }] });
+  const homeKeeper = homeState.players.find((player) => player.id === 'home-gk');
+  homeState.controlledPlayerId = homeKeeper.id;
+  assert.ok(!stepGame(homeState, frame({ pressed: ['f'] }), 0.05)
+    .some((event) => event.type === 'skillUsed'));
+  assert.equal(homeState.eagleVolley, null);
+
+  homeState.hasMatchClockStarted = true;
+  homeState.ball.ownerId = homeKeeper.id;
+  homeState.possessionTeam = 'home';
+  const homeEvents = stepGame(homeState, frame({ pressed: ['f'] }), 0.01);
+  assert.ok(homeEvents.some((event) => event.type === 'skillUsed' && event.team === 'home'
+    && event.skillId === 'eagleShot' && event.playerId === homeKeeper.id));
+  assert.equal(homeState.skillCooldownRemaining.home.eagleShot, 10);
+
+  const awayState = createGameState({ opponentSkillDeck: [{ skillId: 'eulryongta', level: 1 }] });
+  awayState.kickoffLocked = false;
+  awayState.kickoffTakerId = null;
+  const awayKeeper = awayState.players.find((player) => player.id === 'away-gk');
+  const homeTarget = awayState.players.find((player) => player.id === 'home-mid-1');
+  Object.assign(awayKeeper, { x: 900, y: 270, facingX: -1, facingY: 0 });
+  Object.assign(homeTarget, { x: 840, y: 270 });
+  awayState.ball.ownerId = awayKeeper.id;
+  awayState.ball.x = awayKeeper.x;
+  awayState.ball.y = awayKeeper.y;
+  awayState.possessionTeam = 'away';
+  assert.ok(!stepGame(awayState, frame(), 0.01).some((event) => event.type === 'skillUsed'));
+  assert.equal(homeTarget.knockdownSeconds, 0);
+
+  awayState.hasMatchClockStarted = true;
+  const awayEvents = stepGame(awayState, frame(), 0.01);
+  assert.ok(awayEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'
+    && event.skillId === 'eulryongta' && event.playerId === awayKeeper.id));
+  assert.equal(awayState.skillCooldownRemaining.away.eulryongta, 10);
+  assert.equal(homeTarget.knockdownSeconds, 5);
+});
+
 test('Tornado path contact lifts both teams and keepers once while skipping the caster and missed players', () => {
   const state = createInitialGameState();
   state.players.forEach((player, index) => Object.assign(player, { x: 400 + index * 45, y: 450 }));

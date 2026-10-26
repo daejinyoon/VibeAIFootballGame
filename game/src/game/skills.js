@@ -386,7 +386,6 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
   }
   if (!SKILL_IDS.includes(skillId)) return result(false, skillId ?? null, player.team, 'invalidSkill');
   if (!Number.isInteger(level) || level < 1 || level > SKILL_MAX_LEVELS[skillId]) return result(false, skillId, player.team, 'invalidLevel');
-  if (player.role === 'goalkeeper') return result(false, skillId, player.team, 'goalkeeperExcluded');
   if (!['playing', 'overtime'].includes(state.phase)) return result(false, skillId, player.team, 'matchNotActive');
 
   let events = [];

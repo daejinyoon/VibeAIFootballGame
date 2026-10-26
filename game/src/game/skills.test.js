@@ -96,6 +96,38 @@ test('unavailable ordered skills are skipped without consuming the queue slot on
   assert.equal(unavailable.skillQueueIndex.home, 0);
 });
 
+test('goalkeepers can use skills while normal possession and target requirements still apply', () => {
+  const state = createInitialGameState({ teamSkillDeck: teamDeck('eulryongta') });
+  const keeper = state.players.find((player) => player.id === 'home-gk');
+  const target = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(keeper, { x: 300, y: 270, facingX: 1, facingY: 0 });
+  Object.assign(target, { x: 360, y: 270 });
+
+  const eulryongta = applySkill(state, { team: 'home', sourcePlayerId: keeper.id, skillId: 'eulryongta' });
+  assert.equal(eulryongta.ok, true);
+  assert.equal(eulryongta.events[0].playerId, keeper.id);
+  assert.equal(target.knockdownSeconds, 5);
+
+  const shotState = createInitialGameState();
+  const shotKeeper = shotState.players.find((player) => player.id === 'home-gk');
+  const shot = applySkill(shotState, { team: 'home', sourcePlayerId: shotKeeper.id, skillId: 'eagleShot' });
+  assert.equal(shot.ok, false);
+  assert.equal(shot.reason, 'needBall');
+
+  const noTargetState = createInitialGameState();
+  const noTargetKeeper = noTargetState.players.find((player) => player.id === 'home-gk');
+  for (const opponent of noTargetState.players.filter((player) => player.team === 'away')) {
+    Object.assign(opponent, { x: 20, y: 20 });
+  }
+  noTargetKeeper.facingX = 1;
+  noTargetKeeper.facingY = 0;
+  const noTarget = applySkill(noTargetState, {
+    team: 'home', sourcePlayerId: noTargetKeeper.id, skillId: 'eulryongta',
+  });
+  assert.equal(noTarget.ok, false);
+  assert.equal(noTarget.reason, 'noTargetInFront');
+});
+
 test('a cooling-down skill is skipped while a later equipped skill remains usable', () => {
   const state = createInitialGameState({ teamSkillDeck: [
     { skillId: 'eagleShot', level: 1 }, { skillId: 'tornadoShot', level: 1 },
