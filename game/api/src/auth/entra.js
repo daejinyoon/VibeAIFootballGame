@@ -14,8 +14,8 @@ export class EntraAuthError extends Error {
   }
 }
 
-function reject(status, code, message) {
-  throw new EntraAuthError(status, code, message);
+function reject(status, code, message, details) {
+  throw new EntraAuthError(status, code, message, details);
 }
 
 function getJwks(tenantId) {
