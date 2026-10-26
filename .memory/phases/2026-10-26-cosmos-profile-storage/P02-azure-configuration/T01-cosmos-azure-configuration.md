@@ -79,6 +79,18 @@ Configure the existing Cosmos DB account and football Static Web App so the depl
 - Remove this temporary diagnostic after resolving the mismatch.
 - Re-run the API syntax check and deploy before checking the response body in the browser Network panel.
 
+### I06. Separate the Entra bearer from SWA auth context
+
+- Related Files:
+  - `game/src/storage/profileRepository.js` :: `requestProfile`
+  - `game/api/src/auth/entra.js` :: `readBearerToken`
+
+#### Details
+
+- Send the SPA's Entra access token in `X-Profile-Access-Token` and validate only that dedicated header in the API. This avoids treating any platform-provided `Authorization` value as the Entra API token.
+- Confirm an unauthenticated direct API request returns `401 AUTH_REQUIRED`; then use the signed-in game to verify profile GET/PUT.
+- After a successful hosted sync, remove the temporary tenant mismatch details from the public error response.
+
 ## Acceptance Criteria
 
 - [ ] `football/profiles` exists with partition key `/tenantId`, or has been safely created by the user in the portal.

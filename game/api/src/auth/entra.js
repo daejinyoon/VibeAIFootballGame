@@ -27,7 +27,10 @@ function getJwks(tenantId) {
 }
 
 function readBearerToken(request) {
-  const authorization = request.headers.get('authorization') ?? '';
+  // Static Web Apps can attach its own auth context to API requests. Keep the
+  // SPA's Entra API token in a dedicated header so it cannot be confused with
+  // platform authentication metadata forwarded through Authorization.
+  const authorization = request.headers.get('x-profile-access-token') ?? '';
   const match = /^Bearer\s+([^\s]+)$/i.exec(authorization);
   if (!match) reject(401, 'AUTH_REQUIRED', 'A valid bearer token is required.');
   return match[1];

@@ -73,7 +73,7 @@ async function requestProfile(method, profile, acquireToken) {
     response = await fetch('/api/profile', {
       method,
       headers: {
-        Authorization: `Bearer ${token}`,
+        'X-Profile-Access-Token': `Bearer ${token}`,
         ...(method === 'PUT' ? { 'Content-Type': 'application/json' } : {}),
       },
       ...(method === 'PUT' ? { body: JSON.stringify({ profile }) } : {}),
