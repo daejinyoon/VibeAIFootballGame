@@ -9,8 +9,8 @@ Require DEX Consulting Entra sign-in before entering the football game, and sync
 | Phase | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
 | P01 | `done` | Create the server-side Entra token validation and account-scoped profile API backed by a dedicated Azure Table Storage table. | [P01](../phases/2026-10-26-entra-login-cloud-save/P01-profile-api/phase.md) |
-| P02 | `in_progress` | Add the same-tab Entra login gate and replace local-only profile persistence with cloud synchronization and first-login migration. | [P02](../phases/2026-10-26-entra-login-cloud-save/P02-frontend-auth-and-sync/phase.md) |
-| P03 | `pending` | Configure Static Web Apps API deployment, Entra registration settings, server app settings, and deployment smoke checks. | [P03](../phases/2026-10-26-entra-login-cloud-save/P03-azure-configuration/phase.md) |
+| P02 | `done` | Add the same-tab Entra login gate and replace local-only profile persistence with cloud synchronization and first-login migration. | [P02](../phases/2026-10-26-entra-login-cloud-save/P02-frontend-auth-and-sync/phase.md) |
+| P03 | `in_progress` | Configure Static Web Apps API deployment, Entra registration settings, server app settings, and deployment smoke checks. | [P03](../phases/2026-10-26-entra-login-cloud-save/P03-azure-configuration/phase.md) |
 
 ## Dependencies and known external inputs
 

@@ -813,7 +813,10 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
 .account-name { overflow: hidden; color: #355b49; font-size: 11px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
 .account-signout { flex: 0 0 auto; padding: 6px 10px; border: 1px solid #9bb9bb; border-radius: 999px; background: #e8f5fb; color: #15334f; cursor: pointer; font-size: 10px; font-weight: 900; }
 .account-signout:hover { background: #d4f0fa; }
+.profile-sync-alert { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; padding: 10px 14px; border: 2px solid #da7564; border-radius: 8px; background: #fff0ec; color: #8c3327; font-size: 12px; font-weight: 800; }
+.profile-sync-alert .secondary-button { flex: 0 0 auto; padding: 7px 10px; }
 @media (max-width: 480px) {
+  .profile-sync-alert { align-items: stretch; flex-direction: column; }
   .auth-shell .topbar { gap: 8px; }
   .auth-shell .brand { font-size: 12px; }
   .auth-shell .local-badge { padding: 6px 8px; font-size: 8px; }

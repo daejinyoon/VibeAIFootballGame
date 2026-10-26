@@ -1,6 +1,6 @@
 # Task: T01 Static Web Apps Deployment Config
 
-## Status: pending
+## Status: in_progress
 
 ## Goal
 

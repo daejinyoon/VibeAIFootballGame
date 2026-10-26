@@ -1,10 +1,11 @@
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createCampaign, finishStage, getUnlockedStage } from './game/campaign.js';
 import { createInitialGameState } from './game/createInitialGameState.js';
 import { SKILL_IDS, SKILLS, applySkill, awardSkillCard, equipTeamSkill, reorderTeamSkill, unequipTeamSkill } from './game/skills.js';
 import { getTeamBranding } from './game/teamBranding.js';
-import { createEmptyProfile, createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
-import { beginEntraLogin, beginEntraLogout } from './auth/entraAuth.js';
+import { createEmptyProfile, createCampaignSave, setNickname, sortLeaderboard, updateBestRecord } from './storage/localProfile.js';
+import { beginEntraLogin, beginEntraLogout, getProfileApiToken } from './auth/entraAuth.js';
+import { loadCloudProfile, saveCloudProfile } from './storage/profileRepository.js';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
 import ResultsScreen from './components/ResultsScreen.jsx';
 import LoadoutScreen from './components/LoadoutScreen.jsx';
@@ -72,24 +73,87 @@ export default function App({ authBootstrap = {} }) {
     && account.idTokenClaims?.tid === tenantId
     && typeof account.idTokenClaims?.oid === 'string'
     && account.idTokenClaims.oid.length > 0);
-  const [profile, setProfile] = useState(() => accountIsAuthenticated ? readProfile() : createEmptyProfile());
+  const [profile, setProfile] = useState(createEmptyProfile);
+  const [profileLoading, setProfileLoading] = useState(accountIsAuthenticated);
+  const [profileLoadError, setProfileLoadError] = useState('');
+  const [profileLoginRequired, setProfileLoginRequired] = useState(false);
+  const [profileRetry, setProfileRetry] = useState(0);
   const [authActionError, setAuthActionError] = useState('');
-  const [initial] = useState(() => {
-    if (!accountIsAuthenticated) return { screen: 'start', campaign: null, matchState: null };
-    const skillId = new URLSearchParams(window.location.search).get('skillPreview');
-    const previewCampaign = createSkillPreviewCampaign(skillId);
-    return previewCampaign
-      ? { screen: 'match', campaign: previewCampaign, matchState: makeMatchState(previewCampaign, profile.teamCustomization) }
-      : { screen: 'start', campaign: null, matchState: null };
-  });
-  const [screen, setScreen] = useState(initial.screen);
-  const [campaign, setCampaign] = useState(initial.campaign);
+  const [screen, setScreen] = useState('start');
+  const [campaign, setCampaign] = useState(null);
   const [selectedStage, setSelectedStage] = useState(1);
-  const [matchState, setMatchState] = useState(initial.matchState);
+  const [matchState, setMatchState] = useState(null);
   const [result, setResult] = useState(null);
   const [profileError, setProfileError] = useState('');
+  const [profileErrorStatus, setProfileErrorStatus] = useState(0);
   const activeMatchInstanceRef = useRef(0);
   const handledTerminalMatchRef = useRef(null);
+  const pendingProfileRef = useRef(null);
+  const saveQueueRef = useRef(Promise.resolve());
+
+  useEffect(() => {
+    if (!accountIsAuthenticated) return undefined;
+    let cancelled = false;
+    setProfileLoading(true);
+    setProfileLoadError('');
+    loadCloudProfile({ account, acquireToken: getProfileApiToken })
+      .then(({ profile: loadedProfile }) => {
+        if (cancelled) return;
+        setProfile(loadedProfile);
+        setProfileLoginRequired(false);
+        const skillId = new URLSearchParams(window.location.search).get('skillPreview');
+        const previewCampaign = createSkillPreviewCampaign(skillId);
+        if (previewCampaign) {
+          setCampaign(previewCampaign);
+          setMatchState(makeMatchState(previewCampaign, loadedProfile.teamCustomization));
+          setScreen('match');
+        }
+        setProfileLoading(false);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setProfileLoadError(error.message || '클라우드 프로필을 불러오지 못했습니다. 다시 시도해 주세요.');
+        setProfileLoginRequired(error.status === 401);
+        setProfileLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [accountIsAuthenticated, account, profileRetry]);
+
+  const saveProfile = (nextProfile) => {
+    setProfile(nextProfile);
+    pendingProfileRef.current = nextProfile;
+    setProfileError('');
+    setProfileErrorStatus(0);
+    const save = saveQueueRef.current.catch(() => undefined).then(() => saveCloudProfile({
+      account,
+      profile: nextProfile,
+      acquireToken: getProfileApiToken,
+    }));
+    saveQueueRef.current = save;
+    return save.then(({ profile: saved }) => {
+      if (pendingProfileRef.current === nextProfile) {
+        pendingProfileRef.current = null;
+        setProfile(saved);
+        setProfileError('');
+        setProfileErrorStatus(0);
+      }
+      return saved;
+    }).catch((error) => {
+      if (pendingProfileRef.current === nextProfile) {
+        setProfileError(error.message || '클라우드 저장에 실패했습니다. 다시 시도해 주세요.');
+        setProfileErrorStatus(error.status || 0);
+      }
+      throw error;
+    });
+  };
+
+  const retryProfileSave = () => {
+    if (profileLoadError) {
+      setProfileRetry((value) => value + 1);
+      return;
+    }
+    if (pendingProfileRef.current) saveProfile(pendingProfileRef.current).catch(() => undefined);
+  };
 
   const signOut = async () => {
     setAuthActionError('');
@@ -109,13 +173,7 @@ export default function App({ authBootstrap = {} }) {
 
   const persistCampaign = (activeCampaign) => {
     const nextProfile = { ...profile, campaignSave: createCampaignSave(activeCampaign) };
-    try {
-      const written = writeProfile(nextProfile);
-      setProfile(written);
-      setProfileError('');
-    } catch (error) {
-      setProfileError(error.message || '캠페인 저장에 실패했습니다.');
-    }
+    return saveProfile(nextProfile).catch(() => undefined);
   };
 
   const startNewCampaign = () => {
@@ -125,23 +183,13 @@ export default function App({ authBootstrap = {} }) {
     setSelectedStage(1);
     setResult(null);
     setScreen('stageSelect');
-    if (profile.campaignSave) {
-      const nextProfile = { ...profile, campaignSave: null };
-      setProfile(nextProfile);
-      try {
-        writeProfile(nextProfile);
-        setProfileError('');
-      } catch (error) {
-        setProfileError(error.message || '저장된 캠페인을 지우지 못했습니다.');
-      }
-    }
+    if (profile.campaignSave) saveProfile({ ...profile, campaignSave: null }).catch(() => undefined);
   };
 
   const handleNicknameSave = (nickname) => {
     try {
       const nextProfile = setNickname(profile, nickname);
-      setProfile(writeProfile(nextProfile));
-      setProfileError('');
+      saveProfile(nextProfile).catch(() => undefined);
     } catch (error) {
       setProfileError(error.message || '별명을 저장하지 못했습니다.');
     }
@@ -153,14 +201,7 @@ export default function App({ authBootstrap = {} }) {
   };
 
   const handleTeamCustomizationSave = (teamCustomization) => {
-    try {
-      const written = writeProfile({ ...profile, teamCustomization });
-      setProfile(written);
-      setProfileError('');
-      setScreen('start');
-    } catch (error) {
-      setProfileError(error.message || '팀 설정 저장에 실패했습니다. 다시 시도해 주세요.');
-    }
+    saveProfile({ ...profile, teamCustomization }).then(() => setScreen('start')).catch(() => undefined);
   };
 
   const selectStage = (stage) => {
@@ -220,13 +261,7 @@ export default function App({ authBootstrap = {} }) {
       ? updateBestRecord(profile, { stageReached: campaign.currentStage, goalDifference })
       : profile;
     const savedProfile = { ...bestProfile, campaignSave: createCampaignSave(nextCampaign) };
-    setProfile(savedProfile);
-    try {
-      writeProfile(savedProfile);
-      setProfileError('');
-    } catch (error) {
-      setProfileError(error.message || '기록을 저장하지 못했습니다.');
-    }
+    saveProfile(savedProfile).catch(() => undefined);
     setScreen('results');
   };
 
@@ -303,30 +338,19 @@ export default function App({ authBootstrap = {} }) {
     setScreen(resumed.pendingSkillOffer ? 'skillReward' : 'stageSelect');
   };
 
-  const saveAndExit = () => {
+  const saveAndExit = async () => {
     if (!campaign) return home();
     if (campaign.isSkillPreview) return home();
     const nextProfile = { ...profile, campaignSave: createCampaignSave(campaign) };
     try {
-      writeProfile(nextProfile);
-      setProfile(nextProfile);
-      setProfileError('');
+      await saveProfile(nextProfile);
       home();
-    } catch (error) {
-      setProfileError(error.message || '저장 공간을 확인하고 다시 시도해 주세요.');
-    }
+    } catch {}
   };
 
   const leaveCompletedCampaign = () => {
     const nextProfile = { ...profile, campaignSave: null };
-    setProfile(nextProfile);
-    try {
-      writeProfile(nextProfile);
-      setProfileError('');
-    } catch (error) {
-      setProfileError(error.message || '캠페인 완료 기록을 정리하지 못했습니다.');
-    }
-    home();
+    saveProfile(nextProfile).then(home).catch(() => undefined);
   };
 
   const records = sortLeaderboard(profile.bestRecord ? [profile.bestRecord] : []);
@@ -342,6 +366,21 @@ export default function App({ authBootstrap = {} }) {
     );
   }
 
+  if (profileLoading || profileLoadError) {
+    return (
+      <SignInScreen
+        configurationError={authBootstrap.configurationError ?? ''}
+        authError={profileLoadError}
+        profileLoading={profileLoading}
+        accountName={account.name || account.username}
+        onSignIn={beginEntraLogin}
+        reauthenticate={profileLoginRequired}
+        onRetry={() => profileLoginRequired ? beginEntraLogin() : retryProfileSave()}
+        onSignOut={signOut}
+      />
+    );
+  }
+
   return (
     <main className="page-shell app-shell">
       <header className="topbar">
@@ -353,6 +392,14 @@ export default function App({ authBootstrap = {} }) {
           <button className="account-signout" type="button" onClick={signOut}>로그아웃</button>
         </div>
       </header>
+
+      {profileError && <div className="profile-sync-alert" role="alert">
+        <span>{profileError}</span>
+        <button type="button" className="secondary-button" onClick={() => {
+          if (profileErrorStatus === 401) beginEntraLogin().catch(() => setProfileError('다시 로그인 창을 열지 못했습니다.'));
+          else retryProfileSave();
+        }}>{profileErrorStatus === 401 ? '다시 로그인' : '저장 다시 시도'}</button>
+      </div>}
 
       {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} onOpenTeamCustomization={openTeamCustomization} />}
       {screen === 'teamCustomization' && <TeamCustomizationScreen
