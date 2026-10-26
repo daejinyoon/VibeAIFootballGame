@@ -370,6 +370,7 @@ export function SkillEffects3D({ gameStateRef }) {
       const accent = barrier.team === 'away' ? '#ffb54f' : '#6ef3ff';
       const pulse = 0.76 + Math.sin(age * 13) * 0.16;
       const teamGlow = barrier.team === 'away' ? '#ff653c' : '#ff8d38';
+      const wallLeanAngle = 35 * Math.PI / 180;
       slot.glow.material.color.set(teamGlow);
       slot.glow.material.opacity = pulse * fade;
       slot.groundCrack.material.emissive.set(accent);
@@ -389,9 +390,13 @@ export function SkillEffects3D({ gameStateRef }) {
         const lane = blockIndex / 13;
         const variation = Math.sin(blockIndex * 4.61 + side * 2.7);
         const shapeHeight = 0.72 + (blockIndex % 4) * 0.055 + Math.abs(variation) * 0.08;
-        const height = maximumWallHeight / 1.88 * shapeHeight * rise;
-        block.position.set(-0.48 + lane * 0.96, height * 0.88, side * wallOffset);
-        block.rotation.set(variation * 0.12, blockIndex * 0.63, variation * 0.16);
+        const height = maximumWallHeight / 1.25 * shapeHeight * rise;
+        block.position.set(
+          -0.48 + lane * 0.96 + Math.sin(wallLeanAngle) * height,
+          Math.cos(wallLeanAngle) * height,
+          side * wallOffset,
+        );
+        block.rotation.set(variation * 0.12, blockIndex * 0.63, -wallLeanAngle + variation * 0.07);
         block.scale.set(0.115 + (blockIndex % 3) * 0.017, height, 0.22 + (blockIndex % 4) * 0.025);
         block.material.color.set(blockIndex % 3 ? '#655747' : '#83715b');
         block.material.emissive.set(accent === '#ffb54f' ? '#2b1710' : '#17262a');

@@ -1,19 +1,19 @@
-# Current Context
+﻿# Current Context
 
 ## Active Plan
-[Football Tactics and Skill Flow](./plans/2026-10-26-football-tactics-and-skill-flow.md)
+[World Split Visibility, Player Facing, and Azure Hosting](./plans/2026-10-26-world-split-player-facing-azure-hosting.md)
 
 ## Active Phase
-[P01 Matchplay and Tactics](./phases/2026-10-26-football-tactics-and-skill-flow/P01-matchplay-and-tactics/phase.md)
+[P01 Game Presentation](./phases/2026-10-26-world-split-player-facing-azure-hosting/P01-game-presentation/phase.md)
 
 ## Active Task
-[T03 Triangular Positioning](./phases/2026-10-26-football-tactics-and-skill-flow/P01-matchplay-and-tactics/T03-triangular-positioning.md)
+[T02 Player Facing](./phases/2026-10-26-world-split-player-facing-azure-hosting/P01-game-presentation/T02-player-facing.md)
 
 ## Status
-- T01 complete: World Split height is 90, slide travel is about 90 units, and barrier length scales from 90 to 130 by campaign stage. Focused and full tests plus production build pass.
-- T02 complete: Eulryongta releases a knocked-down carrier's ball and switches home control to the nearest eligible field player; full tests and build pass.
-- T03 is active: separate attacking pass lanes and create dynamic triangular defensive and opponent goal-kick positioning.
-- The prior Football Skill Fixes plan is complete and remains unchanged.
+- T01 is done: World Split's opaque rock blocks are 1.5x larger and lean 35 degrees toward tackle travel. Barrier simulation and collision values are unchanged.
+- `npm test` passed (163 tests); `npm run build` passed.
+- Automated validation is complete. A graphical browser preview was not available in this environment, so the requested home/away visual check still needs an in-game look.
+- P02 Azure deployment depends on the user's GitHub account/private repository and permission to create/manage an Azure Static Web App in the designated resource group.
 
 ## Next Step (IMPORTANT)
-Read the T03 blueprint and implement distinct diagonal support lanes and triangular defensive/opponent goal-kick positioning in `game/src/game/stepGame.js` and related positioning files.
+Read the active T02 blueprint and add/test the pure field-vector-to-Three.js yaw helper, then apply it in `game/src/components/GameLoop3D.jsx`.
