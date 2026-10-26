@@ -1,6 +1,6 @@
 # Task: T01 Entra Login Gate
 
-## Status: in_progress
+## Status: done
 
 ## Goal
 
@@ -53,9 +53,9 @@ Add single-tenant Entra sign-in using the public Vite tenant/client settings and
 
 ## Validation
 
-- `npm --prefix game run build`
-- `npm --prefix game test`
-- Manual browser flow: unauthenticated visit, redirect round-trip, wrong-tenant rejection, refresh after login, direct `?skillPreview=eulryongta`, and sign-out.
+- `npm run build` (working directory: `game`)
+- `npm test` (working directory: `game`)
+- The browser redirect round-trip, wrong-tenant account, and API-scope consent flows require the user's Entra app registration and `VITE_ENTRA_*` values, which are not configured yet. Verify those hosted flows in P03-T02.
 
 ## Commit Message
 
@@ -72,6 +72,6 @@ Task: T01-entra-login-gate
 
 ## Progress
 
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed
+- commit: recorded in Git history

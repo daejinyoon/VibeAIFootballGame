@@ -801,6 +801,26 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
   .team-customization-actions > div { gap: 8px; }
 }
 
+.auth-bootstrap { display: grid; min-height: 100vh; place-items: center; background: #f5f9ed; color: #15334f; font-weight: 900; }
+.auth-shell { display: flex; min-height: 100vh; flex-direction: column; }
+.auth-card { width: min(460px, 100%); margin: auto; padding: clamp(26px, 5vw, 46px); border: 3px solid #15334f; border-radius: 16px 6px 16px 6px; background: #fffef7; box-shadow: 7px 8px 0 #15334f; }
+.auth-card h1 { margin: 0; color: #15334f; font-size: clamp(27px, 5vw, 38px); }
+.auth-description { margin: 14px 0 24px; color: #526c7c; line-height: 1.7; }
+.auth-error { margin: 0 0 18px; padding: 12px; border: 2px solid #da7564; border-radius: 8px; background: #fff0ec; color: #8c3327; font-size: 12px; line-height: 1.6; }
+.auth-submit { width: 100%; justify-content: center; }
+.auth-retry { display: block; margin: 10px auto 0; }
+.account-control { display: inline-flex; max-width: min(48vw, 390px); align-items: center; gap: 10px; padding: 6px 8px 6px 12px; border: 2px solid #15334f; border-radius: 999px; background: #fffef7; box-shadow: 3px 3px 0 #15334f; }
+.account-name { overflow: hidden; color: #355b49; font-size: 11px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+.account-signout { flex: 0 0 auto; padding: 6px 10px; border: 1px solid #9bb9bb; border-radius: 999px; background: #e8f5fb; color: #15334f; cursor: pointer; font-size: 10px; font-weight: 900; }
+.account-signout:hover { background: #d4f0fa; }
+@media (max-width: 480px) {
+  .auth-shell .topbar { gap: 8px; }
+  .auth-shell .brand { font-size: 12px; }
+  .auth-shell .local-badge { padding: 6px 8px; font-size: 8px; }
+  .account-control { max-width: 58vw; gap: 6px; padding: 4px 5px 4px 8px; }
+  .account-signout { padding: 5px 7px; }
+}
+
 /* Skill deck and cooldown feedback in the desktop match HUD */
 .game-bottomline { grid-template-columns: minmax(170px, .85fr) minmax(280px, 1.55fr) minmax(170px, .85fr); }
 .team-skill-deck { align-items: stretch; gap: 6px; }

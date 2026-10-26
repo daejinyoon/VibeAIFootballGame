@@ -3,10 +3,12 @@ import { createCampaign, finishStage, getUnlockedStage } from './game/campaign.j
 import { createInitialGameState } from './game/createInitialGameState.js';
 import { SKILL_IDS, SKILLS, applySkill, awardSkillCard, equipTeamSkill, reorderTeamSkill, unequipTeamSkill } from './game/skills.js';
 import { getTeamBranding } from './game/teamBranding.js';
-import { createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
+import { createEmptyProfile, createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
+import { beginEntraLogin, beginEntraLogout } from './auth/entraAuth.js';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
 import ResultsScreen from './components/ResultsScreen.jsx';
 import LoadoutScreen from './components/LoadoutScreen.jsx';
+import SignInScreen from './components/SignInScreen.jsx';
 import SkillRewardScreen from './components/SkillRewardScreen.jsx';
 import StartScreen from './components/StartScreen.jsx';
 import StageSelectScreen from './components/StageSelectScreen.jsx';
@@ -62,9 +64,18 @@ function createSkillPreviewCampaign(skillId) {
   };
 }
 
-export default function App() {
-  const [profile, setProfile] = useState(() => readProfile());
+export default function App({ authBootstrap = {} }) {
+  const account = authBootstrap.account ?? null;
+  const tenantId = import.meta.env.VITE_ENTRA_TENANT_ID?.trim();
+  const accountIsAuthenticated = Boolean(account
+    && tenantId
+    && account.idTokenClaims?.tid === tenantId
+    && typeof account.idTokenClaims?.oid === 'string'
+    && account.idTokenClaims.oid.length > 0);
+  const [profile, setProfile] = useState(() => accountIsAuthenticated ? readProfile() : createEmptyProfile());
+  const [authActionError, setAuthActionError] = useState('');
   const [initial] = useState(() => {
+    if (!accountIsAuthenticated) return { screen: 'start', campaign: null, matchState: null };
     const skillId = new URLSearchParams(window.location.search).get('skillPreview');
     const previewCampaign = createSkillPreviewCampaign(skillId);
     return previewCampaign
@@ -79,6 +90,15 @@ export default function App() {
   const [profileError, setProfileError] = useState('');
   const activeMatchInstanceRef = useRef(0);
   const handledTerminalMatchRef = useRef(null);
+
+  const signOut = async () => {
+    setAuthActionError('');
+    try {
+      await beginEntraLogout(account);
+    } catch {
+      setAuthActionError('로그아웃을 완료하지 못했습니다. 다시 시도하세요.');
+    }
+  };
 
   const startStage = (activeCampaign = campaign) => {
     if (!activeCampaign) return;
@@ -311,13 +331,27 @@ export default function App() {
 
   const records = sortLeaderboard(profile.bestRecord ? [profile.bestRecord] : []);
 
+  if (!accountIsAuthenticated) {
+    return (
+      <SignInScreen
+        configurationError={authBootstrap.configurationError ?? ''}
+        authError={authActionError || authBootstrap.authError || (account ? 'DEX Consulting 조직 계정으로 로그인해야 게임을 이용할 수 있습니다.' : '')}
+        onSignIn={beginEntraLogin}
+        onRetry={() => window.location.reload()}
+      />
+    );
+  }
+
   return (
     <main className="page-shell app-shell">
       <header className="topbar">
         <a className="brand" href="#home" onClick={(event) => { event.preventDefault(); home(); }}>
           <span className="brand-mark" aria-hidden="true">D</span><span>DEX ARCADE</span>
         </a>
-        <span className="local-badge"><span /> 로컬 캠페인</span>
+        <div className="account-control">
+          <span className="account-name" title={account.username}>{account.name || account.username}</span>
+          <button className="account-signout" type="button" onClick={signOut}>로그아웃</button>
+        </div>
       </header>
 
       {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} onOpenTeamCustomization={openTeamCustomization} />}

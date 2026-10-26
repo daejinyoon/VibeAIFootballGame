@@ -1,6 +1,6 @@
 # Task: T02 Cloud Profile Sync
 
-## Status: pending
+## Status: in_progress
 
 ## Goal
 

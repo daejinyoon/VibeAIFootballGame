@@ -10,6 +10,7 @@
     "test": "node --test"
   },
   "dependencies": {
+    "@azure/msal-browser": "^5.26.0",
     "@react-three/fiber": "^9.8.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
