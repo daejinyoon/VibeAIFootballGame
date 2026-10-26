@@ -27,3 +27,7 @@
 ## D06. Existing cloud saves
 - **Chosen**: Do not import or alter data from maze-rescue, fac-man, or any other existing database. The existing first-login browser-to-cloud migration remains the only profile bootstrap path for this football app.
 - **Rationale**: Existing game data has a different owner and schema; account profile migration is already implemented in the football client.
+
+## D07. Entra access-token versions
+- **Chosen**: Validate Entra v1.0 and v2.0 access tokens using the matching tenant issuer and signing-key discovery endpoint. Keep strict tenant, API audience, object ID, and delegated `access_as_user` scope checks.
+- **Rationale**: The hosted browser sends a bearer JWT, but the API rejects it during issuer/signature validation. Supporting both documented token versions avoids requiring a portal-only manifest change while preserving API token validation.

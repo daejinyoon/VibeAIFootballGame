@@ -18,12 +18,14 @@ function reject(status, code, message, details) {
   throw new EntraAuthError(status, code, message, details);
 }
 
-function getJwks(tenantId) {
-  if (!jwksByTenant.has(tenantId)) {
-    const uri = new URL(`${AUTHORITY_HOST}/${encodeURIComponent(tenantId)}/discovery/v2.0/keys`);
-    jwksByTenant.set(tenantId, createRemoteJWKSet(uri));
+function getJwks(tenantId, tokenVersion) {
+  const cacheKey = `${tenantId}:${tokenVersion}`;
+  if (!jwksByTenant.has(cacheKey)) {
+    const discoveryPath = tokenVersion === '1.0' ? 'discovery/keys' : 'discovery/v2.0/keys';
+    const uri = new URL(`${AUTHORITY_HOST}/${encodeURIComponent(tenantId)}/${discoveryPath}`);
+    jwksByTenant.set(cacheKey, createRemoteJWKSet(uri));
   }
-  return jwksByTenant.get(tenantId);
+  return jwksByTenant.get(cacheKey);
 }
 
 function readBearerToken(request) {
@@ -66,19 +68,33 @@ export async function requireEntraCaller(request, env = process.env) {
     });
   }
 
-  const issuer = `${AUTHORITY_HOST}/${tenantId}/v2.0`;
+  const tokenVersion = untrustedClaims.ver;
+  if (tokenVersion !== '1.0' && tokenVersion !== '2.0') {
+    reject(401, 'INVALID_TOKEN', 'The bearer token version is not supported.');
+  }
+
+  const tokenTenantId = untrustedClaims.tid;
+  const issuer = tokenVersion === '1.0'
+    ? `https://sts.windows.net/${tokenTenantId}/`
+    : `${AUTHORITY_HOST}/${tokenTenantId}/v2.0`;
   let claims;
   try {
-    ({ payload: claims } = await jwtVerify(token, getJwks(tenantId), {
+    ({ payload: claims } = await jwtVerify(token, getJwks(tenantId, tokenVersion), {
       issuer,
       algorithms: ['RS256'],
     }));
-  } catch {
-    reject(401, 'INVALID_TOKEN', 'The bearer token could not be validated.');
+  } catch (error) {
+    reject(401, 'INVALID_TOKEN', 'The bearer token could not be validated.', {
+      reason: typeof error?.code === 'string' ? error.code : error?.name ?? 'unknown',
+    });
   }
 
-  const audienceMatches = claims.aud === clientId
-    || (Array.isArray(claims.aud) && claims.aud.includes(clientId));
+  const configuredApiAudience = env.ENTRA_API_AUDIENCE?.trim();
+  const acceptedAudiences = tokenVersion === '1.0'
+    ? [clientId, `api://${clientId}`, ...(configuredApiAudience ? [configuredApiAudience] : [])]
+    : [clientId];
+  const audienceMatches = acceptedAudiences.includes(claims.aud)
+    || (Array.isArray(claims.aud) && claims.aud.some((audience) => acceptedAudiences.includes(audience)));
   if (!audienceMatches) {
     reject(403, 'AUDIENCE_NOT_ALLOWED', 'The token was not issued for this application.');
   }

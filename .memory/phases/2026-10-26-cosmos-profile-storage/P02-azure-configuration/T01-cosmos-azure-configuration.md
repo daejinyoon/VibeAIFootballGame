@@ -91,6 +91,19 @@ Configure the existing Cosmos DB account and football Static Web App so the depl
 - Confirm an unauthenticated direct API request returns `401 AUTH_REQUIRED`; then use the signed-in game to verify profile GET/PUT.
 - After a successful hosted sync, remove the temporary tenant mismatch details from the public error response.
 
+### I07. Accept supported Entra access-token versions
+
+- Related Files:
+  - `game/api/src/auth/entra.js` :: `getJwks`, `requireEntraCaller`
+
+#### Details
+
+- Select the v1.0 or v2.0 issuer and signing-key discovery endpoint using the token's `ver` claim, then verify the signature against that version's tenant-specific keys.
+- Keep the configured tenant check before verification and continue validating the API audience, object ID, and delegated `access_as_user` scope.
+- For v1.0 tokens, accept only the API client ID, its default `api://{clientId}` URI, or an explicitly configured `ENTRA_API_AUDIENCE`; v2.0 tokens must target the API client ID.
+- Include only a non-secret JOSE error code/name in temporary `INVALID_TOKEN` diagnostics to distinguish issuer, expiration, and signing-key failures. Remove this diagnostic after hosted sync succeeds.
+- Deploy the API update and repeat the hosted profile GET/PUT smoke check.
+
 ## Acceptance Criteria
 
 - [ ] `football/profiles` exists with partition key `/tenantId`, or has been safely created by the user in the portal.
@@ -109,14 +122,14 @@ Configure the existing Cosmos DB account and football Static Web App so the depl
 ## Commit Message
 
 ```text
-ops(azure): configure isolated Cosmos football saves
+fix(auth): accept Entra v1 and v2 access tokens
 
 Plan: 2026-10-26-cosmos-profile-storage
 Phase: P02-azure-configuration
 Task: T01-cosmos-azure-configuration
 
-- Configure football Cosmos database and profile container
-- Verify production API cloud-save synchronization
+- Validate both supported Entra access-token versions securely
+- Continue hosted profile-sync verification
 ```
 
 ## Progress
