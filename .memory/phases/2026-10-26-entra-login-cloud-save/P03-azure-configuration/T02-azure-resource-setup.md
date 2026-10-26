@@ -8,7 +8,7 @@ Configure the DEX single-tenant Entra app registration, a football-game-only Azu
 
 ## Decision Summary
 
-- Use the existing target football Static Web App only after its resource name/domain are confirmed; do not assume the similarly named maze-rescue app is the target.
+- Use the existing football Static Web App `swa-grill-us-prod-d0d6`, confirmed by the user from the Azure resource list; do not use the similarly named maze-rescue app.
 - Azure storage connection strings and deployment tokens are secrets and must be entered directly in Azure/GitHub settings, never pasted into chat or source.
 
 ## Implementation
