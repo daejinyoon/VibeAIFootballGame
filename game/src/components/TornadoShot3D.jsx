@@ -54,6 +54,7 @@ function createStorm() {
   });
   const funnel = new THREE.Mesh(FUNNEL_GEOMETRY, funnelMaterial);
   funnel.position.y = 1.24;
+  funnel.rotation.x = Math.PI;
   root.add(funnel);
 
   const bands = [createWindBand(), createWindBand()];
@@ -181,7 +182,7 @@ export function TornadoShot3D({ gameStateRef }) {
       for (let segment = 0; segment <= BAND_SEGMENTS; segment += 1) {
         const progress = segment / BAND_SEGMENTS;
         const angle = progress * Math.PI * 7 + time;
-        const radius = (0.42 + Math.sin(progress * Math.PI) * 0.67) * (0.85 + Math.sin(elapsed * 9 + progress * 12 + bandIndex) * 0.08);
+        const radius = 0.08 + progress * 0.8 + Math.sin(elapsed * 9 + progress * 12 + bandIndex) * 0.025;
         const halfAngle = 0.23 + Math.sin(elapsed * 13 + progress * 18 + bandIndex) * 0.035;
         const localHeight = 0.12 + progress * 2.3;
         const left = segment * 6;
