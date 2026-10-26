@@ -1,6 +1,6 @@
 # Task: T01 Entra Login Gate
 
-## Status: pending
+## Status: in_progress
 
 ## Goal
 

@@ -1,2 +1,5 @@
 // Functions v4 entry point. HTTP functions are registered here as the API is added.
-export { app } from '@azure/functions';
+import { app } from '@azure/functions';
+import './functions/profile.js';
+
+export { app };

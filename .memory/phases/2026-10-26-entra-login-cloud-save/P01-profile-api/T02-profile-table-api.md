@@ -25,7 +25,7 @@ Expose authenticated `GET /api/profile` and `PUT /api/profile` endpoints that re
 
 - **Storage client:** use `TableClient.fromConnectionString(process.env.TABLE_STORAGE_CONNECTION_STRING, 'footballprofiles')`; fail with a server error if the setting is absent. Create the table if it does not exist.
 - **Stored entity:** `{ partitionKey: tenantId, rowKey: objectId, profileJson: JSON.stringify(profile), updatedAt: new Date().toISOString() }`.
-- **Repository signatures:** `getProfile({ tenantId, objectId })` returns the parsed profile or `null`; `putProfile({ tenantId, objectId, profile })` upserts the entity and returns `{ savedAt }`.
+- **Repository signatures:** `getProfile({ tenantId, objectId })` returns `{ profile, updatedAt }` or `null`; `putProfile({ tenantId, objectId, profile })` upserts the entity and returns `{ savedAt }`.
 - **Payload size:** reject serialized profile bodies larger than 48 KiB with 413 before calling Table Storage. Reject malformed JSON or invalid envelope with 400.
 - **Envelope checks:** require a plain object, `schemaVersion === 7`, string `nickname` of at most 16 characters, `campaignSave` either null or plain object, `bestRecord` either null or plain object, and plain-object `teamCustomization`. Store only those five allowlisted fields. Existing client-side schema validation remains the canonical detailed campaign validation.
 - **Data isolation:** keys are always passed from `requireEntraCaller()`; never take `tenantId`, `objectId`, email, or nickname as a storage key. Use the same key for GET and PUT.
@@ -52,8 +52,9 @@ Expose authenticated `GET /api/profile` and `PUT /api/profile` endpoints that re
 
 ## Validation
 
-- `npm --prefix game/api run check`
-- Manual local API smoke check with Azure Functions Core Tools and Azurite: GET empty profile gives 404, PUT a v7 profile then GET returns it, invalid bearer gives 401, oversized body gives 413.
+- `npm run check` (working directory: `game/api`)
+- In-memory HTTP-handler smoke check: GET empty profile gives 404, PUT a v7 profile then GET returns it, another verified object ID cannot read the row, invalid bearer gives 401, invalid envelope gives 400, and oversized body gives 413.
+- Azure Functions Core Tools and Azurite are not installed in the current environment. Live Azure Table/API integration is therefore deferred to P03-T02 hosted smoke verification.
 
 ## Commit Message
 
@@ -70,6 +71,6 @@ Task: T02-profile-table-api
 
 ## Progress
 
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed
+- commit: recorded in Git history
