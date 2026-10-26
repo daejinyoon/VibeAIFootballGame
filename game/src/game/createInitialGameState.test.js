@@ -58,11 +58,11 @@ test('clamps stage and sanitizes both shared skill decks', () => {
   assert.equal(state.teamBranding.away.kit.id, 'boss-black');
   assert.equal(invalidStage.stage, 1);
   assert.deepEqual(state.teamSkillDecks, {
-    home: [{ skillId: 'eagleShot', level: 2 }, { skillId: 'powerTackle', level: 3 }],
+    home: [{ skillId: 'eagleShot', level: 2 }],
     away: [],
   });
   assert.deepEqual(state.skillCooldownRemaining, {
-    home: { eagleShot: 0, powerTackle: 0 },
+    home: { eagleShot: 0 },
     away: {},
   });
   assert.deepEqual(state.teamSkillGlobalCooldownRemaining, { home: 0, away: 0 });

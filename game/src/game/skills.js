@@ -1,9 +1,8 @@
-import { BALL_RADIUS, EAGLE_SHOT_INTERVAL_SECONDS, FIELD, PLAYER_BODY_WIDTH, TEAM_SKILL_COOLDOWN_SECONDS, TEAM_SKILL_GLOBAL_COOLDOWN_SECONDS, WORLD_SPLIT_DURATION_SECONDS, WORLD_SPLIT_HEIGHT, WORLD_SPLIT_LENGTHS, WORLD_SPLIT_SLIDE_SECONDS, WORLD_SPLIT_SLIDE_SPEED, WORLD_SPLIT_THICKNESS, WORLD_SPLIT_WALL_OFFSET } from './constants.js';
+import { BALL_RADIUS, EAGLE_SHOT_INTERVAL_SECONDS, FIELD, PLAYER_BODY_WIDTH, TEAM_SKILL_COOLDOWN_SECONDS, TEAM_SKILL_GLOBAL_COOLDOWN_SECONDS } from './constants.js';
 
 export const SKILL_IDS = Object.freeze([
   'eagleShot',
   'tornadoShot',
-  'powerTackle',
   'eulryongta',
   'vacuumCleaner',
 ]);
@@ -11,7 +10,6 @@ export const SKILL_IDS = Object.freeze([
 export const SKILLS = Object.freeze({
   eagleShot: Object.freeze({ name: '독수리슛', type: 'attack', description: '일반 골키퍼가 막을 수 없는 필살 슛', artwork: '/images/skills/eagle-shot.png' }),
   tornadoShot: Object.freeze({ name: '회오리슛', type: 'attack', description: '수비수를 휘어 지나가는 슛', artwork: '/images/skills/tornado-shot.png' }),
-  powerTackle: Object.freeze({ name: '세계의 분리', type: 'defense', description: '슬라이딩 태클로 3초간 지형 장벽을 세운다', artwork: '/images/skills/world-split.svg' }),
   eulryongta: Object.freeze({ name: '을룡타', type: 'defense', description: '앞에 있는 상대를 최대 3명까지 5초간 기절시킴', artwork: '/images/skills/eulryongta.png' }),
   vacuumCleaner: Object.freeze({ name: '진공청소기', type: 'utility', description: '주변 공을 사용자에게 끌어옴', artwork: '/images/skills/vacuum-cleaner.png' }),
 });
@@ -20,7 +18,6 @@ export const MAX_SKILL_COPIES = 3;
 export const SKILL_MAX_LEVELS = Object.freeze({
   eagleShot: 3,
   tornadoShot: 3,
-  powerTackle: 3,
   eulryongta: 3,
   vacuumCleaner: 1,
 });
@@ -376,43 +373,6 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
       };
       addSkillEffect(state, { skillId, team: player.team, sourcePlayerId: player.id, durationSeconds, level });
     }
-  } else if (skillId === 'powerTackle') {
-    const forward = player.facingX !== 0 || player.facingY !== 0
-      ? unitVector(player.facingX, player.facingY)
-      : { x: player.team === 'home' ? 1 : -1, y: 0 };
-    player.motionAction = 'tackle';
-    player.motionTimerSeconds = Math.max(player.motionTimerSeconds ?? 0, WORLD_SPLIT_SLIDE_SECONDS);
-    player.worldSplitSlideSecondsRemaining = WORLD_SPLIT_SLIDE_SECONDS;
-    player.worldSplitSlideDirectionX = forward.x;
-    player.worldSplitSlideDirectionY = forward.y;
-    player.vx = forward.x * WORLD_SPLIT_SLIDE_SPEED;
-    player.vy = forward.y * WORLD_SPLIT_SLIDE_SPEED;
-    const campaignStage = clamp(Math.floor(Number(state.stage) || 1), 1, WORLD_SPLIT_LENGTHS.length);
-    const barrier = { skillId, team: player.team, sourcePlayerId: player.id, x: player.x, y: player.y,
-      facingX: forward.x, facingY: forward.y, length: WORLD_SPLIT_LENGTHS[campaignStage - 1],
-      thickness: WORLD_SPLIT_THICKNESS, wallOffset: WORLD_SPLIT_WALL_OFFSET,
-      height: WORLD_SPLIT_HEIGHT, elapsedSeconds: 0,
-      remainingSeconds: WORLD_SPLIT_DURATION_SECONDS };
-    state.powerBarriers = (state.powerBarriers ?? []).filter((entry) => entry.team !== player.team);
-    state.powerBarriers.push(barrier);
-    for (const target of state.players) {
-      if (target.id === player.id || target.dismissed) continue;
-      const along = (target.x - player.x) * forward.x + (target.y - player.y) * forward.y;
-      const across = Math.abs((target.x - player.x) * -forward.y + (target.y - player.y) * forward.x);
-      if (along >= 0 && along <= barrier.length && across <= barrier.thickness / 2 + 12) {
-        target.vx = forward.x * 350;
-        target.vy = forward.y * 350;
-        target.launchSecondsRemaining = 0.35;
-        target.knockdownSeconds = Math.max(target.knockdownSeconds ?? 0, 0.8);
-        setStatusDuration(target, 'knockdown', 0.8);
-        target.knockdownFromTeam = player.team;
-        target.knockdownDirectionX = forward.x;
-        target.knockdownDirectionY = forward.y;
-        target.motionAction = 'knockdown';
-      }
-    }
-    addSkillEffect(state, { skillId, team: player.team, sourcePlayerId: player.id, durationSeconds: barrier.remainingSeconds });
-    events = [{ type: 'skillUsed', skillId, team: player.team, playerId: player.id }, { type: 'powerBarrierCreated', team: player.team, playerId: player.id }];
   } else if (skillId === 'eulryongta') {
     const targets = findEulryongtaTargets(state, player, level);
     if (!targets.length) return result(false, skillId, player.team, 'noTargetInFront');
@@ -475,8 +435,8 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
     events = [{ type: 'skillUsed', skillId, team: player.team, playerId: player.id }];
   }
 
-  player.motionAction = skillId === 'powerTackle' ? 'tackle' : 'skill';
-  player.motionTimerSeconds = skillId === 'powerTackle' ? 0.4 : 0.42;
+  player.motionAction = 'skill';
+  player.motionTimerSeconds = 0.42;
   if (skillId === 'eagleShot') addSkillEffect(state, { skillId, team: player.team, sourcePlayerId: player.id, durationSeconds: 8, level });
   if (skillId === 'eulryongta') {
     for (const event of events.filter((entry) => entry.type === 'playerKnockedDown')) {
@@ -484,7 +444,7 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
         targetPlayerId: event.playerId, durationSeconds: 0.9 });
     }
   } else if (!state.skillEffects?.some((effect) => effect.sourcePlayerId === player.id && effect.skillId === skillId)) {
-    if (!['tornadoShot', 'powerTackle'].includes(skillId)) addSkillEffect(state, {
+    if (!['tornadoShot'].includes(skillId)) addSkillEffect(state, {
       skillId, team: player.team, sourcePlayerId: player.id,
       durationSeconds: skillId === 'vacuumCleaner' ? 0.7 : 1,
     });

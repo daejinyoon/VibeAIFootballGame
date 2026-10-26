@@ -128,7 +128,7 @@ function scheduleNoise(context, { startAt, duration, fromHz, toHz, type = 'bandp
 /** Play one bounded, locally synthesized sound for an accepted skill event. */
 export function playSkillAudio(skillId) {
   if (skillId === 'eulryongta') return playEulryongtaImpact();
-  if (!['eagleShot', 'tornadoShot', 'powerTackle', 'vacuumCleaner'].includes(skillId)) return false;
+  if (!['eagleShot', 'tornadoShot', 'vacuumCleaner'].includes(skillId)) return false;
   const context = getAudioContext();
   if (!context) return false;
   try {
@@ -143,9 +143,6 @@ export function playSkillAudio(skillId) {
     } else if (skillId === 'tornadoShot') {
       scheduleNoise(context, { startAt, duration: 0.82, fromHz: 850, toHz: 120, type: 'bandpass', volume: 0.13 });
       scheduleTone(context, { startAt, duration: 0.78, fromHz: 145, toHz: 62, type: 'sawtooth', volume: 0.09 });
-    } else if (skillId === 'powerTackle') {
-      scheduleNoise(context, { startAt, duration: 0.24, fromHz: 1250, toHz: 150, type: 'lowpass', volume: 0.2 });
-      scheduleTone(context, { startAt, duration: 0.34, fromHz: 112, toHz: 42, type: 'sawtooth', volume: 0.16 });
     } else if (skillId === 'vacuumCleaner') {
       scheduleNoise(context, { startAt, duration: 0.72, fromHz: 760, toHz: 95, type: 'lowpass', volume: 0.12 });
       scheduleTone(context, { startAt, duration: 0.68, fromHz: 620, toHz: 105, type: 'sine', volume: 0.085 });

@@ -107,7 +107,7 @@ test('winning a replay replaces its stage record and offers eligible team skills
     currentStage: 2,
     ownedTeamSkills: [{ skillId: 'eagleShot', level: 2 }],
     equippedTeamSkillIds: ['eagleShot'],
-    pendingSkillOffer: ['eagleShot', 'tornadoShot', 'powerTackle'],
+    pendingSkillOffer: ['eagleShot', 'tornadoShot', 'eulryongta'],
   };
 
   const replayed = finishStage(campaign, { homeGoals: 4, awayGoals: 1 }, () => 0.45);
@@ -230,11 +230,11 @@ test('reorders team skills without changing levels and rejects invalid positions
   const campaign = createCampaign();
   campaign.ownedTeamSkills = [
     { skillId: 'eagleShot', level: 2 },
-    { skillId: 'powerTackle', level: 1 },
+    { skillId: 'tornadoShot', level: 1 },
   ];
-  campaign.equippedTeamSkillIds = ['eagleShot', 'powerTackle'];
+  campaign.equippedTeamSkillIds = ['eagleShot', 'tornadoShot'];
   const moved = reorderTeamSkill(campaign, 0, 1);
-  assert.deepEqual(moved.campaign.equippedTeamSkillIds, ['powerTackle', 'eagleShot']);
+  assert.deepEqual(moved.campaign.equippedTeamSkillIds, ['tornadoShot', 'eagleShot']);
   assert.deepEqual(reorderTeamSkill(campaign, -1, 0), { ok: false, reason: 'invalidPosition' });
   assert.equal(equipTeamSkill(campaign, 'invalidSkill').ok, false);
 });

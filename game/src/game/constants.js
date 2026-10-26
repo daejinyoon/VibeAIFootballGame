@@ -32,13 +32,6 @@ export const BALL_GRAVITY = 900;
 export const LOB_VERTICAL_VELOCITY = 360;
 export const PLAYER_BODY_WIDTH = 24;
 // Barrier reach grows modestly with campaign stage while remaining near player scale.
-export const WORLD_SPLIT_LENGTHS = Object.freeze([90, 100, 110, 120, 130]);
-export const WORLD_SPLIT_DURATION_SECONDS = 3;
-export const WORLD_SPLIT_THICKNESS = 20;
-export const WORLD_SPLIT_WALL_OFFSET = 40;
-export const WORLD_SPLIT_HEIGHT = 90;
-export const WORLD_SPLIT_SLIDE_SECONDS = 0.95;
-export const WORLD_SPLIT_SLIDE_SPEED = 95;
 export const EAGLE_ASCENT_SECONDS = 0.45;
 export const EAGLE_SHOT_INTERVAL_SECONDS = 0.18;
 export const EAGLE_FLIGHT_HEIGHT = 180;

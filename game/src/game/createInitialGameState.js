@@ -151,7 +151,6 @@ export function createInitialGameState({
     eagleVolley: null,
     tornadoShotEffect: null,
     vacuumEffect: null,
-    powerBarriers: [],
     teamSkillDecks: { home: homeDeck, away: awayDeck },
     skillCooldownRemaining: {
       home: Object.fromEntries(homeDeck.map(({ skillId }) => [skillId, 0])),

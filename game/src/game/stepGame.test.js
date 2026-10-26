@@ -171,7 +171,7 @@ test('home and away goalkeepers use team skills after kickoff without bypassing 
 
 test('rapid F presses cannot activate a second skill during the team global cooldown', () => {
   const state = createInitialGameState({ teamSkillDeck: [
-    { skillId: 'powerTackle', level: 1 }, { skillId: 'eagleShot', level: 1 },
+    { skillId: 'eagleShot', level: 1 }, { skillId: 'tornadoShot', level: 1 },
   ] });
   const striker = state.players.find((player) => player.id === 'home-fw');
   state.controlledPlayerId = striker.id;
@@ -181,7 +181,7 @@ test('rapid F presses cannot activate a second skill during the team global cool
   state.possessionTeam = 'home';
 
   const firstEvents = stepGame(state, frame({ pressed: ['f'] }), 0.01);
-  assert.ok(firstEvents.some((event) => event.type === 'skillUsed' && event.skillId === 'powerTackle'));
+  assert.ok(firstEvents.some((event) => event.type === 'skillUsed' && event.skillId === 'eagleShot'));
   assert.equal(state.teamSkillGlobalCooldownRemaining.home, 3);
   assert.equal(state.skillQueueIndex.home, 1);
 
@@ -189,7 +189,7 @@ test('rapid F presses cannot activate a second skill during the team global cool
   assert.equal(rapidEvents.some((event) => event.type === 'skillUsed'), false);
   assert.ok(state.teamSkillGlobalCooldownRemaining.home > 2.94 && state.teamSkillGlobalCooldownRemaining.home < 2.96);
   assert.equal(state.skillQueueIndex.home, 1);
-  assert.equal(state.skillCooldownRemaining.home.eagleShot, 0);
+  assert.equal(state.skillCooldownRemaining.home.tornadoShot, 0);
 });
 
 test('Tornado path contact lifts both teams and keepers once while skipping the caster and missed players', () => {
@@ -242,7 +242,7 @@ test('Tornado contact handles missing hit history, invalid positions, and a miss
   assert.equal(state.tornadoShotEffect, null);
 });
 
-test('Tornado integration samples a fast ball segment and World Split blocks the low shot', () => {
+test('Tornado integration samples a fast ball segment and lifts contacted players', () => {
   const state = createInitialGameState();
   const source = state.players.find((player) => player.id === 'home-fw');
   const target = state.players.find((player) => player.id === 'home-mid-1');
@@ -259,70 +259,37 @@ test('Tornado integration samples a fast ball segment and World Split blocks the
   assert.ok(hitEvents.some((event) => event.type === 'tornadoLift' && event.playerId === target.id));
   assert.equal(target.airborneSecondsRemaining, 5);
 
-  const blocked = createInitialGameState();
-  const blockedSource = blocked.players.find((player) => player.id === 'home-fw');
-  Object.assign(blockedSource, { x: 200, y: 270, facingX: 1, facingY: 0 });
-  blocked.controlledPlayerId = blockedSource.id;
-  blocked.ball.ownerId = blockedSource.id;
-  blocked.ball.x = blockedSource.x;
-  blocked.ball.y = blockedSource.y;
-  blocked.possessionTeam = 'home';
-  assert.equal(applySkill(blocked, { team: 'home', sourcePlayerId: blockedSource.id, skillId: 'tornadoShot', level: 1 }).ok, true);
-  const startX = blocked.ball.x;
-  blocked.powerBarriers.push({ skillId: 'powerTackle', team: 'away', sourcePlayerId: 'away-def-1',
-    x: startX + 43, y: 200, facingX: 0, facingY: 1, length: 140, thickness: 28, height: 72, remainingSeconds: 3 });
-
-  stepGame(blocked, frame(), 0.05);
-  assert.equal(blocked.ball.x, startX, 'the tornado ball cannot cross the barrier');
-  assert.equal(blocked.ball.vx, 0);
 });
 
-test('World Split blocks a low ball and allows a ball above the wall', () => {
-  const makeBarrierState = (height) => {
-    const state = createInitialGameState();
-    Object.assign(state.ball, { ownerId: null, x: 400, y: 270, vx: 240, vy: 0, height, flightKind: 'shot' });
-    state.powerBarriers.push({ skillId: 'powerTackle', team: 'away', sourcePlayerId: 'away-def-1',
-      x: 410, y: 200, facingX: 0, facingY: 1, length: 140, thickness: 28, height: 72, remainingSeconds: 3 });
-    return state;
-  };
-
-  const low = makeBarrierState(0);
-  stepGame(low, frame(), 0.05);
-  assert.equal(low.ball.x, 400, 'a ground shot collides with the wall');
-  assert.equal(low.ball.vx, 0);
-
-  const high = makeBarrierState(100);
-  stepGame(high, frame(), 0.05);
-  assert.ok(high.ball.x > 400, 'a ball above the wall clears it');
-});
-
-test('World Split creates parallel walls on both sides of the slide lane', () => {
-  const state = createInitialGameState();
-  state.powerBarriers.push({ skillId: 'powerTackle', team: 'home', sourcePlayerId: 'home-fw',
-    x: 400, y: 190, facingX: 0, facingY: 1, length: 180, thickness: 20, wallOffset: 40,
-    height: 72, remainingSeconds: 3 });
-
-  for (const [x, velocity] of [[350, 200], [450, -200]]) {
-    Object.assign(state.ball, { ownerId: null, x, y: 270, vx: velocity, vy: 0, height: 0, flightKind: 'shot' });
-    stepGame(state, frame(), 0.05);
-    assert.equal(state.ball.x, x, 'both left and right wall rows stop a ground shot');
-    assert.equal(state.ball.vx, 0);
-  }
-});
-
-test('pressing F in the match creates a persistent World Split terrain barrier', () => {
+test('World Split is ignored when sanitizing a new match skill deck', () => {
   const state = createInitialGameState({ teamSkillDeck: [{ skillId: 'powerTackle', level: 1 }] });
   const source = state.players.find((player) => player.id === state.controlledPlayerId);
   const events = stepGame(state, frame({ pressed: ['f'] }), 0.05);
 
-  assert.ok(events.some((event) => event.type === 'powerBarrierCreated'));
-  assert.equal(state.powerBarriers.length, 1);
-  assert.equal(state.powerBarriers[0].length, 90);
-  assert.equal(state.powerBarriers[0].height, 90);
-  assert.ok(state.powerBarriers[0].remainingSeconds > 2.9);
-  assert.equal(state.powerBarriers[0].sourcePlayerId, source.id);
-  assert.ok(source.x > 480, 'the player physically slides forward as the split opens');
-  assert.ok(source.worldSplitSlideSecondsRemaining > 0.8);
+  assert.equal(events.some((event) => event.type === 'skillUsed'), false);
+  assert.deepEqual(state.teamSkillDecks.home, []);
+  assert.equal(Object.hasOwn(state, 'powerBarriers'), false);
+  assert.equal(Object.hasOwn(source, 'worldSplitSlideSecondsRemaining'), false);
+});
+
+test('ordinary tackles keep their standard range and transfer possession', () => {
+  const state = createInitialGameState();
+  const tackler = state.players.find((player) => player.id === 'home-fw');
+  const ballCarrier = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(tackler, { x: 200, y: 270 });
+  Object.assign(ballCarrier, { x: 226, y: 270 });
+  state.possessionTeam = 'away';
+  state.ball.ownerId = ballCarrier.id;
+  state.ball.x = ballCarrier.x;
+  state.ball.y = ballCarrier.y;
+
+  const events = stepGame(state, frame({ pressed: ['a'] }), 0.01);
+
+  assert.ok(events.some((event) => event.type === 'tackle' && event.playerId === tackler.id));
+  assert.equal(state.ball.ownerId, tackler.id);
+  assert.equal(state.possessionTeam, 'home');
+  assert.equal(ballCarrier.knockdownSeconds > 0, true);
+  assert.equal(tackler.motionAction, 'tackle');
 });
 
 test('kickoff circle keeps non-kickers outside until the ball moves clear', () => {
@@ -1494,7 +1461,7 @@ test('a rear slide tackle steals the ball without issuing a card or stopping pla
   assert.equal(tackler.dismissed, false);
 });
 
-test('a powered tackle steals the ball inside the penalty area without a card or penalty restart', () => {
+test('an ordinary tackle steals the ball inside the penalty area without a card or penalty restart', () => {
   const state = createInitialGameState();
   const tackler = state.players.find((player) => player.id === 'home-fw');
   const ballCarrier = state.players.find((player) => player.id === 'away-fw');
@@ -1509,7 +1476,6 @@ test('a powered tackle steals the ball inside the penalty area without a card or
   state.ball.x = 83;
   state.ball.y = 270;
 
-  tackler.powerTackleSeconds = 2;
   const tackleEvents = stepGame(state, frame({ pressed: ['a'] }), 0.01);
   assert.ok(tackleEvents.some((event) => event.type === 'tackle'));
   assert.ok(!tackleEvents.some((event) => ['foul', 'yellowCard', 'redCard', 'playerDismissed', 'penaltyKick'].includes(event.type)));

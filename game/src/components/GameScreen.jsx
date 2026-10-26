@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Match3DGame from './Match3DGame.jsx';
 import PauseMenu from './PauseMenu.jsx';
 import { SKILLS } from '../game/skills.js';
@@ -119,7 +119,7 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
         playerId: event.playerId,
         team: event.team,
         skillId: event.skillId,
-        durationSeconds: ['eulryongta', 'tornadoShot', 'powerTackle'].includes(event.skillId) ? 1.35 : 0.9,
+        durationSeconds: ['eulryongta', 'tornadoShot'].includes(event.skillId) ? 1.35 : 0.9,
       };
       cutInQueueRef.current.push(cue);
     }
