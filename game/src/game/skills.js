@@ -6,7 +6,6 @@ export const SKILL_IDS = Object.freeze([
   'powerTackle',
   'eulryongta',
   'vacuumCleaner',
-  'rainbowReflect',
 ]);
 
 export const SKILLS = Object.freeze({
@@ -15,7 +14,6 @@ export const SKILLS = Object.freeze({
   powerTackle: Object.freeze({ name: '세계의 분리', type: 'defense', description: '슬라이딩 태클로 3초간 지형 장벽을 세운다', artwork: '/images/skills/world-split.svg' }),
   eulryongta: Object.freeze({ name: '을룡타', type: 'defense', description: '앞에 있는 상대를 최대 3명까지 5초간 기절시킴', artwork: '/images/skills/eulryongta.png' }),
   vacuumCleaner: Object.freeze({ name: '진공청소기', type: 'utility', description: '주변 공을 사용자에게 끌어옴', artwork: '/images/skills/vacuum-cleaner.png' }),
-  rainbowReflect: Object.freeze({ name: '무지개반사', type: 'utility', description: '상대 필살기를 상대 골문 쪽으로 되돌림', artwork: '/images/skills/rainbow-reflect.png' }),
 });
 
 export const MAX_SKILL_COPIES = 3;
@@ -25,7 +23,6 @@ export const SKILL_MAX_LEVELS = Object.freeze({
   powerTackle: 3,
   eulryongta: 3,
   vacuumCleaner: 1,
-  rainbowReflect: 1,
 });
 export const FIELD_PLAYER_IDS = Object.freeze(['home-def-1', 'home-mid-1', 'home-fw']);
 export const HOME_PLAYER_IDS = FIELD_PLAYER_IDS;
@@ -114,38 +111,6 @@ function setStatusDuration(player, status, durationSeconds) {
   };
 }
 
-const TRANSFERABLE_STATUSES = Object.freeze([
-  { type: 'knockdown', timerField: 'knockdownSeconds', metadataFields: ['knockdownFromTeam', 'knockdownSourcePlayerId', 'knockdownSkillId', 'knockdownReflectedByTeam', 'knockdownDirectionX', 'knockdownDirectionY'] },
-  { type: 'airborne', timerField: 'airborneSecondsRemaining', metadataFields: ['airborneFromTeam', 'airborneSourcePlayerId', 'airborneSkillId', 'airborneReflectedByTeam'] },
-  { type: 'stunned', timerField: 'stunnedSeconds', metadataFields: ['stunnedFromTeam', 'stunnedSourcePlayerId', 'stunnedSkillId'] },
-]);
-
-function getTransferableStatuses(player) {
-  return TRANSFERABLE_STATUSES.flatMap(({ type, timerField, metadataFields }) => {
-    if (!(player[timerField] > 0)) return [];
-    const fallbackDuration = type === 'knockdown'
-      ? (player.knockdownSkillId === 'eulryongta' ? 5 : player[timerField])
-      : type === 'airborne' ? 5 : player[timerField];
-    return [{
-      type,
-      timerField,
-      metadataFields,
-      durationSeconds: player.statusDurationSeconds?.[type] ?? fallbackDuration,
-      metadata: Object.fromEntries(metadataFields
-        .filter((field) => Object.hasOwn(player, field))
-        .map((field) => [field, player[field]])),
-    }];
-  });
-}
-
-function clearTransferredStatus(player, status) {
-  player[status.timerField] = 0;
-  for (const key of status.metadataFields) delete player[key];
-  const durations = { ...(player.statusDurationSeconds ?? {}) };
-  delete durations[status.type];
-  if (Object.keys(durations).length) player.statusDurationSeconds = durations;
-  else delete player.statusDurationSeconds;
-}
 
 export function validateSkillAssignments(playerSkillStacks, fieldPlayerIds = FIELD_PLAYER_IDS) {
   const stacks = playerSkillStacks && typeof playerSkillStacks === 'object' ? playerSkillStacks : {};
@@ -381,7 +346,7 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
   if (!player) return result(false, skillId ?? null, team ?? null, 'playerNotFound');
   if (player.team !== team) return result(false, skillId ?? null, team ?? null, 'wrongTeam');
   if (player.dismissed) return result(false, skillId ?? null, player.team, 'playerDismissed');
-  if ((player.knockdownSeconds > 0 || player.motionAction === 'recover') && skillId !== 'rainbowReflect') {
+  if (player.knockdownSeconds > 0 || player.motionAction === 'recover') {
     return result(false, skillId ?? null, player.team, 'playerKnockedDown');
   }
   if (!SKILL_IDS.includes(skillId)) return result(false, skillId ?? null, player.team, 'invalidSkill');
@@ -389,48 +354,9 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
   if (!['playing', 'overtime'].includes(state.phase)) return result(false, skillId, player.team, 'matchNotActive');
 
   let events = [];
-  if (skillId === 'rainbowReflect') {
-    const statuses = getTransferableStatuses(player);
-    if (!statuses.length) return result(false, skillId, player.team, 'noTransferableStatus');
-    const opposingTeam = team === 'home' ? 'away' : 'home';
-    const targetId = state.lastSkillCasterByTeam?.[opposingTeam];
-    const target = state.players.find((candidate) => candidate.id === targetId
-      && candidate.team === opposingTeam && !candidate.dismissed);
-    if (!target) return result(false, skillId, player.team, 'lastSkillCasterUnavailable');
-
-    for (const status of statuses) {
-      for (const field of status.metadataFields) delete target[field];
-      for (const [field, value] of Object.entries(status.metadata)) target[field] = value;
-      target[status.timerField] = status.durationSeconds;
-      target.statusDurationSeconds = {
-        ...(target.statusDurationSeconds ?? {}),
-        [status.type]: status.durationSeconds,
-      };
-      if (status.type === 'knockdown') {
-        target.motionAction = 'knockdown';
-        target.vx = 0;
-        target.vy = 0;
-      }
-      clearTransferredStatus(player, status);
-    }
-    const transferredStatuses = statuses.map(({ type, durationSeconds }) => ({ type, durationSeconds }));
-    events = [
-      { type: 'skillUsed', skillId, team, playerId: player.id },
-      { type: 'skillStatusTransferred', skillId, team, sourcePlayerId: player.id,
-        targetPlayerId: target.id, statusTypes: transferredStatuses.map(({ type }) => type), transferredStatuses },
-    ];
-    addSkillEffect(state, {
-      skillId, team, sourcePlayerId: player.id, targetPlayerId: target.id,
-      position: { x: player.x, y: player.y },
-      returnTargetPosition: { x: target.x, y: target.y }, transferredStatuses, durationSeconds: 0.9,
-    });
-  }
-
   const opponentCarrier = state.players.find((candidate) => candidate.team !== player.team && candidate.id === state.ball.ownerId);
 
-  if (skillId === 'rainbowReflect') {
-    // Status transfer was validated and applied above.
-  } else if (skillId === 'eagleShot' || skillId === 'tornadoShot') {
+  if (skillId === 'eagleShot' || skillId === 'tornadoShot') {
     if (state.ball.ownerId !== player.id || state.possessionTeam !== player.team) {
       return result(false, skillId, player.team, 'needBall');
     }
@@ -596,12 +522,7 @@ export function activateNextTeamSkill(state, team, sourcePlayerId) {
     const index = (start + offset) % deck.length;
     const entry = deck[index];
     if ((state.skillCooldownRemaining?.[team]?.[entry.skillId] ?? 0) > 0) continue;
-    const rainbowStatusBearer = entry.skillId === 'rainbowReflect' && team === 'away'
-      ? state.players.find((player) => player.team === team && !player.dismissed
-        && (player.knockdownSeconds > 0 || player.airborneSecondsRemaining > 0 || player.stunnedSeconds > 0))
-      : null;
-    const casterId = rainbowStatusBearer?.id ?? sourcePlayerId;
-    const attempt = applySkill(state, { team, sourcePlayerId: casterId, skillId: entry.skillId, level: entry.level });
+    const attempt = applySkill(state, { team, sourcePlayerId, skillId: entry.skillId, level: entry.level });
     if (!attempt.ok) continue;
     state.skillQueueIndex[team] = (index + 1) % deck.length;
     state.skillCooldownRemaining[team] = {

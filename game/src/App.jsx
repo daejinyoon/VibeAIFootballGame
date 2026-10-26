@@ -45,11 +45,6 @@ function makeMatchState(campaign, teamCustomization) {
       state.ball.ownerId = null;
       state.possessionTeam = null;
     }
-    if (skillId === 'rainbowReflect' && source && target) {
-      source.stunnedSeconds = 2;
-      source.statusDurationSeconds = { stunned: 2 };
-      state.lastSkillCasterByTeam.away = target.id;
-    }
     if (source && skillId) applySkill(state, { team: 'home', sourcePlayerId: source.id, skillId, level: ownedSkills.get(skillId)?.level ?? 1 });
   }
   return state;

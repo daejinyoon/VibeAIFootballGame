@@ -44,18 +44,9 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
     const deck = viewState.teamSkillDecks?.[team] ?? [];
     if (!deck.length) return null;
     const start = (viewState.skillQueueIndex?.[team] ?? 0) % deck.length;
-    const opposingTeam = team === 'home' ? 'away' : 'home';
-    const activeLastCaster = viewState.players.some((player) => player.id === viewState.lastSkillCasterByTeam?.[opposingTeam]
-      && player.team === opposingTeam && !player.dismissed);
-    const rainbowUserHasStatus = team === 'home'
-      ? Boolean(controlledPlayer && (controlledPlayer.knockdownSeconds > 0
-        || controlledPlayer.airborneSecondsRemaining > 0 || controlledPlayer.stunnedSeconds > 0))
-      : viewState.players.some((player) => player.team === team && !player.dismissed
-        && (player.knockdownSeconds > 0 || player.airborneSecondsRemaining > 0 || player.stunnedSeconds > 0));
     for (let offset = 0; offset < deck.length; offset += 1) {
       const entry = deck[(start + offset) % deck.length];
       if (cooldownFor(team, entry.skillId) > 0) continue;
-      if (entry.skillId === 'rainbowReflect' && (!activeLastCaster || !rainbowUserHasStatus)) continue;
       return entry;
     }
     return null;

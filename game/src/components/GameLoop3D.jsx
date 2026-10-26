@@ -79,7 +79,6 @@ export function GameLoop3D({
     }
     for (const event of events) {
       if (event.type === 'skillUsed' && !event.automatic) playSkillAudio(event.skillId);
-      if (event.type === 'skillReflected') playSkillAudio('rainbowReflect');
     }
 
     for (const player of state.players) {

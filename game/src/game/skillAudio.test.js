@@ -1,4 +1,4 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import { playEulryongtaImpact, playSkillAudio, prepareSkillAudio } from './skillAudio.js';
 
@@ -54,14 +54,14 @@ test('each supported skill schedules a distinct bounded Web Audio cue', () => {
   }
   try {
     globalThis.window = { AudioContext: AudioContextMock };
-    const skills = ['eagleShot', 'tornadoShot', 'powerTackle', 'eulryongta', 'vacuumCleaner', 'rainbowReflect'];
+    const skills = ['eagleShot', 'tornadoShot', 'powerTackle', 'eulryongta', 'vacuumCleaner'];
     for (const skillId of skills) assert.equal(playSkillAudio(skillId), true);
     assert.equal(playSkillAudio('unsupported'), false);
     assert.ok(calls.oscillators.length >= skills.length);
     assert.ok(calls.buffers >= 4);
     assert.ok(calls.stops.every((time) => time <= 2.21));
     const toneSignatures = new Set(calls.oscillators.map((node) => `${node.type}:${node.frequencyValues.join(',')}`));
-    assert.ok(toneSignatures.size >= 10);
+    assert.ok(toneSignatures.size >= 5);
   } finally {
     if (previousWindow === undefined) delete globalThis.window;
     else globalThis.window = previousWindow;

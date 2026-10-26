@@ -18,7 +18,6 @@ test('starts campaigns with one random active skill in the shared team deck', ()
   assert.equal(getUnlockedStage(campaign), 1);
   assert.equal(campaign.ownedTeamSkills.length, 1);
   assert.ok(SKILL_IDS.includes(campaign.ownedTeamSkills[0].skillId));
-  assert.notEqual(campaign.ownedTeamSkills[0].skillId, 'rainbowReflect');
   assert.equal(campaign.ownedTeamSkills[0].level, 1);
   assert.deepEqual(campaign.equippedTeamSkillIds, [campaign.ownedTeamSkills[0].skillId]);
   assert.notEqual(campaign.ownedTeamSkills[0].skillId, otherCampaign.ownedTeamSkills[0].skillId);
@@ -31,7 +30,6 @@ test('clamps invalid starter random values to a valid active skill', () => {
     const campaign = createCampaign({ rng });
     assert.equal(campaign.ownedTeamSkills.length, 1);
     assert.ok(SKILL_IDS.includes(campaign.ownedTeamSkills[0].skillId));
-    assert.notEqual(campaign.ownedTeamSkills[0].skillId, 'rainbowReflect');
   }
 });
 
@@ -238,7 +236,7 @@ test('reorders team skills without changing levels and rejects invalid positions
   const moved = reorderTeamSkill(campaign, 0, 1);
   assert.deepEqual(moved.campaign.equippedTeamSkillIds, ['powerTackle', 'eagleShot']);
   assert.deepEqual(reorderTeamSkill(campaign, -1, 0), { ok: false, reason: 'invalidPosition' });
-  assert.deepEqual(equipTeamSkill(campaign, 'rainbowReflect'), { ok: false, reason: 'skillNotOwned' });
+  assert.equal(equipTeamSkill(campaign, 'invalidSkill').ok, false);
 });
 
 test('assigns opponent skills only to the three away field players', () => {

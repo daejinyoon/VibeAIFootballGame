@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createCampaign as createNewCampaign, createOpponentSkillSets } from '../game/campaign.js';
 import { DEFAULT_TEAM_CUSTOMIZATION } from '../game/teamBranding.js';
@@ -60,9 +60,53 @@ function legacyV3Campaign(currentStage = 4) {
   };
 }
 
-test('creates a v5 empty profile and validates a trimmed nickname', () => {
+test('migrates v5 rainbow reflect references to v6 without losing campaign progress', () => {
+  const campaignSave = createCampaignSave(createCampaign(4));
+  campaignSave.ownedTeamSkills.push({ skillId: 'rainbowReflect', level: 1 }, { skillId: 'tornadoShot', level: 2 });
+  campaignSave.equippedTeamSkillIds = ['rainbowReflect', 'eagleShot', 'powerTackle'];
+  campaignSave.pendingSkillOffer = ['rainbowReflect', 'tornadoShot'];
+  campaignSave.opponentSkillSets = {
+    1: [],
+    2: ['rainbowReflect'],
+    3: ['tornadoShot', 'rainbowReflect'],
+    4: ['eagleShot', 'rainbowReflect', 'powerTackle'],
+    5: ['vacuumCleaner', 'rainbowReflect', 'eulryongta'],
+  };
+  const storage = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({
+    schemaVersion: 5,
+    nickname: 'Dex',
+    bestRecord: { nickname: 'Dex', stageReached: 4, goalDifference: 7, updatedAt: '2026-10-26T00:00:00.000Z' },
+    teamCustomization: { logoId: 'apple', paletteId: 'rose-petal' },
+    campaignSave,
+  }) });
+
+  const migrated = readProfile(storage);
+  assert.equal(migrated.schemaVersion, 6);
+  assert.equal(migrated.nickname, 'Dex');
+  assert.deepEqual(migrated.bestRecord, { nickname: 'Dex', stageReached: 4, goalDifference: 7, updatedAt: '2026-10-26T00:00:00.000Z' });
+  assert.deepEqual(migrated.teamCustomization, { logoId: 'apple', paletteId: 'rose-petal' });
+  assert.equal(migrated.campaignSave.currentStage, 4);
+  assert.deepEqual(migrated.campaignSave.clearedStageResults, campaignSave.clearedStageResults);
+  assert.deepEqual(migrated.campaignSave.ownedTeamSkills, [
+    { skillId: 'eagleShot', level: 2 }, { skillId: 'powerTackle', level: 1 }, { skillId: 'tornadoShot', level: 2 },
+  ]);
+  assert.deepEqual(migrated.campaignSave.equippedTeamSkillIds, ['eagleShot', 'powerTackle']);
+  assert.deepEqual(migrated.campaignSave.pendingSkillOffer, ['tornadoShot']);
+  assert.deepEqual(migrated.campaignSave.opponentSkillSets, {
+    1: [], 2: [], 3: ['tornadoShot'], 4: ['eagleShot', 'powerTackle'], 5: ['vacuumCleaner', 'eulryongta'],
+  });
+  assert.deepEqual(readProfile(storage).campaignSave, migrated.campaignSave);
+});
+
+test('migrates valid v5 saves without rainbow reflect without changing campaign data', () => {
+  const campaignSave = createCampaignSave(createCampaign(3));
+  const storage = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({ schemaVersion: 5, nickname: 'Dex', campaignSave }) });
+  assert.deepEqual(readProfile(storage).campaignSave, campaignSave);
+});
+
+test('creates a v6 empty profile and validates a trimmed nickname', () => {
   const empty = createEmptyProfile();
-  assert.equal(empty.schemaVersion, 5);
+  assert.equal(empty.schemaVersion, 6);
   assert.equal(empty.nickname, '');
   assert.deepEqual(empty.teamCustomization, DEFAULT_TEAM_CUSTOMIZATION);
   assert.equal(setNickname(empty, '  Dex  ').nickname, 'Dex');
@@ -74,7 +118,7 @@ test('creates a v5 empty profile and validates a trimmed nickname', () => {
 test('recovers from malformed or unsupported browser profile data', () => {
   const broken = createMemoryStorage({ 'dex-pixel-football:v1': '{bad json' });
   assert.deepEqual(readProfile(broken), createEmptyProfile());
-  const old = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({ schemaVersion: 6, nickname: 'Dex' }) });
+  const old = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({ schemaVersion: 7, nickname: 'Dex' }) });
   assert.deepEqual(readProfile(old), createEmptyProfile());
 });
 
@@ -90,8 +134,8 @@ test('round-trips an unlimited skill bag and ordered equipment without match fie
   }, storage);
   const loaded = readProfile(storage);
   assert.equal(loaded.nickname, 'Dex');
-  assert.equal(profile.schemaVersion, 5);
-  assert.equal(JSON.parse(storage.getItem('dex-pixel-football:v1')).schemaVersion, 5);
+  assert.equal(profile.schemaVersion, 6);
+  assert.equal(JSON.parse(storage.getItem('dex-pixel-football:v1')).schemaVersion, 6);
   assert.deepEqual(loaded.teamCustomization, { logoId: 'apple', paletteId: 'violet-ice' });
   assert.equal(loaded.campaignSave.currentStage, 2);
   assert.deepEqual(loaded.campaignSave.ownedTeamSkills, campaign.ownedTeamSkills);
@@ -184,17 +228,14 @@ test('v1 six-person loadouts migrate to unique shared team skills', () => {
   }) });
   const profile = readProfile(storage);
   const saved = profile.campaignSave;
-  assert.equal(profile.schemaVersion, 5);
+  assert.equal(profile.schemaVersion, 6);
   assert.deepEqual(profile.teamCustomization, DEFAULT_TEAM_CUSTOMIZATION);
   assert.equal(profile.nickname, 'Dex');
   assert.equal(profile.bestRecord.stageReached, 3);
   assert.equal(saved.currentStage, 2);
   assert.deepEqual(saved.clearedStageResults, legacy.clearedStageResults);
-  assert.deepEqual(saved.ownedTeamSkills, [
-    { skillId: 'rainbowReflect', level: 1 },
-    { skillId: 'eagleShot', level: 2 },
-  ]);
-  assert.deepEqual(saved.equippedTeamSkillIds, ['rainbowReflect', 'eagleShot']);
+  assert.deepEqual(saved.ownedTeamSkills, [{ skillId: 'eagleShot', level: 2 }]);
+  assert.deepEqual(saved.equippedTeamSkillIds, ['eagleShot']);
   assert.deepEqual(Object.values(saved.opponentSkillSets).map((skills) => skills.length), [0, 1, 2, 3, 3]);
 });
 
@@ -209,13 +250,12 @@ test('v3 migration aggregates stacks then inventory, clamps levels, and preserve
     teamCustomization: { logoId: 'apple', paletteId: 'rose-petal' },
   }) });
   const migrated = readProfile(storage);
-  assert.equal(migrated.schemaVersion, 5);
+  assert.equal(migrated.schemaVersion, 6);
   assert.deepEqual(migrated.campaignSave.ownedTeamSkills, [
     { skillId: 'eagleShot', level: 3 },
     { skillId: 'tornadoShot', level: 3 },
     { skillId: 'powerTackle', level: 1 },
     { skillId: 'vacuumCleaner', level: 1 },
-    { skillId: 'rainbowReflect', level: 1 },
   ]);
   assert.deepEqual(migrated.campaignSave.equippedTeamSkillIds, ['eagleShot', 'tornadoShot', 'powerTackle']);
   assert.equal(migrated.campaignSave.currentStage, legacyCampaign.currentStage);
@@ -241,7 +281,7 @@ test('v2 campaigns migrate and v3 branding is repaired without losing campaign d
     schemaVersion: 2, nickname: 'Dex', campaignSave: legacyCampaign, bestRecord,
   }) });
   const migrated = readProfile(storage);
-  assert.equal(migrated.schemaVersion, 5);
+  assert.equal(migrated.schemaVersion, 6);
   assert.deepEqual(migrated.teamCustomization, DEFAULT_TEAM_CUSTOMIZATION);
   assert.deepEqual(migrated.campaignSave.ownedTeamSkills[0], { skillId: 'eagleShot', level: 3 });
   assert.deepEqual(migrated.bestRecord, bestRecord);
@@ -303,7 +343,7 @@ test('v4 migration keeps the full skill bag and equips the first three in deck o
   }) });
 
   const migrated = readProfile(storage);
-  assert.equal(migrated.schemaVersion, 5);
+  assert.equal(migrated.schemaVersion, 6);
   assert.deepEqual(migrated.campaignSave.ownedTeamSkills, legacySave.teamSkillDeck);
   assert.deepEqual(migrated.campaignSave.equippedTeamSkillIds, ['eagleShot', 'tornadoShot', 'powerTackle']);
   assert.deepEqual(migrated.teamCustomization, { logoId: 'google', paletteId: 'rose-petal' });

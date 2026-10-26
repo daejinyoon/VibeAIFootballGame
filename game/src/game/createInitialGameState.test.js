@@ -51,7 +51,6 @@ test('clamps stage and sanitizes both shared skill decks', () => {
       { skillId: 'eagleShot', level: 1 }, { skillId: 'vacuumCleaner', level: 3 },
       { skillId: 'powerTackle', level: 3 },
     ],
-    opponentSkillDeck: [{ skillId: 'rainbowReflect', level: 1 }, { skillId: 'tornadoShot', level: 0 }],
   });
   const invalidStage = createInitialGameState({ stage: 9 });
   assert.equal(state.stage, 5);
@@ -60,11 +59,11 @@ test('clamps stage and sanitizes both shared skill decks', () => {
   assert.equal(invalidStage.stage, 1);
   assert.deepEqual(state.teamSkillDecks, {
     home: [{ skillId: 'eagleShot', level: 2 }, { skillId: 'powerTackle', level: 3 }],
-    away: [{ skillId: 'rainbowReflect', level: 1 }],
+    away: [],
   });
   assert.deepEqual(state.skillCooldownRemaining, {
     home: { eagleShot: 0, powerTackle: 0 },
-    away: { rainbowReflect: 0 },
+    away: {},
   });
   assert.deepEqual(state.skillQueueIndex, { home: 0, away: 0 });
   assert.deepEqual(state.lastSkillCasterByTeam, { home: null, away: null });

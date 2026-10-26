@@ -10,7 +10,7 @@ import {
 import { DEFAULT_TEAM_CUSTOMIZATION, normalizeTeamCustomization } from '../game/teamBranding.js';
 
 export const STORAGE_KEY = 'dex-pixel-football:v1';
-const PROFILE_VERSION = 5;
+const PROFILE_VERSION = 6;
 
 export function createEmptyProfile() {
   return {
@@ -42,10 +42,17 @@ function isOpponentSkillSets(value) {
   return Array.from({ length: STAGE_COUNT }, (_, index) => String(index + 1)).every((stage, index) => {
     const skills = value[stage];
     const expectedCount = [0, 1, 2, 3, 3][index];
-    return Array.isArray(skills) && skills.length === expectedCount
+    return Array.isArray(skills) && skills.length <= expectedCount
       && new Set(skills).size === skills.length
       && skills.every((skillId) => SKILL_IDS.includes(skillId));
   });
+}
+
+function withoutRemovedOpponentSkills(value) {
+  if (!value || typeof value !== 'object') return null;
+  const filtered = Object.fromEntries(Object.entries(value).map(([stage, skills]) => [stage,
+    Array.isArray(skills) ? skills.filter((skillId) => skillId !== 'rainbowReflect') : skills]));
+  return isOpponentSkillSets(filtered) ? filtered : null;
 }
 
 function isCampaignSave(value) {
@@ -120,9 +127,8 @@ function migrateLegacyCampaign(campaignSave) {
     equippedTeamSkillIds: ownedTeamSkills.slice(0, 3).map(({ skillId }) => skillId),
     pendingSkillOffer: pendingSkillOffer.length && !legacyPlacementWasApplied ? pendingSkillOffer : null,
     status: campaignSave.status === 'complete' ? 'complete' : 'active',
-    opponentSkillSets: isOpponentSkillSets(campaignSave.opponentSkillSets)
-      ? campaignSave.opponentSkillSets
-      : createOpponentSkillSets(() => 0.25),
+    opponentSkillSets: withoutRemovedOpponentSkills(campaignSave.opponentSkillSets)
+      ?? createOpponentSkillSets(() => 0.25),
   };
 }
 
@@ -198,9 +204,8 @@ function migrateV4Campaign(campaignSave) {
     equippedTeamSkillIds,
     pendingSkillOffer: pendingSkillOffer.length ? pendingSkillOffer : null,
     status: campaignSave.status === 'complete' ? 'complete' : 'active',
-    opponentSkillSets: isOpponentSkillSets(campaignSave.opponentSkillSets)
-      ? campaignSave.opponentSkillSets
-      : createOpponentSkillSets(() => 0.25),
+    opponentSkillSets: withoutRemovedOpponentSkills(campaignSave.opponentSkillSets)
+      ?? createOpponentSkillSets(() => 0.25),
   };
 }
 
@@ -217,6 +222,38 @@ export function migrateProfileV4(parsedProfile) {
   };
 }
 
+function migrateV5Campaign(campaignSave) {
+  if (!campaignSave || typeof campaignSave !== 'object') return null;
+  const filterIds = (ids) => Array.isArray(ids) ? ids.filter((skillId) => skillId !== 'rainbowReflect') : ids;
+  const migrated = {
+    ...campaignSave,
+    ownedTeamSkills: Array.isArray(campaignSave.ownedTeamSkills)
+      ? campaignSave.ownedTeamSkills.filter((entry) => entry?.skillId !== 'rainbowReflect') : campaignSave.ownedTeamSkills,
+    equippedTeamSkillIds: filterIds(campaignSave.equippedTeamSkillIds),
+    pendingSkillOffer: filterIds(campaignSave.pendingSkillOffer),
+    opponentSkillSets: campaignSave.opponentSkillSets && typeof campaignSave.opponentSkillSets === 'object'
+      ? Object.fromEntries(Object.entries(campaignSave.opponentSkillSets).map(([stage, ids]) => [stage, filterIds(ids)]))
+      : campaignSave.opponentSkillSets,
+  };
+  if (Array.isArray(migrated.pendingSkillOffer) && migrated.pendingSkillOffer.length === 0) migrated.pendingSkillOffer = null;
+  return migrated;
+}
+
+export function migrateProfileV5(parsedProfile) {
+  if (!parsedProfile || parsedProfile.schemaVersion !== 5 || typeof parsedProfile.nickname !== 'string') {
+    return createEmptyProfile();
+  }
+  const migrated = {
+    schemaVersion: PROFILE_VERSION,
+    nickname: parsedProfile.nickname,
+    campaignSave: migrateV5Campaign(parsedProfile.campaignSave),
+    bestRecord: isBestRecord(parsedProfile.bestRecord) ? { ...parsedProfile.bestRecord } : null,
+    teamCustomization: normalizeTeamCustomization(parsedProfile.teamCustomization),
+  };
+  if (!isCampaignSave(migrated.campaignSave)) migrated.campaignSave = null;
+  return migrated;
+}
+
 export function readProfile(storage = getDefaultStorage()) {
   if (!storage) return createEmptyProfile();
   try {
@@ -228,6 +265,7 @@ export function readProfile(storage = getDefaultStorage()) {
     if (parsed.schemaVersion === 2) return migrateProfileV2(parsed);
     if (parsed.schemaVersion === 3) return migrateProfileV3(parsed);
     if (parsed.schemaVersion === 4) return migrateProfileV4(parsed);
+    if (parsed.schemaVersion === 5) return migrateProfileV5(parsed);
     if (parsed.schemaVersion !== PROFILE_VERSION) return createEmptyProfile();
     return {
       schemaVersion: PROFILE_VERSION,

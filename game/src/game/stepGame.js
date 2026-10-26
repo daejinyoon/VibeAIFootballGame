@@ -2119,8 +2119,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   const frameStartPositions = new Map(state.players.map((player) => [player.id, { x: player.x, y: player.y }]));
 
   if (state.hasMatchClockStarted && controlled && input.pressed.has('f')
-      && (controlled.knockdownSeconds <= 0 && controlled.motionAction !== 'recover'
-        || (state.teamSkillDecks?.home ?? []).some(({ skillId }) => skillId === 'rainbowReflect'))) {
+      && controlled.knockdownSeconds <= 0 && controlled.motionAction !== 'recover') {
     const attempt = activateNextTeamSkill(state, 'home', controlled.id);
     if (attempt.ok) events.push(...attempt.events);
   }

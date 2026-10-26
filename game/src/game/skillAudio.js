@@ -128,7 +128,7 @@ function scheduleNoise(context, { startAt, duration, fromHz, toHz, type = 'bandp
 /** Play one bounded, locally synthesized sound for an accepted skill event. */
 export function playSkillAudio(skillId) {
   if (skillId === 'eulryongta') return playEulryongtaImpact();
-  if (!['eagleShot', 'tornadoShot', 'powerTackle', 'vacuumCleaner', 'rainbowReflect'].includes(skillId)) return false;
+  if (!['eagleShot', 'tornadoShot', 'powerTackle', 'vacuumCleaner'].includes(skillId)) return false;
   const context = getAudioContext();
   if (!context) return false;
   try {
