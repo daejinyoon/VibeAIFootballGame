@@ -2,7 +2,6 @@ import {
   BALL_GRAVITY,
   BALL_RADIUS,
   EAGLE_ASCENT_SECONDS,
-  EAGLE_CYCLOID_RADIUS,
   EAGLE_FLIGHT_HEIGHT,
   EAGLE_SHOT_INTERVAL_SECONDS,
   FIELD,
@@ -1004,8 +1003,9 @@ function advanceEagleVolley(state, deltaSeconds) {
       const cycloidProgress = (angle - Math.sin(angle)) / (Math.PI * 2);
       projectile.x = projectile.flightStartX + (projectile.flightGoalX - projectile.flightStartX) * cycloidProgress;
       projectile.y = projectile.flightStartY + (projectile.targetY - projectile.flightStartY) * cycloidProgress;
-      projectile.height = Math.max(0,
-        EAGLE_FLIGHT_HEIGHT * (1 - cycloidProgress) + EAGLE_CYCLOID_RADIUS * (1 - Math.cos(angle)));
+      const landingProgress = Math.max(0, Math.min(1, (cycloidProgress - 0.45) / 0.55));
+      const smoothLandingProgress = landingProgress * landingProgress * (3 - 2 * landingProgress);
+      projectile.height = EAGLE_FLIGHT_HEIGHT * (1 - smoothLandingProgress);
       projectile.vx = (projectile.x - previous.x) / Math.max(0.001, deltaSeconds);
       projectile.vy = (projectile.y - previous.y) / Math.max(0.001, deltaSeconds);
       projectile.verticalVelocity = (projectile.height - previous.height) / Math.max(0.001, deltaSeconds);

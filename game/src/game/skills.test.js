@@ -210,7 +210,7 @@ test('Eagle Shot clears a lower wall and is blocked by a wall above its flight h
   assert.ok(!highWall.events.some((event) => event.type === 'goal' && event.skillId === 'eagleShot'));
 });
 
-test('Eagle Shot stays high across the field, then dives into the goal from above', () => {
+test('Eagle Shot cruises early, then glides down toward goal', () => {
   const state = createInitialGameState({ teamSkillDeck: teamDeck('eagleShot', 1) });
   carrier(state);
   activateNextTeamSkill(state, 'home', 'home-fw');
@@ -220,21 +220,28 @@ test('Eagle Shot stays high across the field, then dives into the goal from abov
   const projectile = state.skillProjectiles[0];
   const flightStartX = projectile.x;
   const flightGoalX = projectile.flightGoalX;
+  while (projectile.flightElapsedSeconds < projectile.flightDurationSeconds * 0.25 && state.eagleVolley) {
+    stepGame(state, frame(), 0.05);
+  }
+  const earlyHeight = projectile.height;
+  assert.ok(earlyHeight >= 179, 'the eagle cruises at height through the early flight');
   while (projectile.flightElapsedSeconds < projectile.flightDurationSeconds * 0.5 && state.eagleVolley) {
     stepGame(state, frame(), 0.05);
   }
   const midpointProgress = (projectile.x - flightStartX) / (flightGoalX - flightStartX);
   assert.ok(Math.abs(midpointProgress - 0.5) < 0.1, `the cycloid curves smoothly across the field (${midpointProgress})`);
-  assert.ok(projectile.height > 180, 'the cycloid rises above the launch height before diving');
-  for (let frameIndex = 0; frameIndex < 50 && state.skillProjectiles[0]?.height >= 170 && state.eagleVolley; frameIndex += 1) {
+  const midpointHeight = projectile.height;
+  assert.ok(midpointHeight < earlyHeight && midpointHeight > 140,
+    'the eagle starts a gradual descent after its early cruise');
+  while (projectile.flightElapsedSeconds < projectile.flightDurationSeconds * 0.75 && state.eagleVolley) {
     stepGame(state, frame(), 0.05);
   }
 
   assert.equal(projectile.phase, 'flying');
-  assert.ok(projectile.height < 180, 'the eagle loses height on its final approach');
-  assert.ok(projectile.height > 0, 'the eagle remains above the ground before entering the goal');
+  assert.ok(projectile.height < midpointHeight && projectile.height > 0,
+    'the eagle continues a smooth descent during its final approach');
   assert.ok(projectile.x > projectile.flightStartX + (projectile.flightGoalX - projectile.flightStartX) * 0.7,
-    'the dive begins on the attacking half near the goal');
+    'the landing glide reaches the attacking half near the goal');
 
   for (let frameIndex = 0; frameIndex < 40 && state.phase === 'playing'; frameIndex += 1) {
     stepGame(state, frame(), 0.05);
