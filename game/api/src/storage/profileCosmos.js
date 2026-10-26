@@ -75,6 +75,11 @@ export async function getProfile({ tenantId, objectId }, env = process.env) {
     throw createStorageError('Profile storage is unavailable.', error);
   }
 
+  // The Cosmos SDK can return a 404 ItemResponse for a missing item instead
+  // of throwing. Treat that the same as the thrown 404 path above so a first
+  // login can create the initial profile with the following upsert.
+  if (isNotFound(response)) return null;
+
   const document = response.resource;
   if (!document || typeof document.profile !== 'object' || document.profile === null) {
     throw createStorageError('The stored profile could not be read.', undefined, {

@@ -116,6 +116,17 @@ Configure the existing Cosmos DB account and football Static Web App so the depl
 - Identify a missing `COSMOS_CONNECTION_STRING` explicitly.
 - Use the returned diagnostic to correct the production setting or isolated database/container configuration, then remove temporary diagnostics after hosted sync succeeds.
 
+### I09. Treat a missing Cosmos item as an empty profile
+
+- Related Files:
+  - `game/api/src/storage/profileCosmos.js` :: `getProfile`, `isNotFound`
+
+#### Details
+
+- Handle Cosmos `ItemResponse.statusCode === 404` as a missing profile, in addition to SDKs/errors that throw a 404.
+- Return `null` for the initial GET so the existing first-login flow can upsert the browser profile.
+- Keep malformed existing documents and non-404 storage failures as errors.
+
 ## Acceptance Criteria
 
 - [ ] `football/profiles` exists with partition key `/tenantId`, or has been safely created by the user in the portal.
@@ -134,13 +145,13 @@ Configure the existing Cosmos DB account and football Static Web App so the depl
 ## Commit Message
 
 ```text
-fix(storage): always include safe diagnostics
+fix(storage): handle missing Cosmos profile response
 
 Plan: 2026-10-26-cosmos-profile-storage
 Phase: P02-azure-configuration
 Task: T01-cosmos-azure-configuration
 
-- Return safe storage failure categories in every 503 response
+- Treat a Cosmos item 404 response as a missing profile
 - Continue hosted profile-sync verification
 ```
 
