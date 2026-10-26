@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { FIELD } from '../game/constants.js';
@@ -159,6 +159,7 @@ export function SkillEffects3D({ gameStateRef }) {
   const slots = useMemo(() => Array.from({ length: SLOT_COUNT }, makeSlot), []);
   const airSlots = useMemo(() => Array.from({ length: AIR_SLOT_COUNT }, makeAirSlot), []);
   const barrierSlots = useMemo(() => Array.from({ length: BARRIER_SLOT_COUNT }, makeBarrierSlot), []);
+  const disposeTimerRef = useRef(null);
   const scene = useMemo(() => {
     const group = new THREE.Group();
     for (const slot of slots) group.add(slot.root);
@@ -167,16 +168,27 @@ export function SkillEffects3D({ gameStateRef }) {
     return group;
   }, [slots, airSlots, barrierSlots]);
 
-  useEffect(() => () => {
-    for (const slot of slots) {
-      for (const mesh of [...slot.rings, ...slot.particles, slot.beam]) mesh.material.dispose();
+  useEffect(() => {
+    if (disposeTimerRef.current !== null) {
+      clearTimeout(disposeTimerRef.current);
+      disposeTimerRef.current = null;
     }
-    for (const slot of airSlots) {
-      for (const mesh of [...slot.rings, ...slot.particles]) mesh.material.dispose();
-    }
-    for (const slot of barrierSlots) {
-      for (const mesh of [slot.groundCrack, slot.glow, ...slot.groundPlates, ...slot.wallBlocks, ...slot.shards, ...slot.debris]) mesh.material.dispose();
-    }
+    return () => {
+      // React StrictMode replays effect cleanup/setup on mount in development.
+      // Delay disposal by one task so the setup replay can cancel this cleanup.
+      disposeTimerRef.current = setTimeout(() => {
+        for (const slot of slots) {
+          for (const mesh of [...slot.rings, ...slot.particles, slot.beam]) mesh.material.dispose();
+        }
+        for (const slot of airSlots) {
+          for (const mesh of [...slot.rings, ...slot.particles]) mesh.material.dispose();
+        }
+        for (const slot of barrierSlots) {
+          for (const mesh of [slot.groundCrack, slot.glow, ...slot.groundPlates, ...slot.wallBlocks, ...slot.shards, ...slot.debris]) mesh.material.dispose();
+        }
+        disposeTimerRef.current = null;
+      }, 0);
+    };
   }, [slots, airSlots, barrierSlots]);
 
   useFrame((_, delta) => {

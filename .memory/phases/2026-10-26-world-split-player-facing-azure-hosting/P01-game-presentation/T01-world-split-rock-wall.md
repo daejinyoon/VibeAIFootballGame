@@ -24,11 +24,11 @@ Make the World Split rock body clearly visible, opaque, about 1.5 times its curr
 - **Barrier data** (no schema change):
   - `skillId: string` (`powerTackle`), `team: 'home' | 'away'`, `sourcePlayerId: string`
   - `x`, `y`, `facingX`, `facingY`, `length`, `thickness`, `wallOffset`, `height`, `elapsedSeconds`, `remainingSeconds`: finite numbers
-- **Existing transforms**: barrier root center derives from `x/y` plus half `length` along normalized `facingX/facingY`; root yaw aligns local +X with that direction; root X scale is `length / 80`. Rock blocks are dodecahedra, opaque `MeshStandardMaterial`, with existing randomized block positions and color variation.
+- **Existing transforms**: barrier root center derives from `x/y` plus half `length` along normalized `facingX/facingY`; root yaw aligns local +X with that direction; root X scale is `length / 80`. Rock blocks are dodecahedra, opaque `MeshStandardMaterial`, with randomized block positions and color variation. `main.jsx` mounts the app under `React.StrictMode`; immediate material disposal during effect cleanup breaks the manually managed meshes during StrictMode's development mount replay.
 - **Execution Flow / Logic**:
-  1. Keep barrier validation, root visibility, root position/yaw/scale, lift animation (`rise`), wall offsets, color assignment, ground plates, shards, debris, and slot disposal behavior intact.
-  2. Define local `leanAngle = 35 * Math.PI / 180` in the barrier visual logic. Keep every computed block's existing height variation and rise factor, but change its height scale from `maximumWallHeight / 1.88 * shapeHeight * rise` to `maximumWallHeight / 1.25 * shapeHeight * rise` (1.5x the previous factor, rounded to a simple stable divisor).
-  3. Treat `height` as the block's half-height. Place the block center at `x = -0.48 + lane * 0.96 + Math.sin(leanAngle) * height`, `y = Math.cos(leanAngle) * height`, and the existing `z = side * wallOffset`. Set its Z rotation to `-leanAngle + variation * 0.07`; preserve its existing X/Y jitter and X/Z scale formulas. This pivots the rock's visual body forward while keeping its lower edge near the ground.
+  1. Keep barrier validation, root visibility, root position/yaw/scale, lift animation (`rise`), wall offsets, color assignment, ground plates, shards, and debris intact. Defer effect-material disposal by one task and cancel it if effect setup runs again, so StrictMode's simulated cleanup cannot dispose materials needed by the mounted scene; still dispose materials after a real unmount.
+  2. Define local `leanAngle = 35 * Math.PI / 180` in the barrier visual logic. Keep each block's height variation and rise factor, use `maximumWallHeight / 0.92 * shapeHeight * rise`, widen blocks to about `0.19` local units, deepen them to about `0.3`, and use brighter stone colors with stronger emissive contrast.
+  3. Treat `height` as the block's half-height. Place the block center at `x = -0.48 + lane * 0.96 + Math.sin(leanAngle) * height`, `y = Math.cos(leanAngle) * height`, and the existing `z = side * wallOffset`. Set its Z rotation to `-leanAngle + variation * 0.07`; preserve its existing X/Y jitter. Follow-up screenshot review showed that the first size/color adjustment was still too thin and low contrast, so use `maximumWallHeight / 0.92 * shapeHeight * rise`, widen blocks to about `0.19` local units, deepen them to about `0.3`, and use brighter stone colors with stronger emissive contrast.
   4. Leave the wall opaque. Do not modify gameplay collision, barrier lifetime, tackle slide, hit distance, stage progression, or wall length.
   5. Inspect both home and away effects in the running 3D game: rocks must lean along each side's tackle direction, retain staggered stone shapes, and remain visible through their full animation.
 - **Error & Exception Handling**: Keep the existing invalid-barrier guard that hides a slot when required coordinates/length/direction are invalid or `remainingSeconds <= 0`. No new state or exceptions are introduced.
@@ -61,5 +61,6 @@ Task: T01-world-split-rock-wall
 - [x] Implementation complete
 - [x] Validation passed
 - [x] Follow-up screenshot review prompted a second visual-size and contrast adjustment; simulation and collision remain untouched.
+- [x] Fixed the StrictMode material-disposal issue that hid barrier meshes in the running app.
 - [ ] User visual confirmation after refreshing the game.
 - commit: feat(game): make World Split rocks visible and slanted
