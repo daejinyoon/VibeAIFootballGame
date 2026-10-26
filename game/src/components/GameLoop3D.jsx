@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { FIELD } from '../game/constants.js';
 import { createInputController } from '../game/createInputController.js';
+import { getPlayerFacingYaw } from '../game/playerOrientation.js';
 import { playSkillAudio, prepareSkillAudio } from '../game/skillAudio.js';
 import { stepGame } from '../game/stepGame.js';
 
@@ -88,7 +89,7 @@ export function GameLoop3D({
       const airborne = (player.airborneSecondsRemaining ?? 0) > 0;
       const spin = player.team === 'away' ? -1 : 1;
       actor.position.set(worldX(player.x), airborne ? 1.05 + Math.sin(animationTimeRef.current * 9 + player.x) * 0.12 : 0, worldZ(player.y));
-      actor.rotation.y = (player.team === 'away' ? -Math.PI / 2 : Math.PI / 2)
+      actor.rotation.y = getPlayerFacingYaw(player, state.ball)
         + (airborne ? animationTimeRef.current * 7 * spin : 0);
       const marker = actorsRef.current.selectedMarkers.get(player.id);
       if (marker) {

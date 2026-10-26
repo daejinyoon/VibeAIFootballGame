@@ -6,8 +6,8 @@ Make World Split's rock wall clearly visible as a large opaque wall leaning 35 d
 ## Phases
 | Phase | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
-| P01 | `in_progress` | Improve World Split presentation and player facing while leaving match rules intact. | [P01](../phases/2026-10-26-world-split-player-facing-azure-hosting/P01-game-presentation/phase.md) |
-| P02 | `pending` | Configure the private GitHub source and Azure Static Web Apps automatic deployment; obtain and verify the public game URL. | [P02](../phases/2026-10-26-world-split-player-facing-azure-hosting/P02-azure-deployment/phase.md) |
+| P01 | `done` | Improve World Split presentation and player facing while leaving match rules intact. | [P01](../phases/2026-10-26-world-split-player-facing-azure-hosting/P01-game-presentation/phase.md) |
+| P02 | `in_progress` | Configure the private GitHub source and Azure Static Web Apps automatic deployment; obtain and verify the public game URL. | [P02](../phases/2026-10-26-world-split-player-facing-azure-hosting/P02-azure-deployment/phase.md) |
 
 ## Prerequisites and Constraints
 - P02 requires a GitHub account, a new private GitHub repository, and permission from the Azure administrator to create/manage a Static Web App in the designated resource group.

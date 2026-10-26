@@ -1,6 +1,6 @@
 ﻿# Task: T02 Player Facing
 
-## Status: pending
+## Status: done
 
 ## Goal
 Rotate all visible, active player models toward the ball when they do not own it; rotate the carrier in its movement direction. Keep the change visual-only and preserve existing airborne spin and all simulation behavior.
@@ -51,11 +51,11 @@ Rotate all visible, active player models toward the ball when they do not own it
   4. Preserve the same orientation application for field players and goalkeepers; continue to hide dismissed players as currently done.
 
 ## Acceptance Criteria
-- [ ] Active non-carriers turn their body to face the ball as it moves around the pitch.
-- [ ] A moving carrier faces its direction of movement; a stationary carrier preserves its last facing direction.
-- [ ] Invalid/coincident vectors produce a finite, team-aligned yaw without visible rapid flipping.
-- [ ] Airborne spin behavior remains intact and orientation does not alter match simulation.
-- [ ] `node --test src/game/playerOrientation.test.js`, `npm test`, and `npm run build` pass from `game/`.
+- [x] Active non-carriers turn their body to face the ball as it moves around the pitch.
+- [x] A moving carrier faces its direction of movement; a stationary carrier preserves its last facing direction.
+- [x] Invalid/coincident vectors produce a finite, team-aligned yaw without visible rapid flipping.
+- [x] Airborne spin behavior remains intact and orientation does not alter match simulation.
+- [x] `node --test src/game/playerOrientation.test.js`, `npm test`, and `npm run build` pass from `game/`.
 
 ## Validation
 - `node --test src/game/playerOrientation.test.js` from `game/` — focused orientation unit tests pass.
@@ -76,6 +76,6 @@ Task: T02-player-facing
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed (5 focused tests, 168 total tests, production build)
+- commit: `8b1dac3`
