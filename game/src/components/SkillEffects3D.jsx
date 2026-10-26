@@ -45,9 +45,9 @@ const BARRIER_SHARD_GEOMETRY = new THREE.ConeGeometry(0.3, 0.9, 5, 1);
 const BARRIER_DEBRIS_GEOMETRY = new THREE.TetrahedronGeometry(0.15, 0);
 const BARRIER_GROUND_MATERIAL = new THREE.MeshStandardMaterial({ color: '#100f15', roughness: 1, emissive: '#09070b', emissiveIntensity: 0.28, side: THREE.DoubleSide });
 const BARRIER_GLOW_MATERIAL = new THREE.MeshBasicMaterial({ color: '#ff672b', transparent: true, opacity: 0.92, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
-const BARRIER_PLATE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#635748', roughness: 0.96, emissive: '#241911', emissiveIntensity: 0.3 });
+const BARRIER_PLATE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#9b8b73', roughness: 0.96, emissive: '#4b3825', emissiveIntensity: 0.52 });
 const BARRIER_GROUND_PLATE_MATERIAL = new THREE.MeshStandardMaterial({ color: '#837361', roughness: 0.98, emissive: '#28170f', emissiveIntensity: 0.18 });
-const BARRIER_SHARD_MATERIAL = new THREE.MeshStandardMaterial({ color: '#766149', roughness: 0.92, emissive: '#713112', emissiveIntensity: 0.48 });
+const BARRIER_SHARD_MATERIAL = new THREE.MeshStandardMaterial({ color: '#a58a69', roughness: 0.92, emissive: '#8a431c', emissiveIntensity: 0.58 });
 
 function makeMesh(geometry, color = '#ffffff', opacity = 0.8) {
   const material = new THREE.MeshBasicMaterial({
@@ -390,16 +390,16 @@ export function SkillEffects3D({ gameStateRef }) {
         const lane = blockIndex / 13;
         const variation = Math.sin(blockIndex * 4.61 + side * 2.7);
         const shapeHeight = 0.72 + (blockIndex % 4) * 0.055 + Math.abs(variation) * 0.08;
-        const height = maximumWallHeight / 1.25 * shapeHeight * rise;
+        const height = maximumWallHeight / 0.92 * shapeHeight * rise;
         block.position.set(
           -0.48 + lane * 0.96 + Math.sin(wallLeanAngle) * height,
           Math.cos(wallLeanAngle) * height,
           side * wallOffset,
         );
         block.rotation.set(variation * 0.12, blockIndex * 0.63, -wallLeanAngle + variation * 0.07);
-        block.scale.set(0.115 + (blockIndex % 3) * 0.017, height, 0.22 + (blockIndex % 4) * 0.025);
-        block.material.color.set(blockIndex % 3 ? '#655747' : '#83715b');
-        block.material.emissive.set(accent === '#ffb54f' ? '#2b1710' : '#17262a');
+        block.scale.set(0.19 + (blockIndex % 3) * 0.018, height, 0.3 + (blockIndex % 4) * 0.025);
+        block.material.color.set(blockIndex % 3 ? '#9b8b73' : '#b2a186');
+        block.material.emissive.set(accent === '#ffb54f' ? '#67402a' : '#343b34');
       });
       slot.shards.forEach((shard, shardIndex) => {
         const side = shardIndex % 2 ? 1 : -1;

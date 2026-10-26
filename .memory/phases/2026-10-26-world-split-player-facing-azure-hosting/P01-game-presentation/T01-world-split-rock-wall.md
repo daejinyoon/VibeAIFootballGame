@@ -35,10 +35,10 @@ Make the World Split rock body clearly visible, opaque, about 1.5 times its curr
 - **State Transition & Return**: Visual-only transform updates per frame; `state.powerBarriers` and all simulation state remain unchanged.
 
 ## Acceptance Criteria
-- [ ] Rock blocks appear about 1.5 times taller than the current render and remain opaque.
-- [ ] Rock tops lean 35 degrees in the barrier's tackle travel direction for both teams.
-- [ ] Wall length, sliding/tackle reach, collision line, collision height, expiry, and stage scaling are unchanged.
-- [ ] `npm test` and `npm run build` pass from `game/`.
+- [x] Rock blocks appear substantially taller and wider than the first adjustment and remain opaque with stronger contrast.
+- [x] Rock tops lean 35 degrees in the barrier's tackle travel direction for both teams.
+- [x] Wall length, sliding/tackle reach, collision line, collision height, expiry, and stage scaling are unchanged.
+- [x] `npm test` and `npm run build` pass from `game/`.
 
 ## Validation
 - `npm test` from `game/` — all existing simulation and progression tests pass.
@@ -60,4 +60,6 @@ Task: T01-world-split-rock-wall
 ## Progress
 - [x] Implementation complete
 - [x] Validation passed
+- [x] Follow-up screenshot review prompted a second visual-size and contrast adjustment; simulation and collision remain untouched.
+- [ ] User visual confirmation after refreshing the game.
 - commit: feat(game): make World Split rocks visible and slanted
