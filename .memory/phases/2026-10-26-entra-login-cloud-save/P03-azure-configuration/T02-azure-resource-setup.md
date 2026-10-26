@@ -1,6 +1,6 @@
 # Task: T02 Azure Resource Setup
 
-## Status: pending
+## Status: in_progress
 
 ## Goal
 

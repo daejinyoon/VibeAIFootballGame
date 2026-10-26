@@ -16,13 +16,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Validate Entra build configuration
+        env:
+          VITE_ENTRA_TENANT_ID: ${{ vars.VITE_ENTRA_TENANT_ID }}
+          VITE_ENTRA_CLIENT_ID: ${{ vars.VITE_ENTRA_CLIENT_ID }}
+        run: |
+          test -n "$VITE_ENTRA_TENANT_ID" || { echo "Set repository variable VITE_ENTRA_TENANT_ID before deploying."; exit 1; }
+          test -n "$VITE_ENTRA_CLIENT_ID" || { echo "Set repository variable VITE_ENTRA_CLIENT_ID before deploying."; exit 1; }
+
       - name: Build and deploy game
         uses: Azure/static-web-apps-deploy@v1
+        env:
+          VITE_ENTRA_TENANT_ID: ${{ vars.VITE_ENTRA_TENANT_ID }}
+          VITE_ENTRA_CLIENT_ID: ${{ vars.VITE_ENTRA_CLIENT_ID }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: game
-          api_location: ""
+          api_location: game/api
           output_location: dist
           app_build_command: npm run build
+          api_build_command: npm install
