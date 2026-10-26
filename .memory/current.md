@@ -1,19 +1,21 @@
-﻿# Current Context
+# Current Context
 
 ## Active Plan
-[World Split Visibility, Player Facing, and Azure Hosting](./plans/2026-10-26-world-split-player-facing-azure-hosting.md)
+[Entra Login and Cloud Save](./plans/2026-10-26-entra-login-cloud-save.md)
 
 ## Active Phase
-[P02 Azure Deployment](./phases/2026-10-26-world-split-player-facing-azure-hosting/P02-azure-deployment/phase.md)
+[P01 Profile API](./phases/2026-10-26-entra-login-cloud-save/P01-profile-api/phase.md)
 
 ## Active Task
-[T03 Azure Static Web App](./phases/2026-10-26-world-split-player-facing-azure-hosting/P02-azure-deployment/T03-azure-static-web-app.md)
+[T02 Account Profile Table API](./phases/2026-10-26-entra-login-cloud-save/P01-profile-api/T02-profile-table-api.md)
 
 ## Status
-- The World Split skill removal plan is complete: runtime removal `d9f73ce`, save migration `edd61a4`.
-- P01-T02 player-facing implementation and validation are complete; moving to P02-T03 Azure hosting.
-- World Split itself has since been removed from the game; the remaining player-facing work is independent of that skill.
-- Azure workflow is prepared locally. Cloud prerequisites remain unavailable: the user previously reported having no GitHub account and likely lacking Azure resource-group permission; no Git remote is configured.
+- P01-T01 Entra API bootstrap and token validator are implemented and validated.
+- The existing SWA deployment task remains unfinished and is parked while this feature plan is executed.
+
+## Parked Work
+- Previous active task: [T03 Azure Static Web App](./phases/2026-10-26-world-split-player-facing-azure-hosting/P02-azure-deployment/T03-azure-static-web-app.md)
+- Reason: deployment token was missing/invalid and the target Static Web App still needs confirmation. P03-T01/T02 of the active plan incorporate the required API workflow and deployment setup; do not mark the parked task complete until the public hosted deployment succeeds.
 
 ## Next Step (IMPORTANT)
-T03 workflow is prepared and the local production build passes. To finish deployment, create a GitHub account and private repository, obtain Azure permission to create/manage a Free Static Web App in the designated resource group, connect `master`, add the Azure-generated deployment token as `AZURE_STATIC_WEB_APPS_API_TOKEN`, then push and verify the public HTTPS URL. Keep T03 active until all cloud checks pass.
+Read P01-T02 completely, then implement `GET /api/profile` and `PUT /api/profile` with account-scoped Azure Table Storage persistence in `game/api/src/storage/profileTable.js` and `game/api/src/functions/profile.js`.

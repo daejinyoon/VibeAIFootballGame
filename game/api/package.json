@@ -1,0 +1,17 @@
+{
+  "name": "dex-football-profile-api",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check": "node --check src/index.js && node --check src/auth/entra.js"
+  },
+  "dependencies": {
+    "@azure/data-tables": "^13.3.0",
+    "@azure/functions": "^4.7.2",
+    "jose": "^6.1.0"
+  }
+}

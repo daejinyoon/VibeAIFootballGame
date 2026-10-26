@@ -3,3 +3,4 @@ dist/
 .env
 .env.*
 !.env.example
+game/api/local.settings.json
