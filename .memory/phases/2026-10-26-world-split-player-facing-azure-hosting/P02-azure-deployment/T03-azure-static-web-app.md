@@ -1,6 +1,6 @@
 ﻿# Task: T03 Azure Static Web App
 
-## Status: pending
+## Status: in_progress
 
 ## Goal
 Deploy the game publicly on Azure Static Web Apps Free, source it from the private GitHub repository, and verify pushes to `master` deploy the Vite app from `game/` to its public HTTPS URL.
@@ -62,6 +62,7 @@ Task: T03-azure-static-web-app
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Local GitHub Actions workflow prepared at `.github/workflows/azure-static-web-apps.yml`.
+- [x] Local production build passed.
+- [ ] Cloud connection, successful Actions deployment, and public URL verification remain blocked on account, repository, Azure permission, and deployment secret setup.
+- local workflow prep commit: `15a49ed` (T03 remains active until cloud deployment is verified)
