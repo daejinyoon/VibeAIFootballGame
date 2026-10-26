@@ -6,17 +6,34 @@ const CONTAINER_ID = 'profiles';
 let cachedConnectionString = '';
 let cachedContainer = null;
 
-function createStorageError(message, cause) {
+function storageDiagnostic(cause) {
+  if (!cause) return undefined;
+  const reason = typeof cause.code === 'string' || typeof cause.code === 'number'
+    ? String(cause.code)
+    : typeof cause.name === 'string' ? cause.name : 'unknown';
+  const statusCode = Number.isInteger(cause.statusCode) ? cause.statusCode : undefined;
+  const substatus = Number.isInteger(cause.substatus) ? cause.substatus : undefined;
+  return {
+    reason,
+    ...(statusCode !== undefined ? { statusCode } : {}),
+    ...(substatus !== undefined ? { substatus } : {}),
+  };
+}
+
+function createStorageError(message, cause, diagnostic = undefined) {
   const error = new Error(message, cause ? { cause } : undefined);
   error.name = 'ProfileStorageError';
   error.status = 503;
+  error.diagnostic = diagnostic ?? storageDiagnostic(cause);
   return error;
 }
 
 function getContainer(env = process.env) {
   const connectionString = env.COSMOS_CONNECTION_STRING?.trim();
   if (!connectionString) {
-    throw createStorageError('Profile storage is not configured.');
+    throw createStorageError('Profile storage is not configured.', undefined, {
+      reason: 'COSMOS_CONNECTION_STRING_MISSING',
+    });
   }
 
   if (cachedContainer && cachedConnectionString === connectionString) {

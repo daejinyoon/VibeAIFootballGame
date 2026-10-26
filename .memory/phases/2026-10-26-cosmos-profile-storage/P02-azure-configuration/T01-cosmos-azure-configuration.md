@@ -104,6 +104,18 @@ Configure the existing Cosmos DB account and football Static Web App so the depl
 - Include only a non-secret JOSE error code/name in temporary `INVALID_TOKEN` diagnostics to distinguish issuer, expiration, and signing-key failures. Remove this diagnostic after hosted sync succeeds.
 - Deploy the API update and repeat the hosted profile GET/PUT smoke check.
 
+### I08. Diagnose Cosmos failures without exposing secrets
+
+- Related Files:
+  - `game/api/src/storage/profileCosmos.js` :: `createStorageError`, Cosmos request catches
+  - `game/api/src/functions/profile.js` :: `errorResponse`
+
+#### Details
+
+- Return only safe Cosmos error category/status/substatus fields in 503 responses; never include exception messages, connection strings, account keys, or bearer tokens.
+- Identify a missing `COSMOS_CONNECTION_STRING` explicitly.
+- Use the returned diagnostic to correct the production setting or isolated database/container configuration, then remove temporary diagnostics after hosted sync succeeds.
+
 ## Acceptance Criteria
 
 - [ ] `football/profiles` exists with partition key `/tenantId`, or has been safely created by the user in the portal.
@@ -122,13 +134,13 @@ Configure the existing Cosmos DB account and football Static Web App so the depl
 ## Commit Message
 
 ```text
-fix(auth): accept Entra v1 and v2 access tokens
+fix(storage): add safe Cosmos diagnostics
 
 Plan: 2026-10-26-cosmos-profile-storage
 Phase: P02-azure-configuration
 Task: T01-cosmos-azure-configuration
 
-- Validate both supported Entra access-token versions securely
+- Return only non-secret Cosmos failure categories in API responses
 - Continue hosted profile-sync verification
 ```
 

@@ -22,7 +22,11 @@ function errorResponse(error) {
     });
   }
   if (error?.status === 503 || error?.name === 'ProfileStorageError') {
-    return jsonResponse(503, { code: 'PROFILE_STORAGE_UNAVAILABLE', message: 'Profile storage is unavailable. Please retry.' });
+    return jsonResponse(503, {
+      code: 'PROFILE_STORAGE_UNAVAILABLE',
+      message: 'Profile storage is unavailable. Please retry.',
+      ...(error.diagnostic ? { details: error.diagnostic } : {}),
+    });
   }
   return jsonResponse(500, { code: 'PROFILE_REQUEST_FAILED', message: 'The profile request could not be completed.' });
 }
