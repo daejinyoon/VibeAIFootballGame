@@ -1,23 +1,22 @@
 # Current Context
 
 ## Active Plan
-[Entra Login and Cloud Save](./plans/2026-10-26-entra-login-cloud-save.md)
+[Cosmos DB Profile Storage](./plans/2026-10-26-cosmos-profile-storage.md)
 
 ## Active Phase
-[P03 Azure Configuration](./phases/2026-10-26-entra-login-cloud-save/P03-azure-configuration/phase.md)
+[P02 Azure Configuration](./phases/2026-10-26-cosmos-profile-storage/P02-azure-configuration/phase.md)
 
 ## Active Task
-[T02 Azure Resource Setup](./phases/2026-10-26-entra-login-cloud-save/P03-azure-configuration/T02-azure-resource-setup.md)
+[T01 Cosmos Azure Configuration](./phases/2026-10-26-cosmos-profile-storage/P02-azure-configuration/T01-cosmos-azure-configuration.md)
 
 ## Status
-- P01 Profile API, P02-T01 Entra login, and P02-T02 account-scoped cloud sync are implemented and locally validated.
-- Live Azure Table/API integration and Entra redirect verification need the app registration, environment IDs, and Azure resources; P03-T02 covers those checks.
-- P03-T01 deployment config is ready locally; GitHub repository variables VITE_ENTRA_TENANT_ID and VITE_ENTRA_CLIENT_ID and the football SWA deployment token still need to be configured for an actual publish.
-- The existing SWA deployment task remains unfinished and is parked while this feature plan is executed.
+- Entra login, account-scoped profile sync, and Static Web App deployment are already implemented and live.
+- The profile API now uses Cosmos DB for NoSQL; hosted sync still needs the isolated Cosmos database/container and production connection-string setting.
+- The user selected the existing Cosmos DB for NoSQL account with a new isolated `football` database and `profiles` container; use the account's lowest-cost supported capacity mode.
 
-## Parked Work
-- Previous active task: [T03 Azure Static Web App](./phases/2026-10-26-world-split-player-facing-azure-hosting/P02-azure-deployment/T03-azure-static-web-app.md)
-- Reason: deployment token was missing/invalid and the target Static Web App still needs confirmation. P03-T01/T02 of the active plan incorporate the required API workflow and deployment setup; do not mark the parked task complete until the public hosted deployment succeeds.
+## Superseded Work
+- The Azure Table Storage backend/settings in [Entra Login and Cloud Save](./plans/2026-10-26-entra-login-cloud-save.md) are superseded by [Cosmos DB Profile Storage](./plans/2026-10-26-cosmos-profile-storage.md). Keep its Entra and frontend-sync decisions.
+- The earlier SWA deployment task remains historical; the production football Static Web App is confirmed as `swa-grill-us-prod-d0d6`.
 
 ## Next Step (IMPORTANT)
-Read P03-T02 completely, then configure and verify the Entra registration, football Static Web App, and dedicated Table Storage settings using the user's Azure access.
+Read P02-T01 completely, then configure the isolated `football/profiles` Cosmos namespace and production `COSMOS_CONNECTION_STRING` setting with the user. Do not modify existing game databases.

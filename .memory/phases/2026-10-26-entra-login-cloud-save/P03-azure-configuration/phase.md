@@ -5,8 +5,8 @@
 | Task | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
 | T01 | `done` | Wire the Functions API and public Entra build variables into the Static Web Apps workflow and route configuration. | [T01](./T01-swa-deployment-config.md) |
-| T02 | `in_progress` | Configure the Entra app, dedicated Table Storage, Static Web Apps settings, deployment token, and verify the hosted flow. | [T02](./T02-azure-resource-setup.md) |
+| T02 | `superseded` | Original Table Storage setup replaced by the Cosmos DB configuration plan; preserve the Entra/SWA setup already completed. | [T02](./T02-azure-resource-setup.md) |
 
 ## Progress
 
-- done: 1/2 (active: T02)
+- done: 1/2 (T02 superseded by Cosmos DB Profile Storage)

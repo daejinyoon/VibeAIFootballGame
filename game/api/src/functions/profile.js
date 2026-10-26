@@ -1,7 +1,7 @@
 import { app } from '@azure/functions';
 import { EntraAuthError, requireEntraCaller } from '../auth/entra.js';
 import { ProfileValidationError, readProfilePayload } from '../profileValidation.js';
-import { getProfile, putProfile } from '../storage/profileTable.js';
+import { getProfile, putProfile } from '../storage/profileCosmos.js';
 
 function jsonResponse(status, body) {
   return new Response(JSON.stringify(body), {
