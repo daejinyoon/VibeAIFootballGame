@@ -162,7 +162,7 @@ test('new reward skills enter the bag and can be equipped at any position', () =
   assert.equal(awarded.ok, true);
   campaign = awarded.campaign;
   assert.deepEqual(campaign.ownedTeamSkills, [{ skillId, level: 1 }]);
-  assert.deepEqual(campaign.equippedTeamSkillIds, []);
+  assert.deepEqual(campaign.equippedTeamSkillIds, [], 'the campaign model leaves auto-equip to App orchestration');
   assert.equal(campaign.pendingSkillOffer, null);
 
   const equipped = equipTeamSkill(campaign, skillId, 0);
@@ -198,7 +198,8 @@ test('duplicate rewards upgrade in place up to the skill max level', () => {
     { skillId: 'tornadoShot', level: 1 },
     { skillId: 'eagleShot', level: 1 },
   ];
-  campaign.equippedTeamSkillIds = ['tornadoShot', 'eagleShot'];
+  campaign.equippedTeamSkillIds = ['tornadoShot'];
+  const equippedBeforeUpgrade = [...campaign.equippedTeamSkillIds];
   campaign.pendingSkillOffer = ['eagleShot'];
   let awarded = awardSkillCard(campaign, 'eagleShot');
   assert.equal(awarded.ok, true);
@@ -208,6 +209,8 @@ test('duplicate rewards upgrade in place up to the skill max level', () => {
     { skillId: 'tornadoShot', level: 1 },
     { skillId: 'eagleShot', level: 2 },
   ]);
+  assert.deepEqual(campaign.equippedTeamSkillIds, equippedBeforeUpgrade,
+    'upgrading an unequipped skill does not add it to the loadout');
 
   campaign.pendingSkillOffer = ['eagleShot'];
   campaign = awardSkillCard(campaign, 'eagleShot').campaign;

@@ -218,9 +218,25 @@ export default function App() {
   const chooseSkill = (skillId) => {
     const awarded = awardSkillCard(campaign, skillId);
     if (!awarded.ok) return null;
-    setCampaign(awarded.campaign);
-    persistCampaign(awarded.campaign);
-    return awarded.upgradedLevel ? { upgradedLevel: awarded.upgradedLevel } : { addedToBag: true };
+    let nextCampaign = awarded.campaign;
+    let autoEquipped = false;
+    if (awarded.upgradedLevel == null) {
+      const equippedIds = Array.isArray(nextCampaign.equippedTeamSkillIds)
+        ? nextCampaign.equippedTeamSkillIds
+        : [];
+      if (equippedIds.length < 3) {
+        const equipped = equipTeamSkill(nextCampaign, skillId, equippedIds.length);
+        if (equipped.ok) {
+          nextCampaign = equipped.campaign;
+          autoEquipped = true;
+        }
+      }
+    }
+    setCampaign(nextCampaign);
+    persistCampaign(nextCampaign);
+    return awarded.upgradedLevel != null
+      ? { upgradedLevel: awarded.upgradedLevel }
+      : { addedToBag: true, autoEquipped };
   };
 
   const moveTeamSkill = (fromIndex, toIndex) => {
@@ -354,7 +370,12 @@ export default function App() {
         ownedTeamSkills={campaign.ownedTeamSkills}
         skills={SKILLS}
         onChoose={chooseSkill}
-        onContinue={() => setScreen('stageSelect')}
+        onContinue={() => {
+          const equippedIds = Array.isArray(campaign.equippedTeamSkillIds)
+            ? campaign.equippedTeamSkillIds
+            : [];
+          setScreen(equippedIds.length === 3 ? 'loadout' : 'stageSelect');
+        }}
         onHome={home}
       />}
       {screen === 'loadout' && campaign && <LoadoutScreen
