@@ -492,6 +492,26 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
     const targets = findEulryongtaTargets(state, player, level);
     if (!targets.length) return result(false, skillId, player.team, 'noTargetInFront');
     for (const target of targets) {
+      if (state.ball.ownerId === target.id) {
+        state.ball.ownerId = null;
+        if (Number.isFinite(target.x) && Number.isFinite(target.y)) {
+          state.ball.x = target.x;
+          state.ball.y = target.y;
+        }
+        state.ball.vx = 0;
+        state.ball.vy = 0;
+        state.ball.height = 0;
+        state.ball.verticalVelocity = 0;
+        state.ball.flightKind = 'ground';
+        state.ball.flightSeconds = 0;
+        state.ball.passProtectionSeconds = 0;
+        state.ball.lastTouchTeam = target.team;
+        for (const field of ['flightDurationSeconds', 'passTeam', 'passReceiverId', 'passTarget',
+          'flightTarget', 'lastHeaderPlayerId', 'skillId', 'skillLevel', 'scoreValue']) {
+          delete state.ball[field];
+        }
+        state.possessionTeam = null;
+      }
       const direction = unitVector(target.x - player.x, target.y - player.y);
       target.knockdownSeconds = 5;
       setStatusDuration(target, 'knockdown', 5);

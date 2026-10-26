@@ -329,6 +329,39 @@ test('Eulryongta targets the nearest 1/2/3 opponents in front for five seconds, 
   assert.equal(noTarget.reason, 'noTargetInFront');
 });
 
+test('Eulryongta releases an owned ball at its knocked-down carrier as a clean loose ball', () => {
+  const state = createInitialGameState();
+  const user = state.players.find((player) => player.id === 'home-mid-1');
+  const target = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(user, { x: 300, y: 175, facingX: 1, facingY: 0 });
+  Object.assign(target, { x: 350, y: 175 });
+  carrier(state, target.id);
+  Object.assign(state.ball, {
+    vx: 240, vy: -80, height: 24, verticalVelocity: 180,
+    flightKind: 'ground', flightSeconds: 0.25, flightDurationSeconds: 0.5,
+    passProtectionSeconds: 0.4, passTeam: 'away', passReceiverId: 'away-mid-1',
+    passTarget: { x: 500, y: 175 }, flightTarget: { x: 600, y: 175 },
+    skillId: 'eagleShot', skillLevel: 2, scoreValue: 3,
+  });
+
+  const result = applySkill(state, { team: 'home', sourcePlayerId: user.id, skillId: 'eulryongta', level: 1 });
+
+  assert.equal(result.ok, true);
+  assert.equal(target.knockdownSeconds, 5);
+  assert.equal(state.ball.ownerId, null);
+  assert.deepEqual({ x: state.ball.x, y: state.ball.y }, { x: target.x, y: target.y });
+  assert.deepEqual({ vx: state.ball.vx, vy: state.ball.vy, height: state.ball.height,
+    verticalVelocity: state.ball.verticalVelocity, flightKind: state.ball.flightKind,
+    flightSeconds: state.ball.flightSeconds, passProtectionSeconds: state.ball.passProtectionSeconds },
+  { vx: 0, vy: 0, height: 0, verticalVelocity: 0, flightKind: 'ground', flightSeconds: 0, passProtectionSeconds: 0 });
+  assert.equal(state.ball.lastTouchTeam, 'away');
+  assert.equal(state.possessionTeam, null);
+  for (const field of ['flightDurationSeconds', 'passTeam', 'passReceiverId', 'passTarget',
+    'flightTarget', 'skillId', 'skillLevel', 'scoreValue']) {
+    assert.equal(Object.hasOwn(state.ball, field), false, `${field} is cleared when the ball is dropped`);
+  }
+});
+
 test('Vacuum Cleaner captures the starting ball position for a continuous pull', () => {
   const state = createInitialGameState();
   const user = state.players.find((player) => player.id === 'home-def-1');

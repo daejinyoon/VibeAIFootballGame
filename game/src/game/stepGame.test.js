@@ -1216,6 +1216,111 @@ test('AI tackles knock down a contacted home field player too', () => {
   assert.ok(events.some((event) => event.type === 'playerKnockedDown' && event.team === 'home'));
 });
 
+test('away Eulryongta drops its home carrier and a nearby teammate collects the ball', () => {
+  const state = createInitialGameState({ opponentSkillDeck: [{ skillId: 'eulryongta', level: 1 }] });
+  const carrier = state.players.find((player) => player.id === 'home-fw');
+  const teammate = state.players.find((player) => player.id === 'home-def-1');
+  const caster = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(carrier, { x: 500, y: 270 });
+  Object.assign(teammate, { x: 490, y: 280 });
+  Object.assign(caster, { x: 600, y: 270, facingX: -1, facingY: 0 });
+  state.ball.ownerId = carrier.id;
+  state.ball.x = carrier.x;
+  state.ball.y = carrier.y;
+  state.possessionTeam = 'home';
+
+  const events = stepGame(state, frame(), 0.01);
+
+  assert.ok(events.some((event) => event.type === 'playerKnockedDown' && event.playerId === carrier.id));
+  assert.equal(carrier.knockdownSeconds, 5);
+  assert.equal(state.controlledPlayerId, teammate.id);
+  assert.equal(state.ball.ownerId, teammate.id, 'the eligible teammate recovers the dropped ball');
+  assert.equal(state.possessionTeam, 'home');
+});
+
+test('Eulryongta switches control to the nearest eligible field player in either possession state', () => {
+  for (const possessionTeam of ['home', 'away']) {
+    const state = createInitialGameState({ opponentSkillDeck: [{ skillId: 'eulryongta', level: 1 }] });
+    const controlled = state.players.find((player) => player.id === 'home-fw');
+    const defender = state.players.find((player) => player.id === 'home-def-1');
+    const midfielder = state.players.find((player) => player.id === 'home-mid-1');
+    const awayCarrier = state.players.find((player) => player.id === 'away-fw');
+    Object.assign(controlled, { x: possessionTeam === 'home' ? 500 : 350, y: 270 });
+    Object.assign(awayCarrier, { x: possessionTeam === 'home' ? 600 : 400, y: 270, facingX: -1, facingY: 0 });
+    if (possessionTeam === 'home') {
+      Object.assign(midfielder, { x: 300, y: 270 });
+      Object.assign(defender, { x: 310, y: 270 });
+      state.ball.ownerId = midfielder.id;
+      state.ball.x = midfielder.x + 10;
+      state.ball.y = midfielder.y;
+      state.possessionTeam = 'home';
+    } else {
+      Object.assign(defender, { x: 410, y: 260 });
+      Object.assign(midfielder, { x: 410, y: 280 });
+      state.ball.ownerId = awayCarrier.id;
+      state.ball.x = awayCarrier.x;
+      state.ball.y = awayCarrier.y;
+      state.possessionTeam = 'away';
+      state.aiControlledCarrierId = awayCarrier.id;
+    }
+
+    const events = stepGame(state, frame(), 0.01);
+
+    assert.ok(events.some((event) => event.type === 'playerKnockedDown' && event.playerId === controlled.id),
+      `controlled player is hit while ${possessionTeam} has possession`);
+    assert.equal(state.controlledPlayerId, defender.id,
+      `nearest eligible field player is selected while ${possessionTeam} has possession`);
+    assert.equal(state.possessionTeam, possessionTeam,
+      'a different carrier keeps possession when the controlled player is hit');
+  }
+});
+
+test('Eulryongta handoff skips the goalkeeper and incapacitated teammates and breaks distance ties by id', () => {
+  const state = createInitialGameState({ opponentSkillDeck: [{ skillId: 'eulryongta', level: 1 }] });
+  const controlled = state.players.find((player) => player.id === 'home-fw');
+  const defender = state.players.find((player) => player.id === 'home-def-1');
+  const midfielder = state.players.find((player) => player.id === 'home-mid-1');
+  const goalkeeper = state.players.find((player) => player.id === 'home-gk');
+  const awayCarrier = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(controlled, { x: 350, y: 270 });
+  Object.assign(awayCarrier, { x: 400, y: 270, facingX: -1, facingY: 0 });
+  Object.assign(defender, { x: 410, y: 260 });
+  Object.assign(midfielder, { x: 410, y: 280 });
+  Object.assign(goalkeeper, { x: 405, y: 270 });
+  state.ball.ownerId = awayCarrier.id;
+  state.ball.x = awayCarrier.x;
+  state.ball.y = awayCarrier.y;
+  state.possessionTeam = 'away';
+  state.aiControlledCarrierId = awayCarrier.id;
+
+  stepGame(state, frame(), 0.01);
+
+  assert.equal(controlled.knockdownSeconds, 5);
+  assert.equal(state.controlledPlayerId, defender.id, 'home-def-1 wins an equal-distance tie by id');
+
+  const noEligible = createInitialGameState({ opponentSkillDeck: [{ skillId: 'eulryongta', level: 1 }] });
+  const hitPlayer = noEligible.players.find((player) => player.id === 'home-fw');
+  const disabledDefender = noEligible.players.find((player) => player.id === 'home-def-1');
+  const recoveringMidfielder = noEligible.players.find((player) => player.id === 'home-mid-1');
+  const keeper = noEligible.players.find((player) => player.id === 'home-gk');
+  const carrier = noEligible.players.find((player) => player.id === 'away-fw');
+  Object.assign(hitPlayer, { x: 350, y: 270 });
+  Object.assign(carrier, { x: 400, y: 270, facingX: -1, facingY: 0 });
+  Object.assign(disabledDefender, { x: 401, y: 270, knockdownSeconds: 1, motionAction: 'knockdown' });
+  Object.assign(recoveringMidfielder, { x: 420, y: 280, knockdownSeconds: 0.005, motionAction: 'knockdown' });
+  Object.assign(keeper, { x: 405, y: 270 });
+  noEligible.ball.ownerId = carrier.id;
+  noEligible.ball.x = carrier.x;
+  noEligible.ball.y = carrier.y;
+  noEligible.possessionTeam = 'away';
+  noEligible.aiControlledCarrierId = carrier.id;
+
+  stepGame(noEligible, frame(), 0.01);
+
+  assert.equal(hitPlayer.knockdownSeconds, 5);
+  assert.equal(noEligible.controlledPlayerId, null, 'the goalkeeper is not used when all field players are unavailable');
+});
+
 test('knockdown freezes direct input and AI movement until the one-second recovery completes', () => {
   const state = createInitialGameState();
   const controlled = state.players.find((player) => player.id === state.controlledPlayerId);

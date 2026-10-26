@@ -1575,6 +1575,22 @@ function updateAutomaticHomeDefender(state) {
   state.controlledPlayerId = selected?.id ?? null;
 }
 
+function handOffHomeControlAfterEulryongta(state) {
+  const controlled = byId(state, state.controlledPlayerId);
+  if (!controlled || controlled.team !== 'home' || controlled.knockdownSeconds <= 0
+      || controlled.knockdownSkillId !== 'eulryongta' || controlled.knockdownFromTeam !== 'away') return false;
+
+  const selected = state.players
+    .filter((player) => player.team === 'home' && player.role !== 'goalkeeper' && !player.dismissed
+      && player.knockdownSeconds <= 0 && player.motionAction !== 'recover' && player.stunnedSeconds <= 0
+      && (player.airborneSecondsRemaining ?? 0) <= 0 && Number.isFinite(player.x) && Number.isFinite(player.y))
+    .map((player) => ({ player, distance: distance(player, state.ball) }))
+    .sort((a, b) => a.distance - b.distance || a.player.id.localeCompare(b.player.id))[0]?.player ?? null;
+
+  state.controlledPlayerId = selected?.id ?? null;
+  return true;
+}
+
 function assignMarks(defenders, attackers) {
   const assignments = {};
   const available = new Set(attackers.map((player) => player.id));
@@ -2068,6 +2084,9 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
     if (attempt.ok) events.push(...attempt.events);
   }
   maybeUseAiSkill(state, 'away', events);
+  if (handOffHomeControlAfterEulryongta(state)) {
+    controlled = byId(state, state.controlledPlayerId);
+  }
 
   if (state.possessionTeam === 'home') {
     if (controlled) {
@@ -2090,7 +2109,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
     events.push(...advanceVacuum(state, dt));
   } else {
     const owner = carrier(state);
-    if (owner && owner.id === controlled.id && state.possessionTeam === 'home') {
+    if (owner && controlled && owner.id === controlled.id && state.possessionTeam === 'home') {
       updateOwnedBall(state);
     } else if (state.ball.ownerId && owner) {
       const direction = unit(owner.team === 'home' ? 1 : -1, 0);
