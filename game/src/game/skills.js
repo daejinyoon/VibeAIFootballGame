@@ -462,8 +462,9 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
     player.worldSplitSlideDirectionY = forward.y;
     player.vx = forward.x * WORLD_SPLIT_SLIDE_SPEED;
     player.vy = forward.y * WORLD_SPLIT_SLIDE_SPEED;
+    const campaignStage = clamp(Math.floor(Number(state.stage) || 1), 1, WORLD_SPLIT_LENGTHS.length);
     const barrier = { skillId, team: player.team, sourcePlayerId: player.id, x: player.x, y: player.y,
-      facingX: forward.x, facingY: forward.y, length: WORLD_SPLIT_LENGTHS[level - 1] ?? WORLD_SPLIT_LENGTHS[0],
+      facingX: forward.x, facingY: forward.y, length: WORLD_SPLIT_LENGTHS[campaignStage - 1],
       thickness: WORLD_SPLIT_THICKNESS, wallOffset: WORLD_SPLIT_WALL_OFFSET,
       height: WORLD_SPLIT_HEIGHT, elapsedSeconds: 0,
       remainingSeconds: WORLD_SPLIT_DURATION_SECONDS };

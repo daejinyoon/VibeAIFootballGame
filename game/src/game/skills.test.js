@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import test from 'node:test';
-import { FIELD, PLAYER_BODY_WIDTH } from './constants.js';
+import { FIELD, WORLD_SPLIT_HEIGHT, WORLD_SPLIT_LENGTHS, WORLD_SPLIT_SLIDE_SECONDS, WORLD_SPLIT_SLIDE_SPEED } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
 import {
   SKILL_IDS, SKILL_MAX_LEVELS, SKILLS, activateNextTeamSkill,
@@ -266,23 +266,23 @@ test('Tornado Shot starts a five-second contact path with level-scaled width and
   }
 });
 
-test('World Split slides the caster along a long, three-second level-scaled ground split', () => {
-  const state = createInitialGameState({ teamSkillDeck: teamDeck('powerTackle', 2) });
+test('World Split slides about 90 units and scales its visible barrier with campaign stage', () => {
+  const state = createInitialGameState({ stage: 2, teamSkillDeck: teamDeck('powerTackle', 2) });
   const user = state.players.find((player) => player.id === 'home-fw');
   Object.assign(user, { x: 350, y: 270, facingX: 1, facingY: 0 });
   Object.assign(state.players.find((player) => player.id === 'away-fw'), { x: 390, y: 270 });
   const result = applySkill(state, { team: 'home', sourcePlayerId: user.id, skillId: 'powerTackle', level: 2 });
   assert.equal(result.ok, true);
-  assert.equal(state.powerBarriers[0].length, 500);
-  assert.ok(state.powerBarriers[0].length >= 8 * PLAYER_BODY_WIDTH);
+  assert.equal(state.powerBarriers[0].length, 100);
   assert.equal(state.powerBarriers[0].thickness, 20);
   assert.equal(state.powerBarriers[0].wallOffset, 40);
-  assert.equal(state.powerBarriers[0].height, 72);
+  assert.equal(state.powerBarriers[0].height, 90);
   assert.equal(state.powerBarriers[0].remainingSeconds, 3);
   assert.equal(user.motionAction, 'tackle');
-  assert.equal(user.worldSplitSlideSecondsRemaining, 0.95);
+  assert.equal(user.worldSplitSlideSecondsRemaining, WORLD_SPLIT_SLIDE_SECONDS);
   assert.equal(user.worldSplitSlideDirectionX, 1);
-  assert.ok(user.vx > 0, 'the caster slides forward along the barrier direction');
+  assert.equal(user.vx, WORLD_SPLIT_SLIDE_SPEED, 'the caster slides forward along the barrier direction');
+  assert.equal(WORLD_SPLIT_SLIDE_SPEED * WORLD_SPLIT_SLIDE_SECONDS, 90.25);
   assert.ok(state.players.find((player) => player.id === 'away-fw').knockdownSeconds > 0);
   Object.assign(state.ball, { ownerId: null, x: 420, y: 230, vx: -400, vy: 0, flightKind: 'shot' });
   stepGame(state, frame(), 0.05);
@@ -291,13 +291,15 @@ test('World Split slides the caster along a long, three-second level-scaled grou
   Object.assign(crossingPlayer, { x: 450, y: 238, vx: 0, vy: 0 });
   stepGame(state, frame(), 0.05);
   assert.ok(crossingPlayer.y < 256, 'the character remains on the approach side of the wall');
-  for (const [level, length] of [[1, 400], [2, 500], [3, 600]]) {
-    const levelState = createInitialGameState();
-    const source = levelState.players.find((player) => player.id === 'home-fw');
-    assert.equal(applySkill(levelState, { team: 'home', sourcePlayerId: source.id, skillId: 'powerTackle', level }).ok, true);
-    assert.equal(levelState.powerBarriers[0].length, length);
-    assert.equal(levelState.powerBarriers[0].height, 72);
-    assert.equal(levelState.powerBarriers[0].remainingSeconds, 3);
+  for (const [stage, length] of WORLD_SPLIT_LENGTHS.entries()) {
+    for (const level of [1, 3]) {
+      const stageState = createInitialGameState({ stage: stage + 1 });
+      const source = stageState.players.find((player) => player.id === 'home-fw');
+      assert.equal(applySkill(stageState, { team: 'home', sourcePlayerId: source.id, skillId: 'powerTackle', level }).ok, true);
+      assert.equal(stageState.powerBarriers[0].length, length);
+      assert.equal(stageState.powerBarriers[0].height, WORLD_SPLIT_HEIGHT);
+      assert.equal(stageState.powerBarriers[0].remainingSeconds, 3);
+    }
   }
 });
 

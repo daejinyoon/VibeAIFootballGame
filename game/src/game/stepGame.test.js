@@ -256,7 +256,8 @@ test('pressing F in the match creates a persistent World Split terrain barrier',
 
   assert.ok(events.some((event) => event.type === 'powerBarrierCreated'));
   assert.equal(state.powerBarriers.length, 1);
-  assert.equal(state.powerBarriers[0].length, 400);
+  assert.equal(state.powerBarriers[0].length, 90);
+  assert.equal(state.powerBarriers[0].height, 90);
   assert.ok(state.powerBarriers[0].remainingSeconds > 2.9);
   assert.equal(state.powerBarriers[0].sourcePlayerId, source.id);
   assert.ok(source.x > 480, 'the player physically slides forward as the split opens');
@@ -1448,6 +1449,7 @@ test('defensive D pressure moves the selected player toward the opponent carrier
 test('the away AI advances toward the home goal and takes a shot in range', () => {
   const state = createInitialGameState();
   const opponent = state.players.find((player) => player.id === 'away-fw');
+  state.players.find((player) => player.id === 'home-gk').dismissed = true;
   opponent.x = 100;
   opponent.y = FIELD.height / 2 - 40;
   state.ball.ownerId = opponent.id;
