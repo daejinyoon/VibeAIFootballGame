@@ -5,6 +5,7 @@ import {
   EAGLE_FLIGHT_HEIGHT,
   EAGLE_SHOT_INTERVAL_SECONDS,
   FIELD,
+  GOAL_CROSSBAR_HEIGHT,
   GROUND_CLEARANCE_DISTANCE,
   GOLDEN_GOAL_SECONDS,
   getAiTuning,
@@ -16,6 +17,8 @@ import {
   PLAYER_BODY_WIDTH,
   SHOT_ASSIST_DISTANCE,
   SHOT_ASSIST_MAX,
+  SHOT_ARC_FULL_DISTANCE,
+  SHOT_ARC_START_DISTANCE,
   KICKOFF_CIRCLE_RADIUS,
   SPRINT_DRAIN_PER_SECOND,
   SPRINT_RECOVERY_PER_SECOND,
@@ -362,7 +365,15 @@ function releaseShot(state, player) {
       direction = unit(goalX - start.x, assistedTargetY - start.y);
     }
   }
-  const speed = player.team === 'home' ? 500 : 430;
+  const horizontalGoalDistance = Math.abs(goalX - start.x);
+  const arcBlend = clamp(
+    (horizontalGoalDistance - SHOT_ARC_START_DISTANCE)
+      / (SHOT_ARC_FULL_DISTANCE - SHOT_ARC_START_DISTANCE),
+    0,
+    1,
+  );
+  const teamBaseSpeed = player.team === 'home' ? 500 : 430;
+  const speed = teamBaseSpeed * (1 - 0.16 * arcBlend);
   state.ball.ownerId = null;
   state.ball.vx = direction.x * speed;
   state.ball.vy = direction.y * speed;
@@ -372,7 +383,7 @@ function releaseShot(state, player) {
   delete state.ball.skillLevel;
   delete state.ball.scoreValue;
   state.ball.height = 0;
-  state.ball.verticalVelocity = 0;
+  state.ball.verticalVelocity = 80 + 240 * arcBlend;
   delete state.ball.flightDurationSeconds;
   delete state.ball.skillId;
   delete state.ball.passTeam;
@@ -819,12 +830,14 @@ function checkBallBoundary(state) {
   const { ball } = state;
   if (ball.x - BALL_RADIUS > FIELD.width
       && ball.y - BALL_RADIUS >= FIELD.goalTop
-      && ball.y + BALL_RADIUS <= FIELD.goalBottom) {
+      && ball.y + BALL_RADIUS <= FIELD.goalBottom
+      && (ball.height ?? 0) <= GOAL_CROSSBAR_HEIGHT) {
     return scoreGoal(state, 'home');
   }
   if (ball.x + BALL_RADIUS < 0
       && ball.y - BALL_RADIUS >= FIELD.goalTop
-      && ball.y + BALL_RADIUS <= FIELD.goalBottom) {
+      && ball.y + BALL_RADIUS <= FIELD.goalBottom
+      && (ball.height ?? 0) <= GOAL_CROSSBAR_HEIGHT) {
     return scoreGoal(state, 'away');
   }
 
@@ -1132,7 +1145,7 @@ function integrateLooseBall(state, deltaSeconds) {
       ball.y += ball.vy * deltaSeconds;
     }
     ball.flightSeconds = (ball.flightSeconds ?? 0) + deltaSeconds;
-    if (['lob', 'cross', 'header'].includes(ball.flightKind)) {
+    if (['shot', 'lob', 'cross', 'header'].includes(ball.flightKind)) {
       ball.verticalVelocity = (ball.verticalVelocity ?? 0) - BALL_GRAVITY * deltaSeconds;
       ball.height = Math.max(0, ball.height + ball.verticalVelocity * deltaSeconds);
       if (ball.height === 0) {

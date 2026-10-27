@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BALL_RADIUS, FIELD, KICKOFF_CIRCLE_RADIUS, PLAYER_BODY_WIDTH, SHOT_ASSIST_DISTANCE, SHOT_ASSIST_MAX, getAiTuning } from './constants.js';
+import { BALL_RADIUS, FIELD, GOAL_CROSSBAR_HEIGHT, KICKOFF_CIRCLE_RADIUS, PLAYER_BODY_WIDTH, SHOT_ARC_FULL_DISTANCE, SHOT_ARC_START_DISTANCE, SHOT_ASSIST_DISTANCE, SHOT_ASSIST_MAX, getAiTuning } from './constants.js';
 import { createInitialGameState as createGameState, getBaseFormationPositions } from './createInitialGameState.js';
 import { applySkill } from './skills.js';
 import { applyTornadoContacts, stepGame } from './stepGame.js';
@@ -607,6 +607,117 @@ test('D shoots immediately in the selected player facing direction', () => {
   assert.equal(state.players.find((player) => player.id === 'home-fw').motionAction, 'shot');
 });
 
+test('ordinary home shots interpolate speed and arc smoothly from close to long range', () => {
+  const shootAtDistance = (distanceToGoal) => {
+    const state = createInitialGameState();
+    const shooter = state.players.find((player) => player.id === 'home-fw');
+    Object.assign(shooter, {
+      x: FIELD.width - distanceToGoal - 17,
+      y: FIELD.height / 2,
+      facingX: 1,
+      facingY: 0,
+    });
+    const events = stepGame(state, frame({ pressed: ['d'] }), 0.01);
+    return { speed: Math.hypot(state.ball.vx, state.ball.vy), verticalVelocity: state.ball.verticalVelocity, events };
+  };
+
+  const close = shootAtDistance(SHOT_ARC_START_DISTANCE);
+  const middle = shootAtDistance((SHOT_ARC_START_DISTANCE + SHOT_ARC_FULL_DISTANCE) / 2);
+  const long = shootAtDistance(SHOT_ARC_FULL_DISTANCE);
+  const beforeStart = shootAtDistance(SHOT_ARC_START_DISTANCE - 1);
+  const afterStart = shootAtDistance(SHOT_ARC_START_DISTANCE + 1);
+  const beforeFull = shootAtDistance(SHOT_ARC_FULL_DISTANCE - 1);
+  const afterFull = shootAtDistance(SHOT_ARC_FULL_DISTANCE + 1);
+
+  assert.equal(close.speed, 500);
+  assert.equal(close.verticalVelocity, 71);
+  assert.equal(middle.speed, 460);
+  assert.equal(middle.verticalVelocity, 191);
+  assert.equal(long.speed, 420);
+  assert.equal(long.verticalVelocity, 311);
+  assert.ok(Math.abs(beforeStart.speed - afterStart.speed) < 1);
+  assert.ok(Math.abs(beforeFull.speed - afterFull.speed) < 1);
+  assert.ok(close.events.some((event) => event.type === 'shot'));
+});
+
+test('away AI ordinary shots keep their base speed at close range', () => {
+  const state = createInitialGameState();
+  const shooter = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(shooter, { x: 167, y: FIELD.height / 2, facingX: -1, facingY: 0 });
+  state.ball.ownerId = shooter.id;
+  state.ball.x = shooter.x;
+  state.ball.y = shooter.y;
+  state.possessionTeam = 'away';
+
+  const events = stepGame(state, frame(), 0.05);
+
+  assert.equal(state.ball.flightKind, 'shot');
+  assert.ok(Math.abs(Math.hypot(state.ball.vx, state.ball.vy) - 430) < 0.01);
+  assert.ok(Math.abs(state.ball.verticalVelocity - 35) < 0.01);
+  assert.ok(events.some((event) => event.type === 'shot' && event.team === 'away'));
+});
+
+test('ordinary shot height rises, falls, and returns to ground flight', () => {
+  const state = createInitialGameState();
+  for (const player of state.players) player.dismissed = true;
+  Object.assign(state.ball, {
+    ownerId: null, x: 500, y: FIELD.height / 2, vx: 100, vy: 0,
+    height: 0, verticalVelocity: 200, flightKind: 'shot', lastTouchTeam: 'home',
+  });
+
+  stepGame(state, frame(), 0.05);
+  const firstHeight = state.ball.height;
+  stepGame(state, frame(), 0.05);
+  stepGame(state, frame(), 0.05);
+  stepGame(state, frame(), 0.05);
+  const peakHeight = state.ball.height;
+  stepGame(state, frame(), 0.05);
+  const fallingHeight = state.ball.height;
+  for (let index = 0; index < 10 && state.ball.flightKind === 'shot'; index += 1) {
+    stepGame(state, frame(), 0.05);
+  }
+
+  assert.ok(firstHeight > 0);
+  assert.ok(peakHeight > firstHeight);
+  assert.ok(fallingHeight < peakHeight);
+  assert.equal(state.ball.height, 0);
+  assert.equal(state.ball.verticalVelocity, 0);
+  assert.equal(state.ball.flightKind, 'ground');
+});
+
+test('shots score below the crossbar on either side and high shots restart as goal kicks', () => {
+  const crossAtHeight = (team, height) => {
+    const state = createInitialGameState();
+    for (const player of state.players) {
+      player.dismissed = player.id !== (team === 'home' ? 'away-gk' : 'home-gk');
+    }
+    Object.assign(state.ball, {
+      ownerId: null,
+      x: team === 'home' ? FIELD.width + BALL_RADIUS - 0.6 : -BALL_RADIUS + 0.6,
+      y: FIELD.height / 2,
+      vx: team === 'home' ? 100 : -100,
+      vy: 0,
+      height,
+      verticalVelocity: 0,
+      flightKind: 'shot',
+      lastTouchTeam: team,
+    });
+
+    const events = stepGame(state, frame(), 0.01);
+    return { state, events };
+  };
+
+  for (const team of ['home', 'away']) {
+    const atBar = crossAtHeight(team, GOAL_CROSSBAR_HEIGHT);
+    assert.ok(atBar.events.some((event) => event.type === 'goal' && event.team === team));
+
+    const aboveBar = crossAtHeight(team, GOAL_CROSSBAR_HEIGHT + 40);
+    assert.ok(!aboveBar.events.some((event) => event.type === 'goal'));
+    assert.equal(aboveBar.state.phase, 'goalKick');
+    assert.equal(aboveBar.state.restart?.type, 'goalKick');
+  }
+});
+
 test('shots retain all eight facing directions while correcting only toward the goal mouth', () => {
   const directions = [
     [1, 0], [1, -1], [0, -1], [-1, -1],
@@ -844,7 +955,10 @@ test('a keeper catches an ordinary shot and starts a timed goal kick', () => {
   Object.assign(dismissed, { dismissed: true, x: 420, y: 420, sprintStamina: 37 });
   const preservedPlayer = state.players.find((player) => player.id === 'home-mid-1');
   preservedPlayer.sprintStamina = 61;
-  Object.assign(state.ball, { ownerId: null, x: 55, y: 270, vx: -30, vy: 0, flightKind: 'shot', lastTouchTeam: 'away' });
+  Object.assign(state.ball, {
+    ownerId: null, x: 55, y: 270, vx: -30, vy: 0,
+    height: 10, verticalVelocity: 80, flightKind: 'shot', lastTouchTeam: 'away',
+  });
 
   const events = stepGame(state, frame(), 0.01);
 
