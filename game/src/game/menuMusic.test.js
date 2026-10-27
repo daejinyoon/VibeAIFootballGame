@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { startMenuMusic, stopMenuMusic } from './menuMusic.js';
+import { setGameAudioEnabled } from './audioSettings.js';
 
 test('menu fanfare schedules one exact phrase, remains idempotent, and fades on stop', () => {
   const previousWindow = globalThis.window;
@@ -58,11 +59,16 @@ test('menu fanfare schedules one exact phrase, remains idempotent, and fades on 
     const schedulerTimer = [...calls.timers.keys()][0];
     assert.equal(startMenuMusic(), true);
     assert.equal(calls.resumes, 1);
-    assert.equal(calls.gains.length, 25);
+    assert.equal(calls.gains.length, 26);
     assert.equal(calls.oscillators.length, 24);
     assert.equal(calls.timers.size, 1);
     assert.ok(calls.oscillators.some((oscillator) => oscillator.type === 'sawtooth'));
     assert.ok(calls.oscillators.some((oscillator) => oscillator.type === 'triangle'));
+    const sharedOutput = calls.gains[1];
+    setGameAudioEnabled(false);
+    assert.equal(sharedOutput.gain.value, 0);
+    setGameAudioEnabled(true);
+    assert.equal(sharedOutput.gain.value, 1);
     assert.ok(Math.abs(calls.oscillators[0].frequency.events[0][1] - 261.6256) < 0.01);
     assert.equal(calls.oscillators[0].startTime, 10.05);
     assert.ok(Math.abs(calls.oscillators[0].stopTimes[0] - 11.055) < 1e-9);
@@ -79,7 +85,7 @@ test('menu fanfare schedules one exact phrase, remains idempotent, and fades on 
     assert.equal(calls.oscillators.length, nodeCount);
 
     assert.equal(startMenuMusic(), true);
-    assert.equal(calls.gains.length, 50);
+    assert.equal(calls.gains.length, 51);
     assert.equal(calls.oscillators.length, 48);
     stopMenuMusic();
     for (const { callback } of [...calls.timers.values()]) callback();

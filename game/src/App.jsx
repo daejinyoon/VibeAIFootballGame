@@ -3,8 +3,10 @@ import { createCampaign, finishStage, getUnlockedStage } from './game/campaign.j
 import { createInitialGameState } from './game/createInitialGameState.js';
 import { SKILL_IDS, SKILLS, applySkill, awardSkillCard, equipTeamSkill, reorderTeamSkill, unequipTeamSkill } from './game/skills.js';
 import { getTeamBranding } from './game/teamBranding.js';
-import { playCrowdCheer, prepareMatchAudio } from './game/matchAudio.js';
+import { playCrowdCheer, prepareMatchAudio, startCrowdAmbience } from './game/matchAudio.js';
 import { startMenuMusic, stopMenuMusic } from './game/menuMusic.js';
+import { prepareAudioContext } from './game/audioContext.js';
+import { setGameAudioEnabled } from './game/audioSettings.js';
 import { createEmptyProfile, createCampaignSave, setNickname, sortLeaderboard, updateBestRecord } from './storage/localProfile.js';
 import { beginEntraLogin, beginEntraLogout, getProfileApiToken } from './auth/entraAuth.js';
 import { loadCloudProfile, saveCloudProfile } from './storage/profileRepository.js';
@@ -85,6 +87,7 @@ export default function App({ authBootstrap = {} }) {
   const [campaign, setCampaign] = useState(null);
   const [selectedStage, setSelectedStage] = useState(1);
   const [matchState, setMatchState] = useState(null);
+  const [audioEnabled, setAudioEnabled] = useState(true);
   const [result, setResult] = useState(null);
   const [profileError, setProfileError] = useState('');
   const [profileErrorStatus, setProfileErrorStatus] = useState(0);
@@ -92,27 +95,38 @@ export default function App({ authBootstrap = {} }) {
   const handledTerminalMatchRef = useRef(null);
   const pendingProfileRef = useRef(null);
   const saveQueueRef = useRef(Promise.resolve());
-  const menuMusicScreenActiveRef = useRef(false);
-
-  const enterMenuMusicScreen = () => {
-    startMenuMusic();
-    menuMusicScreenActiveRef.current = true;
-  };
-
-  const leaveMenuMusicScreen = () => {
-    if (menuMusicScreenActiveRef.current) stopMenuMusic();
-    menuMusicScreenActiveRef.current = false;
-  };
-
   useEffect(() => {
-    if (screen === 'teamCustomization' || screen === 'stageSelect') {
-      if (!menuMusicScreenActiveRef.current) enterMenuMusicScreen();
-    } else {
-      leaveMenuMusicScreen();
+    if (!accountIsAuthenticated) {
+      stopMenuMusic();
+      return undefined;
     }
-  }, [screen]);
 
-  useEffect(() => () => leaveMenuMusicScreen(), []);
+    setAudioEnabled(true);
+    setGameAudioEnabled(true);
+    startMenuMusic();
+    let resumedFromGesture = false;
+    const resumeFromGesture = () => {
+      if (resumedFromGesture) return;
+      resumedFromGesture = true;
+      prepareAudioContext();
+      startMenuMusic();
+      window.removeEventListener('pointerdown', resumeFromGesture);
+      window.removeEventListener('keydown', resumeFromGesture);
+    };
+    window.addEventListener('pointerdown', resumeFromGesture, { once: true });
+    window.addEventListener('keydown', resumeFromGesture, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', resumeFromGesture);
+      window.removeEventListener('keydown', resumeFromGesture);
+      stopMenuMusic();
+    };
+  }, [accountIsAuthenticated]);
+
+  const toggleGameAudio = () => setAudioEnabled((enabled) => {
+    const nextEnabled = !enabled;
+    setGameAudioEnabled(nextEnabled);
+    return nextEnabled;
+  });
 
   useEffect(() => {
     if (!accountIsAuthenticated) return undefined;
@@ -189,8 +203,8 @@ export default function App({ authBootstrap = {} }) {
 
   const startStage = (activeCampaign = campaign) => {
     if (!activeCampaign) return;
-    leaveMenuMusicScreen();
     prepareMatchAudio();
+    void startCrowdAmbience();
     void playCrowdCheer('kickoff');
     activeMatchInstanceRef.current += 1;
     setMatchState(makeMatchState(activeCampaign, profile.teamCustomization));
@@ -208,7 +222,6 @@ export default function App({ authBootstrap = {} }) {
     setCampaign(nextCampaign);
     setSelectedStage(1);
     setResult(null);
-    enterMenuMusicScreen();
     setScreen('stageSelect');
     if (profile.campaignSave) saveProfile({ ...profile, campaignSave: null }).catch(() => undefined);
   };
@@ -224,7 +237,6 @@ export default function App({ authBootstrap = {} }) {
 
   const openTeamCustomization = () => {
     setProfileError('');
-    enterMenuMusicScreen();
     setScreen('teamCustomization');
   };
 
@@ -342,7 +354,6 @@ export default function App({ authBootstrap = {} }) {
   };
 
   const home = () => {
-    leaveMenuMusicScreen();
     setScreen('start');
     setCampaign(null);
     setMatchState(null);
@@ -364,7 +375,6 @@ export default function App({ authBootstrap = {} }) {
     setCampaign(resumed);
     setSelectedStage(resumed.currentStage);
     setResult(null);
-    if (!resumed.pendingSkillOffer) enterMenuMusicScreen();
     setScreen(resumed.pendingSkillOffer ? 'skillReward' : 'stageSelect');
   };
 
@@ -435,7 +445,7 @@ export default function App({ authBootstrap = {} }) {
       {screen === 'teamCustomization' && <TeamCustomizationScreen
         customization={profile.teamCustomization}
         onSave={handleTeamCustomizationSave}
-        onBack={() => { setProfileError(''); leaveMenuMusicScreen(); setScreen('start'); }}
+        onBack={() => { setProfileError(''); setScreen('start'); }}
         errorMessage={profileError}
       />}
       {screen === 'stageSelect' && campaign && <StageSelectScreen
@@ -445,7 +455,7 @@ export default function App({ authBootstrap = {} }) {
         selectedStage={selectedStage}
         onSelectStage={selectStage}
         onStartStage={startSelectedStage}
-        onOpenLoadout={() => { leaveMenuMusicScreen(); setScreen('loadout'); }}
+        onOpenLoadout={() => { setScreen('loadout'); }}
         onHome={home}
       />}
       {(screen === 'match' || screen === 'pause') && matchState && <Suspense fallback={<div className="game-screen-loading" role="status">경기장을 준비하고 있어요…</div>}>
@@ -454,8 +464,10 @@ export default function App({ authBootstrap = {} }) {
           gameState={matchState}
           paused={screen === 'pause'}
           errorMessage={profileError}
+          audioEnabled={audioEnabled}
+          onToggleAudio={toggleGameAudio}
           onPause={() => setScreen('pause')}
-          onResume={() => setScreen('match')}
+          onResume={() => { void startCrowdAmbience(); setScreen('match'); }}
           onSaveAndExit={saveAndExit}
           onGameEvents={handleGameEvents}
         />
@@ -482,7 +494,6 @@ export default function App({ authBootstrap = {} }) {
             : [];
           if (equippedIds.length === 3) setScreen('loadout');
           else {
-            enterMenuMusicScreen();
             setScreen('stageSelect');
           }
         }}
@@ -496,8 +507,8 @@ export default function App({ authBootstrap = {} }) {
         onMove={moveTeamSkill}
         onEquip={equipCampaignSkill}
         onUnequip={unequipCampaignSkill}
-        onConfirm={() => { enterMenuMusicScreen(); setScreen('stageSelect'); }}
-        onBack={() => { enterMenuMusicScreen(); setScreen('stageSelect'); }}
+        onConfirm={() => { setScreen('stageSelect'); }}
+        onBack={() => { setScreen('stageSelect'); }}
       />}
       {screen === 'leaderboard' && <LeaderboardScreen records={records} onBack={() => setScreen('start')} />}
 

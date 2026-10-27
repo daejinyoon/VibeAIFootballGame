@@ -1,4 +1,4 @@
-import { getAudioContext, prepareAudioContext } from './audioContext.js';
+import { getAudioContext, getAudioOutputNode, prepareAudioContext } from './audioContext.js';
 
 const BEAT_SECONDS = 0.5;
 const PHRASE_SECONDS = 8;
@@ -118,7 +118,7 @@ export function startMenuMusic() {
   try {
     masterGain = context.createGain();
     masterGain.gain.setValueAtTime(MASTER_VOLUME, context.currentTime);
-    masterGain.connect(context.destination);
+    masterGain.connect(getAudioOutputNode(context));
   } catch {
     disconnectNode(masterGain);
     return false;

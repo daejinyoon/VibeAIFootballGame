@@ -1,4 +1,5 @@
-import { getAudioContext, prepareAudioContext } from './audioContext.js';
+import { getAudioContext, getAudioOutputNode, prepareAudioContext } from './audioContext.js';
+import { isGameAudioEnabled } from './audioSettings.js';
 
 /** Create/resume audio from the skill key gesture before the simulation event fires. */
 export function prepareSkillAudio() {
@@ -7,6 +8,7 @@ export function prepareSkillAudio() {
 
 /** A short, game-like palm impact made locally with Web Audio (no downloaded asset). */
 export function playEulryongtaImpact() {
+  if (!isGameAudioEnabled()) return false;
   const context = getAudioContext();
   if (!context) return false;
   try {
@@ -34,7 +36,7 @@ export function playEulryongtaImpact() {
     noiseGain.gain.setValueAtTime(0.0001, startAt);
     noiseGain.gain.exponentialRampToValueAtTime(0.34, startAt + 0.006);
     noiseGain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
-    noise.connect(filter).connect(noiseGain).connect(context.destination);
+    noise.connect(filter).connect(noiseGain).connect(getAudioOutputNode(context));
     noise.start(startAt);
     noise.stop(startAt + duration);
 
@@ -46,7 +48,7 @@ export function playEulryongtaImpact() {
     bodyGain.gain.setValueAtTime(0.0001, startAt);
     bodyGain.gain.exponentialRampToValueAtTime(0.22, startAt + 0.004);
     bodyGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.09);
-    body.connect(bodyGain).connect(context.destination);
+    body.connect(bodyGain).connect(getAudioOutputNode(context));
     body.start(startAt);
     body.stop(startAt + 0.095);
     return true;
@@ -69,7 +71,7 @@ function scheduleTone(context, { startAt, duration, fromHz, toHz, type = 'sine',
   gain.gain.setValueAtTime(0.0001, start);
   gain.gain.exponentialRampToValueAtTime(volume, start + Math.min(0.025, duration * 0.18));
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  oscillator.connect(gain).connect(context.destination);
+  oscillator.connect(gain).connect(getAudioOutputNode(context));
   disconnectWhenEnded(oscillator);
   disconnectWhenEnded(gain);
   oscillator.start(start);
@@ -96,7 +98,7 @@ function scheduleNoise(context, { startAt, duration, fromHz, toHz, type = 'bandp
   gain.gain.setValueAtTime(0.0001, startAt);
   gain.gain.exponentialRampToValueAtTime(volume, startAt + Math.min(0.025, duration * 0.15));
   gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
-  source.connect(filter).connect(gain).connect(context.destination);
+  source.connect(filter).connect(gain).connect(getAudioOutputNode(context));
   disconnectWhenEnded(source);
   disconnectWhenEnded(filter);
   disconnectWhenEnded(gain);
@@ -106,6 +108,7 @@ function scheduleNoise(context, { startAt, duration, fromHz, toHz, type = 'bandp
 
 /** Play one bounded, locally synthesized sound for an accepted skill event. */
 export function playSkillAudio(skillId) {
+  if (!isGameAudioEnabled()) return false;
   if (skillId === 'eulryongta') return playEulryongtaImpact();
   if (!['eagleShot', 'tornadoShot', 'vacuumCleaner'].includes(skillId)) return false;
   const context = getAudioContext();

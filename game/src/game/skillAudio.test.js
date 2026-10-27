@@ -1,6 +1,7 @@
 ﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import { playEulryongtaImpact, playSkillAudio, prepareSkillAudio } from './skillAudio.js';
+import { setGameAudioEnabled } from './audioSettings.js';
 
 test('Eulryongta audio safely does nothing when Web Audio is unavailable', () => {
   const previousWindow = globalThis.window;
@@ -11,6 +12,20 @@ test('Eulryongta audio safely does nothing when Web Audio is unavailable', () =>
     assert.equal(playSkillAudio('eagleShot'), false);
     assert.equal(playSkillAudio('unknown'), false);
   } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
+test('the global audio setting blocks new skill sound effects while muted', () => {
+  const previousWindow = globalThis.window;
+  try {
+    globalThis.window = {};
+    setGameAudioEnabled(false);
+    assert.equal(playSkillAudio('eagleShot'), false);
+    assert.equal(playEulryongtaImpact(), false);
+  } finally {
+    setGameAudioEnabled(true);
     if (previousWindow === undefined) delete globalThis.window;
     else globalThis.window = previousWindow;
   }

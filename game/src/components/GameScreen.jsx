@@ -6,6 +6,7 @@ import { getAwayHudAccent } from '../game/teamBranding.js';
 import { BrandLogo } from './BrandLogo.jsx';
 import { MatchMiniMap } from './MatchMiniMap.jsx';
 import { SkillCutInOverlay } from './SkillCutInOverlay.jsx';
+import { startCrowdAmbience, stopCrowdAmbience } from '../game/matchAudio.js';
 
 export function formatMatchTime(seconds) {
   if (!Number.isFinite(seconds)) return '00:00';
@@ -15,7 +16,7 @@ export function formatMatchTime(seconds) {
   return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
 }
 
-export default function GameScreen({ gameState, paused, errorMessage, onPause, onResume, onSaveAndExit, onGameEvents }) {
+export default function GameScreen({ gameState, paused, errorMessage, onPause, onResume, onSaveAndExit, onGameEvents, audioEnabled, onToggleAudio }) {
   const [viewState, setViewState] = useState(gameState);
   const [cutInCue, setCutInCue] = useState(null);
   const [scoreToast, setScoreToast] = useState(null);
@@ -85,6 +86,15 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
     : null;
 
   useEffect(() => {
+    if (paused) {
+      stopCrowdAmbience();
+      return undefined;
+    }
+    void startCrowdAmbience();
+    return stopCrowdAmbience;
+  }, [paused]);
+
+  useEffect(() => {
     cutInQueueRef.current = [];
     cutInRef.current = null;
     setCutInCue(null);
@@ -150,6 +160,16 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
           <div className="score-clock"><small>{isOvertime ? 'GOLDEN GOAL' : 'MATCH TIME'}</small><strong>{timeLabel}</strong></div>
           <div className="score-team score-team-away"><b>{awayScore}</b><span className="score-team-name">{awayName}</span><span className="score-team-mark"><BrandLogo logoId={awayBranding.logoId ?? 'samsung'} title="decorative" /></span></div>
         </div>
+        <button
+          className="match-audio-toggle"
+          type="button"
+          aria-pressed={audioEnabled}
+          aria-label={audioEnabled ? '소리 끄기' : '소리 켜기'}
+          title={audioEnabled ? '소리 끄기' : '소리 켜기'}
+          onClick={onToggleAudio}
+        >
+          <span aria-hidden="true">{audioEnabled ? '🔊' : '🔇'}</span>
+        </button>
         <Match3DGame initialState={gameState} paused={paused} onGameEvents={handleGameEvents} onStateChange={(next) => {
         const now = performance.now();
         if (now - lastUpdate.current > 100) {
