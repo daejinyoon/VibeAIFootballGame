@@ -79,6 +79,7 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
     const moving = speed > 3 && ['run', 'tackle'].includes(livePlayer.motionAction);
     const ownsBall = gameStateRef?.current?.ball?.ownerId === livePlayer.id;
     const action = livePlayer.motionAction;
+    const sliding = (livePlayer.slideSeconds ?? 0) > 0;
     if (action === 'recover' && previousAction.current !== 'recover') recoveryPoseSeconds.current = 0.24;
     else if (action !== 'recover') recoveryPoseSeconds.current = Math.max(0, recoveryPoseSeconds.current - delta);
     previousAction.current = action;

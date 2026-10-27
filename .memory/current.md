@@ -1,22 +1,18 @@
 # Current Context
 
 ## Active Plan
-[Cosmos DB Profile Storage](./plans/2026-10-26-cosmos-profile-storage.md)
+[Football Beta Feedback](./plans/2026-10-27-football-beta-feedback.md)
 
 ## Active Phase
-[P02 Azure Configuration](./phases/2026-10-26-cosmos-profile-storage/P02-azure-configuration/phase.md)
+[P01 Game Stability and Polish](./phases/2026-10-27-football-beta-feedback/P01-game-stability-and-polish/phase.md)
 
 ## Active Task
-[T01 Cosmos Azure Configuration](./phases/2026-10-26-cosmos-profile-storage/P02-azure-configuration/T01-cosmos-azure-configuration.md)
+[T02 Distance-Based Shot Arcs](./phases/2026-10-27-football-beta-feedback/P01-game-stability-and-polish/T02-distance-based-shot-arcs.md)
 
 ## Status
-- Entra login, account-scoped profile sync, and Static Web App deployment are already implemented and live.
-- The profile API now uses Cosmos DB for NoSQL; hosted sync still needs the isolated Cosmos database/container and production connection-string setting.
-- The user selected the existing Cosmos DB for NoSQL account with a new isolated `football` database and `profiles` container; use the account's lowest-cost supported capacity mode.
-
-## Superseded Work
-- The Azure Table Storage backend/settings in [Entra Login and Cloud Save](./plans/2026-10-26-entra-login-cloud-save.md) are superseded by [Cosmos DB Profile Storage](./plans/2026-10-26-cosmos-profile-storage.md). Keep its Entra and frontend-sync decisions.
-- The earlier SWA deployment task remains historical; the production football Static Web App is confirmed as `swa-grill-us-prod-d0d6`.
-
+- T01 tackle-pose fix is committed locally after the user reproduced the live freeze; `npm test` and `npm run build` pass.
+- Post-fix Chrome/Edge soak and input-latency measurements are deferred to the batch release per user direction. No Azure deployment was made.
+- The prior Cosmos DB Profile Storage task `P02-T01` and its plan/task files remain unchanged and preserved.
+- Preserve existing unrelated worktree changes; do not revert them.
 ## Next Step (IMPORTANT)
-Read P02-T01 completely, then configure the isolated `football/profiles` Cosmos namespace and production `COSMOS_CONNECTION_STRING` setting with the user. Do not modify existing game databases.
+Read T02 completely and implement the planned distance-based ordinary-shot trajectories. Preserve the existing `shadows={false}` setting in `game/src/components/Match3DCanvas.jsx`. Keep T01 post-fix browser soak for batch-release verification.
