@@ -11,7 +11,9 @@ Use nearly the entire available desktop browser area on every post-login screen 
 ## Phases
 | Phase | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
-| P01 | `in_progress` | Desktop shell, menus, match viewport, HUD, and legacy CSS cleanup | [P01](../phases/2026-10-27-desktop-responsive-layout/P01-desktop-responsive-ui/phase.md) |
+| P01 | `done` | Desktop shell, menus, match viewport, HUD, and legacy CSS cleanup | [P01](../phases/2026-10-27-desktop-responsive-layout/P01-desktop-responsive-ui/phase.md) |
+
+Implementation is complete. Authenticated start and live match visual checks remain outstanding before deployment.
 
 ## Completion checks
 - At 800x600, 1280x720, 1920x1080, 2560x1440, and 3440x1440, post-login pages have no horizontal overflow or clipped primary actions.

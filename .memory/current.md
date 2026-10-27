@@ -7,10 +7,13 @@
 [P01 Desktop Responsive UI](./phases/2026-10-27-desktop-responsive-layout/P01-desktop-responsive-ui/phase.md)
 
 ## Active Task
-[T01 Expand Desktop Shell and Menu Layouts](./phases/2026-10-27-desktop-responsive-layout/P01-desktop-responsive-ui/T01-expand-menu-layouts.md)
+None — all Tasks in this plan are complete.
 
 ## Status
-- T01 ready to implement; no implementation code has been changed by this planning step.
+- T01 desktop shell and menu layouts completed and committed as `d71054a`.
+- T02 match viewport and HUD layout completed and committed as `3d06d05`.
+- T03 unused legacy CSS cleanup completed and committed as `bc9a879`.
+- All three Tasks in P01 are implemented. Authenticated browser checks of the start and live match screens remain outstanding.
 
 ## Next Step (IMPORTANT)
-Read the T01 blueprint and implement its `game/src/styles.css` desktop shell and menu rules. Run the validation commands, commit with the T01 message, then advance to T02.
+When an authenticated browser session is available, inspect the start and live match screens at 1280x720 and 1920x1080. Resize during play and check camera framing, pause/resume, score HUD, audio button, minimap, and scrolling before deployment.
