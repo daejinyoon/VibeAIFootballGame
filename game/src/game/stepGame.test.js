@@ -1003,7 +1003,6 @@ test('a keeper catches an ordinary shot and starts a timed goal kick', () => {
     Object.assign(player, { x: 300 + index * 20, y: 70 + index * 30, vx: 12, vy: -4, aiTarget: 'scattered', aiRetargetSeconds: 4 });
   }
   Object.assign(state.players.find((player) => player.id === 'home-gk'), { x: 55, y: 270 });
-  const basePositions = getBaseFormationPositions();
   const dismissed = state.players.find((player) => player.id === 'away-mid-1');
   Object.assign(dismissed, { dismissed: true, x: 420, y: 420, sprintStamina: 37 });
   const preservedPlayer = state.players.find((player) => player.id === 'home-mid-1');
@@ -1020,17 +1019,18 @@ test('a keeper catches an ordinary shot and starts a timed goal kick', () => {
   assert.ok(events.some((event) => event.type === 'keeperCatch'));
   assert.ok(!events.some((event) => event.type === 'playerKnockedDown'));
   assert.equal(state.players.find((player) => player.id === 'home-gk').knockdownSeconds, 0);
+  assert.equal(state.players.find((player) => player.id === 'home-gk').keeperAction, 'diveRight');
   for (const player of state.players.filter((entry) => !entry.dismissed)) {
-    const expected = basePositions.get(player.id);
     if (player.id === 'home-gk') {
       assert.deepEqual({ x: player.x, y: player.y }, { x: 70, y: FIELD.height / 2 });
+    } else if (player.team === 'home' && player.role !== 'goalkeeper') {
+      assert.equal(typeof player.aiTarget.x, 'number');
+      assert.equal(typeof player.aiTarget.y, 'number');
     } else {
-      assert.deepEqual({ x: player.x, y: player.y }, expected);
+      assert.notDeepEqual({ x: player.x, y: player.y }, getBaseFormationPositions().get(player.id));
     }
-    assert.equal(player.vx, 0);
-    assert.equal(player.vy, 0);
-    assert.equal(player.aiTarget, null);
-    assert.equal(player.aiRetargetSeconds, 0);
+    assert.ok(player.x >= 0 && player.x <= FIELD.width);
+    assert.ok(player.y >= 0 && player.y <= FIELD.height);
   }
   assert.deepEqual({ x: dismissed.x, y: dismissed.y }, { x: 420, y: 420 });
   assert.equal(dismissed.dismissed, true);
@@ -1044,9 +1044,11 @@ test('a keeper catches an ordinary shot and starts a timed goal kick', () => {
   assert.equal(state.ball.ownerId, null);
   assert.ok(state.ball.vx > 0);
   assert.ok(kickEvents.some((event) => event.type === 'goalKick'));
+  assert.equal(state.players.find((player) => player.id === 'home-gk').keeperAction, 'goalKick');
+  assert.equal(state.players.find((player) => player.id === 'home-gk').motionAction, 'goalKick');
 });
 
-test('goal-line goal kicks reset both teams while keeping the awarded goalkeeper at the ball', () => {
+test('goal-line goal kicks move receiving teammates toward mirrored lanes without teleporting players', () => {
   const basePositions = getBaseFormationPositions();
   for (const scenario of [
     { x: FIELD.width + BALL_RADIUS + 1, lastTouchTeam: 'home', team: 'away', keeperId: 'away-gk' },
@@ -1075,26 +1077,49 @@ test('goal-line goal kicks reset both teams while keeping the awarded goalkeeper
           x: scenario.team === 'home' ? 70 : FIELD.width - 70,
           y: FIELD.height / 2,
         });
-      } else if (scenario.team === 'away' && player.team === 'home' && player.role !== 'goalkeeper') {
-        assert.ok(player.aiTarget === null);
+        assert.equal(player.keeperAction, 'goalKickPrepare');
+        assert.equal(player.keeperActionSeconds, 0.35);
+      } else if (player.team === scenario.team && player.role !== 'goalkeeper' && !player.dismissed) {
+        assert.equal(typeof player.aiTarget?.x, 'number');
+        assert.equal(typeof player.aiTarget?.y, 'number');
+        assert.notDeepEqual({ x: player.x, y: player.y }, player.aiTarget);
         assert.ok(player.x >= 0 && player.x <= FIELD.width && player.y >= 0 && player.y <= FIELD.height);
       } else {
-        assert.deepEqual({ x: player.x, y: player.y }, basePositions.get(player.id));
+        assert.ok(player.x >= 0 && player.x <= FIELD.width && player.y >= 0 && player.y <= FIELD.height);
       }
     }
-    if (scenario.team === 'away') {
-      const homeFieldPlayers = state.players.filter((player) => player.team === 'home' && player.role !== 'goalkeeper');
-      const xs = homeFieldPlayers.map((player) => player.x);
-      const ys = homeFieldPlayers.map((player) => player.y);
-      assert.ok(new Set(xs).size > 1 && new Set(ys).size > 1);
-      const central = homeFieldPlayers.find((player) => Math.abs(player.x - FIELD.width * 0.70) < 1);
-      assert.ok(central);
-      const [first, second, third] = homeFieldPlayers;
-      const doubledArea = Math.abs((second.x - first.x) * (third.y - first.y)
-        - (second.y - first.y) * (third.x - first.x));
-      assert.ok(doubledArea > 1, 'home field players form a non-collinear triangle');
-      assert.equal(state.ball.ownerId, scenario.keeperId);
+    const receivingPlayers = state.players.filter((player) => player.team === scenario.team
+      && player.role !== 'goalkeeper' && !player.dismissed)
+      .sort((a, b) => a.role.localeCompare(b.role) || a.id.localeCompare(b.id));
+    const laneX = scenario.team === 'home' ? [0.70, 0.60, 0.60] : [0.30, 0.40, 0.40];
+    for (const [index, player] of receivingPlayers.entries()) {
+      assert.ok(Math.abs(player.aiTarget.x - FIELD.width * laneX[index]) < 0.01);
+      assert.equal(player.aiRetargetSeconds, 0);
     }
+
+    const firstReceiver = receivingPlayers[0];
+    const initialDistance = Math.hypot(firstReceiver.aiTarget.x - firstReceiver.x, firstReceiver.aiTarget.y - firstReceiver.y);
+    stepGame(state, frame(), 0.05);
+    assert.ok(Math.hypot(firstReceiver.aiTarget.x - firstReceiver.x, firstReceiver.aiTarget.y - firstReceiver.y) < initialDistance);
+
+    let restartEvents = [];
+    if (scenario.team === 'away') {
+      for (let index = 0; index < 10 && state.restart; index += 1) {
+        restartEvents = stepGame(state, frame(), 0.05);
+      }
+    } else {
+      restartEvents = stepGame(state, frame({ pressed: ['a'] }), 0.05);
+      assert.equal(state.restart.queuedAction, 'longKick');
+      assert.ok(!restartEvents.some((event) => event.type === 'restartTaken'));
+      for (let index = 0; index < 10 && state.restart; index += 1) {
+        restartEvents = stepGame(state, frame(), 0.05);
+      }
+    }
+    assert.equal(state.restart, null);
+    assert.ok(restartEvents.some((event) => event.type === 'restartTaken' && event.team === scenario.team));
+    const keeper = state.players.find((player) => player.id === scenario.keeperId);
+    assert.equal(keeper.keeperAction, 'goalKick');
+    assert.equal(keeper.motionAction, 'goalKick');
   }
 });
 
@@ -1234,6 +1259,7 @@ test('home restart actions pressed during setup execute once the restart is read
     { type: 'throwIn', playerId: 'home-def-1', key: 's', action: 'throwIn' },
     { type: 'cornerKick', playerId: 'home-def-1', key: 'a', action: 'cornerCross' },
     { type: 'goalKick', playerId: 'home-gk', key: 'a', action: 'longKick' },
+    { type: 'goalKick', playerId: 'home-gk', key: 's', action: 'shortPass' },
   ];
 
   for (const scenario of cases) {
@@ -1264,6 +1290,15 @@ test('home restart actions pressed during setup execute once the restart is read
     }
     assert.equal(state.restart, null);
     assert.ok(readyEvents.some((event) => event.type === 'restartTaken' && event.restartType === scenario.type));
+    if (scenario.type === 'goalKick') {
+      const keeper = state.players.find((player) => player.id === scenario.playerId);
+      assert.equal(keeper.keeperAction, 'goalKick');
+      assert.equal(keeper.motionAction, 'goalKick');
+      assert.equal(state.ball.flightKind, scenario.action === 'shortPass' ? 'ground' : 'lob');
+      for (let index = 0; index < 11; index += 1) stepGame(state, frame(), 0.05);
+      assert.equal(keeper.keeperAction, 'idle');
+      assert.equal(keeper.motionAction, 'idle');
+    }
   }
 });
 

@@ -85,7 +85,7 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
     previousAction.current = action;
     const displayAction = action === 'recover' || recoveryPoseSeconds.current > 0 ? 'recover' : action;
     const cadence = livePlayer.sprinting ? 15.5 : ownsBall ? 9.5 : 11.5;
-    if (moving || ownsBall || ['pass', 'shot', 'skill', 'tackle', 'header', 'knockdown', 'recover'].includes(action)) {
+    if (moving || ownsBall || ['pass', 'shot', 'skill', 'tackle', 'header', 'goalKick', 'knockdown', 'recover'].includes(action)) {
       phase.current += delta * cadence;
     }
 
@@ -118,6 +118,14 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
       body.current.position.y = displayAction === 'knockdown' ? 0.34 : 0;
       if (knocked && torso.current) torso.current.position.y = 0.31;
     }
+    if (isKeeper && ['idle', 'goalKickPrepare', 'goalKick'].includes(livePlayer.keeperAction)) {
+      if (body.current) {
+        body.current.rotation.z = 0;
+        body.current.position.y = 0;
+      }
+      if (leftArm.current) leftArm.current.rotation.z = -0.15;
+      if (rightArm.current) rightArm.current.rotation.z = 0.15;
+    }
     if (isKeeper && ['diveLeft', 'diveRight', 'recover'].includes(livePlayer.keeperAction)) {
       const diving = livePlayer.keeperAction !== 'recover';
       const actionDuration = diving ? 0.42 : 0.24;
@@ -134,6 +142,37 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
       if (leftLeg.current) leftLeg.current.rotation.z = -direction * 0.28;
       if (rightLeg.current) rightLeg.current.rotation.z = -direction * 0.18;
       if (torso.current) torso.current.rotation.x = -0.12;
+    }
+    if (isKeeper && livePlayer.keeperAction === 'goalKickPrepare') {
+      const progress = 1 - Math.min(1,
+        (livePlayer.keeperActionSeconds ?? 0.35) / 0.35);
+      const lean = Math.sin(progress * Math.PI) * 0.09;
+      if (leftArm.current) leftArm.current.rotation.set(-0.12 - lean, 0, -0.48);
+      if (rightArm.current) rightArm.current.rotation.set(-0.12 - lean, 0, 0.48);
+      if (leftLeg.current) leftLeg.current.rotation.x = 0.08;
+      if (rightLeg.current) rightLeg.current.rotation.x = -0.08;
+      if (torso.current) {
+        torso.current.position.y = 0.31 + lean * 0.35;
+        torso.current.rotation.x = -0.08 - progress * 0.08;
+      }
+      if (head.current) head.current.rotation.x = -0.04;
+    }
+    if (isKeeper && livePlayer.keeperAction === 'goalKick') {
+      const progress = 1 - Math.min(1,
+        (livePlayer.keeperActionSeconds ?? 0.55) / 0.55);
+      const ease = (value) => value * value * (3 - 2 * value);
+      const backSwing = ease(Math.min(1, progress / 0.32));
+      const followThrough = ease(Math.max(0, (progress - 0.32) / 0.68));
+      const kickAngle = 0.62 * backSwing - 1.45 * followThrough;
+      if (rightLeg.current) rightLeg.current.rotation.x = kickAngle;
+      if (leftLeg.current) leftLeg.current.rotation.x = -0.12 - followThrough * 0.16;
+      if (leftArm.current) leftArm.current.rotation.set(-0.25 - followThrough * 0.2, 0, -0.55);
+      if (rightArm.current) rightArm.current.rotation.set(-0.18, 0, 0.38 + followThrough * 0.12);
+      if (torso.current) {
+        torso.current.position.y = 0.31 + followThrough * 0.035;
+        torso.current.rotation.x = -0.1 - followThrough * 0.3;
+      }
+      if (head.current) head.current.rotation.x = -0.05 - followThrough * 0.03;
     }
     if (pose === 'cutIn') {
       phase.current += delta * 3;

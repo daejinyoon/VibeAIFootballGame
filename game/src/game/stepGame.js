@@ -25,7 +25,7 @@ import {
   SPRINT_RECOVERY_PER_SECOND,
   SPRINT_STAMINA_MAX
 } from './constants.js';
-import { createInitialGameState, getBaseFormationPositions } from './createInitialGameState.js';
+import { createInitialGameState } from './createInitialGameState.js';
 import { addSkillEffect, activateNextTeamSkill, spawnNextEagleProjectile } from './skills.js';
 
 const PLAYER_SPEED = 176;
@@ -35,6 +35,8 @@ const PRESSURE_SPEED = 190;
 const SLIDE_SPEED = 160;
 const SPRINT_SPEED_MULTIPLIER = 1.35;
 const MAX_DELTA = 0.05;
+const GOAL_KICK_PREPARE_SECONDS = 0.35;
+const GOAL_KICK_MOTION_SECONDS = 0.55;
 const INTERCEPTION_RADIUS = 16;
 const AI_MIN_PASS_DISTANCE = 48;
 const AI_MAX_PASS_DISTANCE = 330;
@@ -623,9 +625,10 @@ function advancePlayerRecovery(player, deltaSeconds) {
       player.vy = 0;
     }
   }
-  player.motionTimerSeconds = Math.max(0, (player.motionTimerSeconds ?? 0) - deltaSeconds);
+  const motionRemaining = Math.max(0, (player.motionTimerSeconds ?? 0) - deltaSeconds);
+  player.motionTimerSeconds = motionRemaining <= 1e-9 ? 0 : motionRemaining;
   if (player.motionTimerSeconds === 0
-      && ['pass', 'shot', 'skill', 'tackle', 'header'].includes(player.motionAction)) player.motionAction = 'idle';
+      && ['pass', 'shot', 'skill', 'tackle', 'header', 'goalKick'].includes(player.motionAction)) player.motionAction = 'idle';
   if (player.knockdownSeconds > 0) {
     player.knockdownSeconds = Math.max(0, player.knockdownSeconds - deltaSeconds);
     if (player.knockdownSeconds === 0) {
@@ -708,6 +711,7 @@ function launchAutomaticRestart(state, player) {
   const direction = unit(receiver.x - player.x, receiver.y - player.y);
   player.facingX = Math.sign(direction.x) || player.facingX;
   player.facingY = Math.sign(direction.y);
+  setGoalKickMotion(player);
   putBallAtPlayer(state, player);
   state.ball.ownerId = null;
   state.ball.vx = direction.x * 275;
@@ -720,22 +724,6 @@ function launchAutomaticRestart(state, player) {
   delete state.ball.passTarget;
   delete state.ball.flightDurationSeconds;
   return receiver;
-}
-
-function resetActivePlayersToBaseFormation(players) {
-  const basePositions = getBaseFormationPositions();
-  for (const player of players) {
-    if (player.dismissed) continue;
-    const basePosition = basePositions.get(player.id);
-    if (basePosition) {
-      player.x = basePosition.x;
-      player.y = basePosition.y;
-    }
-    player.vx = 0;
-    player.vy = 0;
-    player.aiTarget = null;
-    player.aiRetargetSeconds = 0;
-  }
 }
 
 function beginManualRestart(state, type, restartTeam, spot) {
@@ -759,11 +747,11 @@ function beginManualRestart(state, type, restartTeam, spot) {
   }
 
   if (type === 'goalKick') {
-    resetActivePlayersToBaseFormation(state.players);
     taker.x = restartTeam === 'home' ? 70 : FIELD.width - 70;
     taker.y = FIELD.height / 2;
     spot = { x: taker.x, y: taker.y };
-    if (restartTeam === 'away') positionHomeGoalKickTriangle(state);
+    positionGoalKickTriangle(state, restartTeam);
+    setGoalKickPrepare(taker);
   } else {
     taker.x = spot.x;
     taker.y = type === 'throwIn'
@@ -788,22 +776,47 @@ function beginManualRestart(state, type, restartTeam, spot) {
   return [{ type, team: restartTeam, playerId: taker.id }];
 }
 
-function positionHomeGoalKickTriangle(state) {
-  const homeFieldPlayers = activePlayers(state, 'home')
+function positionGoalKickTriangle(state, team) {
+  const fieldPlayers = activePlayers(state, team)
     .filter((player) => player.role !== 'goalkeeper')
     .sort((a, b) => a.role.localeCompare(b.role) || a.id.localeCompare(b.id));
   const centerY = FIELD.height / 2;
-  const vertices = [
+  const homeVertices = [
     { x: FIELD.width * 0.70, y: centerY },
     { x: FIELD.width * 0.60, y: centerY - FIELD.height * 0.19 },
     { x: FIELD.width * 0.60, y: centerY + FIELD.height * 0.19 },
   ];
-  homeFieldPlayers.forEach((player, index) => {
-    const target = vertices[index];
-    if (!target) return;
-    player.x = clamp(target.x, 20, FIELD.width - 20);
-    player.y = clamp(target.y, 12, FIELD.height - 12);
+  fieldPlayers.forEach((player, index) => {
+    const homeTarget = homeVertices[index];
+    if (!homeTarget) return;
+    const target = team === 'home' ? homeTarget : { x: FIELD.width - homeTarget.x, y: homeTarget.y };
+    player.aiTarget = {
+      x: clamp(target.x, 20, FIELD.width - 20),
+      y: clamp(target.y, 12, FIELD.height - 12),
+    };
+    player.aiRetargetSeconds = 0;
   });
+}
+
+function moveGoalKickReceivers(state, team, deltaSeconds) {
+  for (const player of activePlayers(state, team)) {
+    if (player.role === 'goalkeeper' || !player.aiTarget) continue;
+    moveToward(player, player.aiTarget, AI_SPEED, deltaSeconds);
+  }
+}
+
+function setGoalKickPrepare(keeper, duration = GOAL_KICK_PREPARE_SECONDS) {
+  if (!keeper || keeper.role !== 'goalkeeper') return;
+  keeper.keeperAction = 'goalKickPrepare';
+  keeper.keeperActionSeconds = duration;
+}
+
+function setGoalKickMotion(keeper) {
+  if (!keeper || keeper.role !== 'goalkeeper') return;
+  keeper.keeperAction = 'goalKick';
+  keeper.keeperActionSeconds = GOAL_KICK_MOTION_SECONDS;
+  keeper.motionAction = 'goalKick';
+  keeper.motionTimerSeconds = GOAL_KICK_MOTION_SECONDS;
 }
 
 function restartThrowIn(state, restartTeam, exitX, exitY) {
@@ -1033,9 +1046,9 @@ function handleKeeperContact(state, previousPosition) {
     keeper.keeperAction = direction < 0 ? 'diveLeft' : 'diveRight';
     keeper.keeperActionSeconds = KEEPER_DIVE_SECONDS;
     setBallOwner(state, keeper);
-    resetActivePlayersToBaseFormation(state.players);
     keeper.x = keeper.team === 'home' ? 70 : FIELD.width - 70;
     keeper.y = FIELD.height / 2;
+    positionGoalKickTriangle(state, keeper.team);
     putBallAtPlayer(state, keeper);
     state.phase = 'goalKick';
     state.phaseSeconds = 1;
@@ -1498,7 +1511,11 @@ function updateKeeperPosition(state, defendingTeam, opposingCarrier, deltaSecond
 
 function advanceKeeperAction(player, deltaSeconds) {
   if (player.role !== 'goalkeeper') return;
-  if (['diveLeft', 'diveRight'].includes(player.keeperAction)) {
+  if (['goalKickPrepare', 'goalKick'].includes(player.keeperAction)) {
+    const actionRemaining = Math.max(0, (player.keeperActionSeconds ?? 0) - deltaSeconds);
+    player.keeperActionSeconds = actionRemaining <= 1e-9 ? 0 : actionRemaining;
+    if (player.keeperActionSeconds === 0) player.keeperAction = 'idle';
+  } else if (['diveLeft', 'diveRight'].includes(player.keeperAction)) {
     player.keeperActionSeconds = Math.max(0, (player.keeperActionSeconds ?? 0) - deltaSeconds);
     if (player.keeperActionSeconds === 0) {
       player.keeperAction = 'recover';
@@ -1779,13 +1796,19 @@ function updateOwnedBall(state) {
 }
 
 function beginGoalKick(state, deltaSeconds) {
+  const keeper = carrier(state);
+  if (keeper && state.phaseSeconds <= GOAL_KICK_PREPARE_SECONDS
+      && keeper.keeperAction !== 'goalKickPrepare') {
+    setGoalKickPrepare(keeper, Math.max(0, state.phaseSeconds));
+  }
+  if (keeper) moveGoalKickReceivers(state, keeper.team, deltaSeconds);
   state.phaseSeconds -= deltaSeconds;
   if (state.phaseSeconds > 0) return [];
 
-  const keeper = carrier(state);
   state.phase = state.overtimeRemainingSeconds === null ? 'playing' : 'overtime';
   delete state.phaseSeconds;
   if (keeper) {
+    setGoalKickMotion(keeper);
     const direction = keeper.team === 'home' ? 1 : -1;
     state.ball.ownerId = null;
     state.ball.vx = direction * 275;
@@ -1829,6 +1852,7 @@ function releaseRestart(state, restart, action) {
 
   const direction = unit(target.x - state.ball.x, target.y - state.ball.y);
   if (direction.x === 0 && direction.y === 0) return [];
+  if (restart.type === 'goalKick') setGoalKickMotion(taker);
   const isAerial = action !== 'shortPass';
   const speed = action === 'throwIn' ? 235
     : action === 'cornerCross' ? 320
@@ -1896,6 +1920,7 @@ function advanceManualRestart(state, input, deltaSeconds) {
               : null;
     if (action) restart.queuedAction ??= action;
   }
+  if (restart.type === 'goalKick') moveGoalKickReceivers(state, restart.team, deltaSeconds);
   restart.readySeconds = Math.max(0, restart.readySeconds - deltaSeconds);
   const taker = byId(state, restart.takerId);
   if (!taker || taker.dismissed) return [];
