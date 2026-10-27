@@ -1,0 +1,11 @@
+{
+  "name": "football-dev-talk",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node build-deck.cjs"
+  },
+  "dependencies": {
+    "pptxgenjs": "4.0.1"
+  }
+}
