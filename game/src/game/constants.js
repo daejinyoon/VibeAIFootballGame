@@ -1,8 +1,8 @@
 export const FIELD = Object.freeze({
   width: 960,
   height: 540,
-  goalTop: 210,
-  goalBottom: 330,
+  goalTop: 180,
+  goalBottom: 360,
 });
 
 export const TEAM_IDS = Object.freeze(['home', 'away']);

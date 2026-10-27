@@ -685,8 +685,8 @@ test('ordinary shot height rises, falls, and returns to ground flight', () => {
   assert.equal(state.ball.flightKind, 'ground');
 });
 
-test('shots score below the crossbar on either side and high shots restart as goal kicks', () => {
-  const crossAtHeight = (team, height) => {
+test('shots score inside the widened goal mouth on either side and high shots restart as goal kicks', () => {
+  const crossAtHeight = (team, height, y = FIELD.height / 2) => {
     const state = createInitialGameState();
     for (const player of state.players) {
       player.dismissed = player.id !== (team === 'home' ? 'away-gk' : 'home-gk');
@@ -694,7 +694,7 @@ test('shots score below the crossbar on either side and high shots restart as go
     Object.assign(state.ball, {
       ownerId: null,
       x: team === 'home' ? FIELD.width + BALL_RADIUS - 0.6 : -BALL_RADIUS + 0.6,
-      y: FIELD.height / 2,
+      y,
       vx: team === 'home' ? 100 : -100,
       vy: 0,
       height,
@@ -708,6 +708,12 @@ test('shots score below the crossbar on either side and high shots restart as go
   };
 
   for (const team of ['home', 'away']) {
+    const atUpperEdge = crossAtHeight(team, 0, FIELD.goalTop + BALL_RADIUS);
+    assert.ok(atUpperEdge.events.some((event) => event.type === 'goal' && event.team === team));
+
+    const outsideMouth = crossAtHeight(team, 0, FIELD.goalTop + BALL_RADIUS - 0.1);
+    assert.ok(!outsideMouth.events.some((event) => event.type === 'goal'));
+
     const atBar = crossAtHeight(team, GOAL_CROSSBAR_HEIGHT);
     assert.ok(atBar.events.some((event) => event.type === 'goal' && event.team === team));
 
@@ -1379,6 +1385,64 @@ test('the defensive A action can win possession with a short slide tackle', () =
   assert.ok(knockdown.direction.x > 0);
 });
 
+test('the controlled defender automatically tackles an opponent carrier after closing within range', () => {
+  const state = createInitialGameState();
+  const defender = state.players.find((player) => player.id === 'home-fw');
+  const opponent = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(defender, { x: 400, y: 270 });
+  Object.assign(opponent, { x: 440, y: 270 });
+  state.controlledPlayerId = defender.id;
+  state.ball.ownerId = opponent.id;
+  state.ball.x = opponent.x;
+  state.ball.y = opponent.y;
+  state.possessionTeam = 'away';
+  state.aiShotCooldownSeconds = 10;
+  state.aiControlledCarrierId = opponent.id;
+
+  const events = stepGame(state, frame({ moveX: 1 }), 0.12);
+
+  assert.ok(events.some((event) => event.type === 'tackle' && event.playerId === defender.id));
+  assert.equal(state.ball.ownerId, defender.id);
+  assert.equal(defender.motionAction, 'tackle');
+  assert.equal(defender.aiTackleCooldownSeconds, 1.35);
+});
+
+test('automatic close-range tackles respect range, cooldown, and player recovery states', () => {
+  const scenarios = [
+    { name: 'outside range', distance: 40 },
+    { name: 'cooldown', distance: 20, cooldown: 1 },
+    { name: 'stunned', distance: 20, stunnedSeconds: 1 },
+    { name: 'knocked down', distance: 20, knockdownSeconds: 1 },
+    { name: 'recovering', distance: 20, motionAction: 'recover' },
+  ];
+
+  for (const scenario of scenarios) {
+    const state = createInitialGameState();
+    const defender = state.players.find((player) => player.id === 'home-fw');
+    const opponent = state.players.find((player) => player.id === 'away-fw');
+    Object.assign(defender, {
+      x: 500,
+      y: 270,
+      aiTackleCooldownSeconds: scenario.cooldown ?? 0,
+      stunnedSeconds: scenario.stunnedSeconds ?? 0,
+      knockdownSeconds: scenario.knockdownSeconds ?? 0,
+      motionAction: scenario.motionAction ?? 'idle',
+    });
+    Object.assign(opponent, { x: 500 + scenario.distance, y: 270, stunnedSeconds: 1 });
+    state.controlledPlayerId = defender.id;
+    state.ball.ownerId = opponent.id;
+    state.ball.x = opponent.x;
+    state.ball.y = opponent.y;
+    state.possessionTeam = 'away';
+    state.aiControlledCarrierId = opponent.id;
+
+    const events = stepGame(state, frame(), 0.01);
+
+    assert.ok(!events.some((event) => event.type === 'tackle' && event.playerId === defender.id), scenario.name);
+    assert.equal(defender.aiTackleCooldownSeconds, Math.max(0, (scenario.cooldown ?? 0) - 0.01), scenario.name);
+  }
+});
+
 test('AI tackles knock down a contacted home field player too', () => {
   const state = createInitialGameState();
   const carrier = state.players.find((player) => player.id === 'home-fw');
@@ -1712,6 +1776,18 @@ test('keeper tracks the goal mouth, steps out for a clear close one-on-one, then
   stepGame(state, frame(), 0.05);
   assert.equal(keeper.aiTarget.x, 48);
   assert.ok(keeper.x < 60);
+
+  Object.assign(carrier, { x: 500, y: 0 });
+  state.ball.x = carrier.x;
+  state.ball.y = carrier.y;
+  stepGame(state, frame(), 0.05);
+  assert.equal(keeper.aiTarget.y, FIELD.goalTop + 14);
+
+  Object.assign(carrier, { x: 500, y: FIELD.height });
+  state.ball.x = carrier.x;
+  state.ball.y = carrier.y;
+  stepGame(state, frame(), 0.05);
+  assert.equal(keeper.aiTarget.y, FIELD.goalBottom - 14);
 });
 
 test('defensive D pressure moves the selected player toward the opponent carrier', () => {

@@ -1469,7 +1469,7 @@ function updateKeeperPosition(state, defendingTeam, opposingCarrier, deltaSecond
   const goalX = homeKeepsLeft ? 0 : FIELD.width;
   const shotThreat = keeperThreat(state, keeper);
   const targetY = shotThreat?.reachable ? shotThreat.y : state.ball.y;
-  const goalY = clamp(targetY, 224, 316);
+  const goalY = clamp(targetY, FIELD.goalTop + 14, FIELD.goalBottom - 14);
   const closeThreat = opposingCarrier && distance(opposingCarrier, { x: goalX, y: goalY }) <= 150;
   const hasClearLane = closeThreat && !activePlayers(state, defendingTeam)
     .some((player) => player.role !== 'goalkeeper' && player.id !== opposingCarrier.id
@@ -1687,6 +1687,19 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
     }
 
     updateSupportPlayer(state, player, deltaSeconds);
+  }
+
+  if (controlled && opponentCarrier && state.ball.ownerId === opponentCarrier.id
+      && controlled.role !== 'goalkeeper' && (controlled.aiTackleCooldownSeconds ?? 0) <= 0
+      && controlled.stunnedSeconds <= 0 && controlled.knockdownSeconds <= 0
+      && controlled.motionAction !== 'recover' && (controlled.airborneSecondsRemaining ?? 0) <= 0
+      && distance(controlled, opponentCarrier) <= 26) {
+    putBallAtPlayer(state, opponentCarrier);
+    const tackleEvents = resolveTackle(state, controlled, opponentCarrier);
+    if (tackleEvents.some((event) => event.type === 'tackle')) {
+      controlled.aiTackleCooldownSeconds = 1.35;
+      events.push(...tackleEvents);
+    }
   }
 
   if (controlled && opponentCarrier && controlled.slideSeconds > 0) {
