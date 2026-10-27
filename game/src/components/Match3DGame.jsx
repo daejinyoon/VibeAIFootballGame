@@ -6,6 +6,7 @@ export default function Match3DGame({ initialState, paused, onGameEvents, onStat
   const gameStateRef = useRef(structuredClone(initialState));
   const initialStateRef = useRef(initialState);
   const actorsRef = useRef({ players: new Map(), selectedMarkers: new Map(), ball: null, ballBody: null });
+  const crowdReactionRef = useRef(null);
   const previousPausedRef = useRef(paused);
   const canvasContainerRef = useRef(null);
   const [focused, setFocused] = useState(false);
@@ -13,6 +14,7 @@ export default function Match3DGame({ initialState, paused, onGameEvents, onStat
   if (initialStateRef.current !== initialState) {
     initialStateRef.current = initialState;
     gameStateRef.current = structuredClone(initialState);
+    crowdReactionRef.current = null;
   }
 
   useEffect(() => {
@@ -36,6 +38,7 @@ export default function Match3DGame({ initialState, paused, onGameEvents, onStat
       selectedPlayerId={initialState.controlledPlayerId}
       actorsRef={actorsRef}
       gameStateRef={gameStateRef}
+      crowdReactionRef={crowdReactionRef}
       teamBranding={initialState.teamBranding}
       paused={paused}
       onFocusCapture={() => setFocused(true)}
@@ -50,6 +53,7 @@ export default function Match3DGame({ initialState, paused, onGameEvents, onStat
         onStateChange={onStateChange}
         actorsRef={actorsRef}
         gameStateRef={gameStateRef}
+        crowdReactionRef={crowdReactionRef}
       />
     </Match3DCanvas>
   );

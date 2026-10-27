@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { FIELD } from '../game/constants.js';
 import { createInputController } from '../game/createInputController.js';
 import { getPlayerFacingYaw } from '../game/playerOrientation.js';
+import { playCrowdCheer } from '../game/matchAudio.js';
 import { playSkillAudio, prepareSkillAudio } from '../game/skillAudio.js';
 import { stepGame } from '../game/stepGame.js';
 
@@ -22,6 +23,7 @@ export function GameLoop3D({
   onStateChange,
   actorsRef,
   gameStateRef: sharedGameStateRef,
+  crowdReactionRef,
 }) {
   const localGameStateRef = useRef(structuredClone(initialState));
   const gameStateRef = sharedGameStateRef ?? localGameStateRef;
@@ -62,6 +64,11 @@ export function GameLoop3D({
     const presentationScale = state.skillCutIn ? 0.4 : 1;
     const simulationDelta = Math.min(delta, 0.05) * presentationScale;
     const events = stepGame(state, inputRef.current?.readFrame(), simulationDelta);
+    const crowdReaction = crowdReactionRef?.current;
+    if (crowdReaction) {
+      crowdReaction.elapsedSeconds += simulationDelta;
+      if (crowdReaction.elapsedSeconds >= crowdReaction.durationSeconds) crowdReactionRef.current = null;
+    }
     const vacuumEffect = state.vacuumEffect;
     const vacuumPlayer = vacuumEffect && state.players.find((player) => player.id === vacuumEffect.playerId);
     if (vacuumEffect && vacuumPlayer && !vacuumPlayer.dismissed) {
@@ -80,6 +87,10 @@ export function GameLoop3D({
     }
     for (const event of events) {
       if (event.type === 'skillUsed' && !event.automatic) playSkillAudio(event.skillId);
+      if (event.type === 'kickoff' || event.type === 'goal') void playCrowdCheer(event.type);
+      if (event.type === 'goal' && crowdReactionRef) {
+        crowdReactionRef.current = { elapsedSeconds: 0, durationSeconds: 1.8 };
+      }
     }
 
     for (const player of state.players) {

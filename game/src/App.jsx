@@ -3,6 +3,7 @@ import { createCampaign, finishStage, getUnlockedStage } from './game/campaign.j
 import { createInitialGameState } from './game/createInitialGameState.js';
 import { SKILL_IDS, SKILLS, applySkill, awardSkillCard, equipTeamSkill, reorderTeamSkill, unequipTeamSkill } from './game/skills.js';
 import { getTeamBranding } from './game/teamBranding.js';
+import { playCrowdCheer, prepareMatchAudio } from './game/matchAudio.js';
 import { createEmptyProfile, createCampaignSave, setNickname, sortLeaderboard, updateBestRecord } from './storage/localProfile.js';
 import { beginEntraLogin, beginEntraLogout, getProfileApiToken } from './auth/entraAuth.js';
 import { loadCloudProfile, saveCloudProfile } from './storage/profileRepository.js';
@@ -166,6 +167,8 @@ export default function App({ authBootstrap = {} }) {
 
   const startStage = (activeCampaign = campaign) => {
     if (!activeCampaign) return;
+    prepareMatchAudio();
+    void playCrowdCheer('kickoff');
     activeMatchInstanceRef.current += 1;
     setMatchState(makeMatchState(activeCampaign, profile.teamCustomization));
     setScreen('match');

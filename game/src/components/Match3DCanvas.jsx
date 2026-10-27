@@ -82,6 +82,7 @@ export default function Match3DCanvas({
   selectedPlayerId = 'home-fw',
   actorsRef,
   gameStateRef,
+  crowdReactionRef,
   teamBranding,
   paused = false,
   containerRef,
@@ -158,7 +159,7 @@ export default function Match3DCanvas({
             <hemisphereLight args={['#e9fbff', '#76a66b', 1.05]} />
             <ambientLight intensity={0.45} />
             <directionalLight position={[-8, 16, 7]} color="#fff6d8" intensity={1.55} castShadow />
-            <StadiumBackdrop3D />
+            <StadiumBackdrop3D crowdReactionRef={crowdReactionRef} />
             <FootballPitch3D />
             <TrackingCamera3D ball={ball} gameStateRef={gameStateRef} />
             {players.map((player) => (

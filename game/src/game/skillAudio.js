@@ -1,29 +1,8 @@
-let audioContext = null;
+import { getAudioContext, prepareAudioContext } from './audioContext.js';
 
-function getAudioContext() {
-  if (typeof window === 'undefined') return null;
-  const AudioContextConstructor = window.AudioContext ?? window.webkitAudioContext;
-  if (!AudioContextConstructor) return null;
-  if (audioContext instanceof AudioContextConstructor) return audioContext;
-  audioContext = null;
-  try {
-    audioContext = new AudioContextConstructor();
-    return audioContext;
-  } catch {
-    return null;
-  }
-}
 /** Create/resume audio from the skill key gesture before the simulation event fires. */
 export function prepareSkillAudio() {
-  const context = getAudioContext();
-  if (!context || context.state === 'running') return Boolean(context);
-  try {
-    const resume = context.resume?.();
-    resume?.catch?.(() => {});
-    return true;
-  } catch {
-    return false;
-  }
+  return prepareAudioContext();
 }
 
 /** A short, game-like palm impact made locally with Web Audio (no downloaded asset). */

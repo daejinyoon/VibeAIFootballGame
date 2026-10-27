@@ -1,12 +1,16 @@
 import { useLayoutEffect, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 const SEAT_COLORS = ['#58c9f2', '#e1f477', '#ff9b79', '#c4a3ff', '#81ddad'];
 const STAND_TIERS = 4;
 const SEATS_PER_TIER = 23;
 
-function SideStand({ side }) {
+function SideStand({ side, crowdReactionRef }) {
   const seatsRef = useRef(null);
+  const baselineMatricesRef = useRef([]);
+  const transformRef = useRef(new THREE.Object3D());
+  const wasReactingRef = useRef(false);
   const tiers = Array.from({ length: STAND_TIERS }, (_, index) => index);
   const seats = Array.from({ length: SEATS_PER_TIER }, (_, index) => index);
   const accent = side < 0 ? '#3fb8e4' : '#ff8b63';
@@ -17,6 +21,7 @@ function SideStand({ side }) {
 
     const transform = new THREE.Object3D();
     const color = new THREE.Color();
+    const baselineMatrices = [];
     let instance = 0;
     tiers.forEach((tier) => {
       const rise = 0.35 + tier * 0.38;
@@ -25,6 +30,7 @@ function SideStand({ side }) {
         transform.position.set(-8.8 + seat * 0.8, rise + 0.12, setback + side * 0.1);
         transform.updateMatrix();
         mesh.setMatrixAt(instance, transform.matrix);
+        baselineMatrices.push(transform.matrix.clone());
         color.set(SEAT_COLORS[(seat + tier + (side > 0 ? 2 : 0)) % SEAT_COLORS.length]);
         mesh.setColorAt(instance, color);
         instance += 1;
@@ -33,7 +39,33 @@ function SideStand({ side }) {
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
+    baselineMatricesRef.current = baselineMatrices;
   }, [side]);
+
+  useFrame(() => {
+    const mesh = seatsRef.current;
+    const reaction = crowdReactionRef?.current;
+    const reacting = Boolean(reaction && reaction.durationSeconds > 0);
+    if (!mesh || (!reacting && !wasReactingRef.current)) return;
+
+    const transform = transformRef.current;
+    const baselineMatrices = baselineMatricesRef.current;
+    const progress = reacting
+      ? Math.max(0, Math.min(1, reaction.elapsedSeconds / reaction.durationSeconds))
+      : 1;
+    for (let instanceIndex = 0; instanceIndex < baselineMatrices.length; instanceIndex += 1) {
+      const bounce = reacting
+        ? Math.sin(progress * Math.PI * 4 + instanceIndex * 0.37) * 0.12 * Math.sin(progress * Math.PI)
+        : 0;
+      transform.matrix.copy(baselineMatrices[instanceIndex]);
+      transform.matrix.decompose(transform.position, transform.quaternion, transform.scale);
+      transform.position.y += bounce;
+      transform.updateMatrix();
+      mesh.setMatrixAt(instanceIndex, transform.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    wasReactingRef.current = reacting;
+  });
 
   return (
     <group position={[0, 0, side * 4.15]}>
@@ -92,7 +124,7 @@ function EndStand({ side, color }) {
   );
 }
 
-export function StadiumBackdrop3D() {
+export function StadiumBackdrop3D({ crowdReactionRef }) {
   return (
     <group>
       <mesh position={[0, -0.3, 0]} receiveShadow>
@@ -100,8 +132,8 @@ export function StadiumBackdrop3D() {
         <meshStandardMaterial color="#a7d8d4" roughness={0.96} />
       </mesh>
 
-      <SideStand side={-1} />
-      <SideStand side={1} />
+      <SideStand side={-1} crowdReactionRef={crowdReactionRef} />
+      <SideStand side={1} crowdReactionRef={crowdReactionRef} />
       <EndStand side={-1} color="#4db8ef" />
       <EndStand side={1} color="#ff9a54" />
 
