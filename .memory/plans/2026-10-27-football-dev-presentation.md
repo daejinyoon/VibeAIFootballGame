@@ -6,7 +6,7 @@
 ## Phases
 | Phase | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
-| P01 | `in_progress` | 근거 기반 발표 원고 작성과 PPTX 제작·검증 | [P01](../phases/2026-10-27-football-dev-presentation/P01-presentation-artifact/phase.md) |
+| P01 | `done` | 근거 기반 발표 원고 작성과 PPTX 제작·검증 | [P01](../phases/2026-10-27-football-dev-presentation/P01-presentation-artifact/phase.md) |
 
 ## Confirmed Constraints
 - [결정 문서](../decisions/2026-10-27-football-dev-presentation.md)의 D01–D09를 따른다.
