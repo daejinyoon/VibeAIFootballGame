@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "title": "원하는 결과물은 구체적인 기획에서 시작됐다",
+  "audience": "회사 내부 개발자 · 게임 개발 비전문",
+  "durationSec": 600,
+  "sourceCatalog": {
+    "presentationDecision": {
+      "path": ".memory/decisions/2026-10-27-football-dev-presentation.md",
+      "locator": "D01–D09",
+      "claim": "발표 목적·청중·범위·표현 방식에 대한 사용자 확정 결정"
+    },
+    "initialDecision": {
+      "path": ".memory/decisions/2026-10-21-football-game.md",
+      "locator": "D01, D03, D06, D08, D10",
+      "claim": "초기 2D 탑다운·6대6·3단계·브라우저 로컬 저장·React/JavaScript 결정"
+    },
+    "threeDDecision": {
+      "path": ".memory/decisions/2026-10-22-3d-football-game.md",
+      "locator": "D02, D04, D05",
+      "claim": "실제 3D 렌더링·카메라·높이·4대4·5단계 결정"
+    },
+    "cameraCode": {
+      "path": "game/src/components/TrackingCamera3D.jsx",
+      "locator": "TrackingCamera3D",
+      "claim": "공을 따라가는 3D 카메라 구현 파일"
+    },
+    "playerCode": {
+      "path": "game/src/components/FootballPlayer3D.jsx",
+      "locator": "FootballPlayer3D",
+      "claim": "3D 선수 표현 구현 파일"
+    },
+    "ballCode": {
+      "path": "game/src/components/FootballBall3D.jsx",
+      "locator": "FootballBall3D",
+      "claim": "3D 공 표현 구현 파일"
+    },
+    "skillWorkflow": {
+      "path": "AGENTS.md",
+      "locator": "1단계 인터뷰, 2단계 계획, 3단계 순차 실행",
+      "claim": "스킬 실행 순서와 산출물 위치를 정한 프로젝트 규칙"
+    },
+    "tackleTask": {
+      "path": ".memory/phases/2026-10-27-football-beta-feedback/P01-game-stability-and-polish/T01-renderer-stability-and-input-latency.md",
+      "locator": "Acceptance Criteria, Execution Notes; commit 1f78f26",
+      "claim": "태클 렌더 예외 수정과 자동 검증, 수정 후 브라우저 실측의 미완료 상태"
+    },
+    "azureDecision": {
+      "path": ".memory/decisions/2026-10-27-ydj-football-azure-target.md",
+      "locator": "Decision, Existing app recovery; commits 9e442ba, 7ff0d9f",
+      "claim": "잘못된 Azure 배포 대상을 전용 앱으로 바꿨으며 기존 앱 원복은 미완료"
+    }
+  },
+  "slides": [
+    {
+      "id": "S01",
+      "kind": "title",
+      "title": "원하는 결과물은 구체적인 기획에서 시작됐다",
+      "subtitle": "AI 스킬을 사용해 축구 게임을 만든 7일의 기록",
+      "durationSec": 40,
+      "message": "게임 자체보다 원하는 결과를 정의하고 실행 가능한 작업으로 옮긴 과정을 공유합니다.",
+      "blocks": [
+        { "label": "발표의 질문", "body": "처음의 2D 구상이 어떻게 실제 3D 게임 설계가 되었을까?" },
+        { "label": "살펴볼 것", "body": "기획의 변화 · 스킬이 남긴 파일 · 이슈를 확인한 방식" }
+      ],
+      "quotes": [],
+      "sourceRefs": ["presentationDecision"],
+      "notes": "오늘은 축구 게임의 규칙을 소개하기보다, 제가 원하는 결과물을 만들기 위해 기획을 어떻게 바꿨는지 이야기하겠습니다. 10월 21일 처음에는 2D 탑다운 게임을 생각했고, 다음 날 실제 3D 경기로 방향을 정했습니다. 그 사이에 막연한 이미지가 카메라와 선수, 공의 동작처럼 구현 가능한 결정으로 바뀌었습니다. 이 결정이 어떻게 파일과 작업으로 이어졌는지 보여드리겠습니다. 먼저 처음 계획부터 보겠습니다."
+    },
+    {
+      "id": "S02",
+      "kind": "timeline",
+      "title": "첫 기획은 2D 탑다운이었다",
+      "subtitle": "2026.10.21 · 첫 로컬 PC 웹 버전의 결정",
+      "durationSec": 65,
+      "message": "초기 범위는 빠르게 플레이 가능한 로컬 버전을 만드는 데 맞춰져 있었습니다.",
+      "blocks": [
+        { "label": "화면", "body": "위에서 내려다보는 2D 탑다운" },
+        { "label": "구성", "body": "팀당 6명 · 3단계 캠페인" },
+        { "label": "구현", "body": "React + JavaScript · 브라우저 로컬 저장" }
+      ],
+      "quotes": [],
+      "sourceRefs": ["initialDecision"],
+      "notes": "첫 결정 문서를 보면 범위가 분명합니다. PC 브라우저에서 먼저 플레이할 수 있는 로컬 버전, 위에서 내려다보는 2D 화면, 팀당 여섯 명, 세 단계 캠페인입니다. 이는 당시 빠르게 시작하기 위한 출발점이었습니다. 그런데 제가 기대한 장면을 더 자세히 설명하면서, 카메라 시점과 선수의 입체적인 움직임, 공이 떠오르는 높이가 중요하다는 걸 알게 됐습니다. 그래서 기존 계획을 그대로 늘리는 대신 목표 경험을 다시 정의했습니다."
+    },
+    {
+      "id": "S03",
+      "kind": "comparison",
+      "title": "목표 경험을 다시 쓰자 3D가 필요해졌다",
+      "subtitle": "화면 방식의 변경이 아니라 표현할 동작을 명세한 결정",
+      "durationSec": 100,
+      "message": "‘입체적으로 보이게’라는 말 대신 시점, 높이, 궤적을 각각 결정했습니다.",
+      "blocks": [
+        { "label": "2026.10.21 · 초기", "body": "2D 탑다운 화면을 기준으로 상하좌우 움직임을 구성" },
+        { "label": "2026.10.22 · 변경", "body": "실제 3D 장면, 높은 사선 카메라, 선수 점프 높이와 공의 포물선" },
+        { "label": "선택한 기술", "body": "React Three Fiber + Three.js" }
+      ],
+      "quotes": [
+        { "text": "위에서 내려다보는 2D 탑다운 화면. PC 웹 브라우저를 우선 지원한다.", "sourceKey": "initialDecision" },
+        { "text": "React Three Fiber와 Three.js로 실제 3D 경기장·선수·공을 렌더링한다.", "sourceKey": "threeDDecision" }
+      ],
+      "sourceRefs": ["initialDecision", "threeDDecision"],
+      "notes": "여기서 제가 강조하고 싶은 건 2D가 실패해서 3D로 바꿨다는 이야기가 아닙니다. 원하는 경험을 설명해 보니 2D 탑다운만으로는 목표한 카메라와 움직임을 표현하기 어려웠습니다. 두 결정 문서의 원문을 보면 처음에는 화면 방향만 정해져 있습니다. 다음 문서에서는 React Three Fiber와 Three.js를 택하고, 카메라가 공을 따라가며, 선수에게는 바닥의 두 축 외에 점프 높이를, 공에는 높이와 포물선을 줍니다. 결국 ‘3D로 해줘’라는 한마디를 실행하려면 이 정도의 결정이 필요했습니다."
+    },
+    {
+      "id": "S04",
+      "kind": "mapping",
+      "title": "상세 기획은 구현 단위를 만든다",
+      "subtitle": "원하는 장면 → 설계 결정 → 코드 대상",
+      "durationSec": 95,
+      "message": "무엇이 움직이고 무엇을 추적할지 정하자 작업 파일과 범위가 명확해졌습니다.",
+      "blocks": [
+        { "label": "카메라", "body": "공을 따라가는 높은 사선 시점 → TrackingCamera3D.jsx" },
+        { "label": "선수", "body": "바닥 이동과 점프 높이 → FootballPlayer3D.jsx" },
+        { "label": "공", "body": "3차원 높이와 포물선 → FootballBall3D.jsx" },
+        { "label": "경기 범위", "body": "6대6·3단계에서 4대4·5단계로 변경" }
+      ],
+      "quotes": [
+        { "text": "높은 사선 중계 시점의 카메라가 공을 부드럽게 따라간다.", "sourceKey": "threeDDecision" }
+      ],
+      "sourceRefs": ["threeDDecision", "cameraCode", "playerCode"],
+      "notes": "3D라는 목표를 카메라, 선수, 공으로 쪼개니 구현 단위가 보이기 시작했습니다. 카메라는 무엇을 따라가야 하는지, 선수는 바닥 이동과 점프를 어떻게 분리할지, 공은 높이와 포물선을 가져야 하는지 결정했습니다. 동시에 3D 화면에서 읽기 쉽도록 팀 인원을 6명에서 4명으로 바꾸고 캠페인은 5단계로 정했습니다. 파일명은 결과 코드와 연결된 예시입니다. 모든 설계를 처음부터 완벽히 맞혔다는 뜻은 아닙니다. 결정이 남아 있으니 바뀐 요구를 추적하고 구현 범위를 다시 정할 수 있었다는 뜻입니다."
+    },
+    {
+      "id": "S05",
+      "kind": "workflow",
+      "title": "세 스킬로 결정을 작업에 연결했다",
+      "subtitle": "대화가 사라지지 않도록 파일과 커밋으로 남기는 흐름",
+      "durationSec": 90,
+      "message": "사용자는 방향을 결정하고, 스킬은 결정·계획·실행 기록을 이어 줍니다.",
+      "blocks": [
+        { "label": "01 / grill-me", "body": "질문을 한 번에 하나씩 확정 → .memory/decisions/" },
+        { "label": "02 / memory-plan", "body": "결정을 Phase·Task 청사진으로 분해 → .memory/plans/ + phases/" },
+        { "label": "03 / memory-execute", "body": "현재 Task만 구현·검증·커밋 → .memory/current.md 전진" }
+      ],
+      "quotes": [],
+      "sourceRefs": ["skillWorkflow", "presentationDecision"],
+      "notes": "이 과정에서 제가 사용한 스킬은 세 가지입니다. grill-me는 애매한 요구를 한 질문씩 정리하고 결정 문서로 남깁니다. memory-plan은 그 결정을 계획과 작은 Task 파일로 바꿉니다. memory-execute는 현재 포인터가 가리키는 Task를 구현하고 검증한 뒤 커밋과 포인터를 갱신합니다. AI가 목표를 저절로 정하는 구조는 아닙니다. 어떤 화면을 원하는지, 3D 전환이 필요한지 같은 핵심 선택은 제가 하고, 스킬은 그 결정을 잃어버리지 않게 돕습니다. 다음은 실제 문제를 이렇게 다룬 예입니다."
+    },
+    {
+      "id": "S06",
+      "kind": "incident",
+      "title": "태클 멈춤: 추측 대신 상태와 렌더 경로를 봤다",
+      "subtitle": "피드백 → 재현 위치 → 최소 수정 → 검증 범위",
+      "durationSec": 95,
+      "message": "태클 포즈에서 정의되지 않은 값을 읽는 코드를 확인하고 상태값으로 교체했습니다.",
+      "blocks": [
+        { "label": "사용자 피드백", "body": "태클할 때 경기 화면이 멈춘다" },
+        { "label": "확인한 코드", "body": "MiiPlayerModel.jsx의 선언되지 않은 sliding 참조" },
+        { "label": "수정", "body": "const sliding = (livePlayer.slideSeconds ?? 0) > 0;" },
+        { "label": "검증 범위", "body": "자동 테스트 168개 통과·빌드 성공 / 수정 후 인증 Chrome·Edge 장시간 검증은 미실시" }
+      ],
+      "quotes": [],
+      "sourceRefs": ["tackleTask"],
+      "notes": "사용자에게서 태클할 때 멈춘다는 재현 단서를 받았습니다. 렌더링 중 태클 자세를 계산하는 코드에 선언되지 않은 sliding 식별자가 있었고, 실제 선수 상태의 slideSeconds를 읽어 포즈 플래그를 만들도록 수정했습니다. 자동 테스트 168개와 빌드는 통과했습니다. 다만 여기서 정직하게 구분해야 합니다. 확인된 렌더 예외를 고친 것과, 브라우저 탭 전체의 멈춤 또는 약 1초 입력 지연이 해결됐다고 실측한 것은 다릅니다. 수정 후 인증된 Chrome·Edge 경기의 장시간 검증은 기록돼 있지 않습니다. 검증되지 않은 결론을 발표에서 완성으로 포장하지 않겠습니다."
+    },
+    {
+      "id": "S07",
+      "kind": "operations",
+      "title": "배포 대상도 설계의 일부였다",
+      "subtitle": "전용 Azure 앱을 확인하는 경계를 다시 세움",
+      "durationSec": 60,
+      "message": "게임 코드를 잘 만드는 것과 올바른 앱에 배포하는 것은 별개의 확인입니다.",
+      "blocks": [
+        { "label": "발생", "body": "다른 앱을 향한 배포 경로가 연결됨" },
+        { "label": "정정", "body": "기존 경로를 중단하고 전용 ydj-football 앱으로 분리" },
+        { "label": "교훈", "body": "리소스 소유자·대상·토큰을 배포 전에 함께 확인" }
+      ],
+      "quotes": [],
+      "sourceRefs": ["azureDecision"],
+      "notes": "운영 쪽에서도 중요한 일이 있었습니다. 처음 연결된 Azure 배포 대상이 이 게임의 앱이 아니라 다른 사람의 앱이었습니다. 잘못된 경로를 중단하고 게임 전용 ydj-football 앱과 배포 토큰으로 분리했습니다. 다만 이전 앱의 원본 소스가 현재 없어 원복을 완료한 상태는 아닙니다. 이것을 성공적인 복구 사례로 말하면 안 됩니다. 제가 얻은 교훈은 리소스 그룹이나 URL만 보고 배포 대상을 추정하지 말고, 소유자·앱 이름·토큰이 같은 대상을 가리키는지 확인해야 한다는 점입니다."
+    },
+    {
+      "id": "S08",
+      "kind": "closing",
+      "title": "다음 프로젝트에도 남길 방법",
+      "subtitle": "원하는 결과물을 만드는 기획·실행·검증의 순서",
+      "durationSec": 55,
+      "message": "좋은 프롬프트 한 줄보다 추적 가능한 결정과 검증 범위가 결과를 바꿨습니다.",
+      "blocks": [
+        { "label": "01", "body": "원하는 장면과 사용자 경험을 문장으로 적기" },
+        { "label": "02", "body": "카메라·상태·범위 같은 설계 항목을 확정하기" },
+        { "label": "03", "body": "결정을 작은 Task와 검증 기준으로 나누기" },
+        { "label": "04", "body": "확인한 결과와 아직 확인하지 못한 부분을 구분하기" }
+      ],
+      "quotes": [],
+      "sourceRefs": ["presentationDecision", "skillWorkflow"],
+      "notes": "제가 이 프로젝트에서 남기고 싶은 방법은 네 단계입니다. 먼저 원하는 결과를 장면과 동작으로 설명합니다. 그다음 카메라, 상태, 팀 구성처럼 모호한 부분을 결정 문서에 고정합니다. 그 결정을 작은 작업으로 나누고 매번 검증합니다. 마지막으로 확인한 결과와 아직 확인하지 못한 부분을 구분해 공유합니다. 2D에서 3D로 바뀐 과정도, 태클 문제와 배포 문제도 이 원칙으로 다시 볼 수 있었습니다. 들어주셔서 감사합니다."
+    }
+  ]
+}
