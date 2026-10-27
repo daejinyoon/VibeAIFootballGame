@@ -1,9 +1,6 @@
 name: Deploy football game to Azure Static Web Apps
 
 on:
-  push:
-    branches:
-      - master
   workflow_dispatch:
 
 permissions:
@@ -11,6 +8,7 @@ permissions:
 
 jobs:
   deploy:
+    if: false # Disabled until the dedicated ydj-football Static Web App is configured.
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
