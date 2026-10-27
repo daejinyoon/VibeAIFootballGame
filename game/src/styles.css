@@ -846,3 +846,84 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
 .skill-cut-in-eulryongta .skill-cut-in-art { z-index: 2; }
 .goal-score-toast { position: absolute; z-index: 3; top: 20%; left: 50%; padding: 10px 22px; border: 2px solid #fff3a0; background: linear-gradient(110deg, #102c50eF, #137d9beF); color: white; font: 1000 clamp(17px, 3vw, 30px) Consolas, monospace; text-shadow: 0 3px #10243c; transform: translateX(-50%); animation: goal-score-pop 2.1s cubic-bezier(.16,.82,.25,1) both; }
 @keyframes goal-score-pop { 0% { opacity: 0; transform: translate(-50%, 18px) scale(.8); } 12%, 78% { opacity: 1; transform: translate(-50%, 0) scale(1); } 100% { opacity: 0; transform: translate(-50%, -10px) scale(1.04); } }
+
+/* Let signed-in desktop screens use the browser area; the auth and phone layouts keep their own rules. */
+@media (min-width: 721px) {
+  .app-shell {
+    min-height: 100dvh;
+    padding-inline: clamp(16px, 2vw, 48px);
+  }
+
+  .app-shell > .screen-panel {
+    width: 100%;
+    max-width: none;
+    min-height: max(0px, calc(100dvh - 178px));
+    flex: 1 0 auto;
+    margin-block: clamp(12px, 2vh, 28px);
+    padding: clamp(24px, 2.2vw, 56px);
+  }
+
+  .app-shell .screen-panel h1 { font-size: clamp(38px, 3.4vw, 72px); }
+  .app-shell .screen-panel .intro { font-size: clamp(14px, .9vw, 18px); line-height: 1.65; }
+  .app-shell .primary-button,
+  .app-shell .secondary-button { min-height: 44px; font-size: clamp(13px, .8vw, 16px); }
+
+  .app-shell .start-panel {
+    grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+    gap: clamp(24px, 3vw, 72px);
+  }
+  .app-shell .start-copy,
+  .app-shell .start-visual { min-width: 0; }
+  .app-shell .start-visual { width: 100%; }
+  .app-shell .start-copy .intro { max-width: 65ch; }
+  .app-shell .nickname-form { width: min(500px, 100%); }
+  .app-shell .nickname-form input { width: min(320px, 100%); min-width: 0; flex: 1 1 240px; }
+  .app-shell .control-guide { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+
+  .app-shell .stage-card-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .app-shell .stage-card { min-width: 0; min-height: clamp(236px, 22vh, 340px); }
+  .app-shell .stage-card-emblem {
+    width: clamp(45px, 3vw, 72px);
+    height: clamp(45px, 3vw, 72px);
+    font-size: clamp(23px, 1.6vw, 36px);
+  }
+  .app-shell .stage-card > strong { font-size: clamp(13px, .8vw, 18px); }
+  .app-shell .loadout-layout { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
+  .app-shell .team-customization-layout { grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr); }
+  .app-shell .team-customization-controls,
+  .app-shell .team-customization-preview,
+  .app-shell .loadout-layout > * { min-width: 0; }
+  .app-shell .skill-card-grid,
+  .app-shell .skill-player-grid,
+  .app-shell .reward-card-grid { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+
+  .app-shell .control-guide span,
+  .app-shell .beta-badge,
+  .app-shell .start-kicker,
+  .app-shell .poster-caption span,
+  .app-shell .poster-caption i,
+  .app-shell .poster-score small,
+  .app-shell .stage-unlock-badge span,
+  .app-shell .stage-selection-summary small,
+  .app-shell .stage-card-topline,
+  .app-shell .stage-card-status,
+  .app-shell .stage-card-score,
+  .app-shell .stage-card-rival,
+  .app-shell .inventory-card small,
+  .app-shell .loadout-player-info small,
+  .app-shell .brand-option-name,
+  .app-shell .kit-palette-name,
+  .app-shell .team-skill-copy small { font-size: clamp(11px, .68vw, 14px); }
+  .app-shell .control-guide strong,
+  .app-shell .poster-score > span,
+  .app-shell .team-skill-copy b { font-size: clamp(13px, .8vw, 16px); }
+  .app-shell .record-list li { font-size: clamp(13px, .8vw, 16px); }
+  .app-shell .record-list li span { min-width: 0; overflow-wrap: anywhere; }
+}
+
+@media (min-width: 721px) and (max-width: 1040px) {
+  .app-shell .start-panel,
+  .app-shell .team-customization-layout,
+  .app-shell .loadout-layout { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .team-customization-preview { position: static; }
+}
