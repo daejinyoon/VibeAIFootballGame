@@ -13,7 +13,7 @@ Require DEX Consulting Entra accounts to enter the football game and sync each a
 - **API token format:** Expose the delegated `access_as_user` scope and set the Entra app manifest `api.requestedAccessTokenVersion` to `2` so the API receives the v2 tokens it validates.
 - **Data synced:** Sync the complete existing profile: nickname, campaign progress and skills, best record, and team customization.
 - **Storage:** Use a dedicated Azure Table Storage table for this football game. Do not reuse the unrelated maze-rescue Cosmos DB.
-- **Static Web App target:** Use the existing `swa-grill-us-prod-d0d6` resource shown in the user's Azure resource list for this GitHub football repository; do not create a duplicate app.
+- **Static Web App target (superseded 2026-10-27):** The earlier selection of `swa-grill-us-prod-d0d6` was incorrect. That resource belongs to another application. The football game now deploys to the dedicated `ydj-football` resource in `grill-me-edu`; see `2026-10-27-ydj-football-azure-target.md`.
 - **API boundary:** Put data access behind an Azure Static Web Apps managed Functions API. The API must validate the Entra caller and derive the storage key from verified tenant/object identifiers; never trust a user ID supplied by the browser. Keep the Table Storage credential in server-side application settings.
 - **First login migration:** If the signed-in account has no cloud profile, upload the current browser's local profile to that account. Preserve the local data until the upload succeeds.
 - **Existing cloud profile:** When the account already has a cloud profile, the cloud version is canonical and replaces this device's local profile after it is fetched successfully.
