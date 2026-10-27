@@ -7,7 +7,7 @@
 | T02 | `done` | Add distance-dependent ordinary-shot speed and arc | [T02](./T02-distance-based-shot-arcs.md) |
 | T03 | `done` | Add start-screen BETA badge and visible home/away goal-kick status | [T03](./T03-beta-badge-and-goal-kick-hud.md) |
 | T04 | `done` | Play the attributed cheer on kickoff/goals and animate existing seats on goals | [T04](./T04-crowd-cheer-and-goal-reaction.md) |
-| T05 | `pending` | Compose and loop an original pre-match arcade fanfare | [T05](./T05-pre-match-arcade-fanfare.md) |
+| T05 | `done` | Compose and loop an original pre-match arcade fanfare | [T05](./T05-pre-match-arcade-fanfare.md) |
 
 ## Progress
-- Progress: done 4/5 (active: T05)
+- Progress: implementation done 5/5; manual browser validation pending

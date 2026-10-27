@@ -4,6 +4,7 @@ import { createInitialGameState } from './game/createInitialGameState.js';
 import { SKILL_IDS, SKILLS, applySkill, awardSkillCard, equipTeamSkill, reorderTeamSkill, unequipTeamSkill } from './game/skills.js';
 import { getTeamBranding } from './game/teamBranding.js';
 import { playCrowdCheer, prepareMatchAudio } from './game/matchAudio.js';
+import { startMenuMusic, stopMenuMusic } from './game/menuMusic.js';
 import { createEmptyProfile, createCampaignSave, setNickname, sortLeaderboard, updateBestRecord } from './storage/localProfile.js';
 import { beginEntraLogin, beginEntraLogout, getProfileApiToken } from './auth/entraAuth.js';
 import { loadCloudProfile, saveCloudProfile } from './storage/profileRepository.js';
@@ -91,6 +92,27 @@ export default function App({ authBootstrap = {} }) {
   const handledTerminalMatchRef = useRef(null);
   const pendingProfileRef = useRef(null);
   const saveQueueRef = useRef(Promise.resolve());
+  const menuMusicScreenActiveRef = useRef(false);
+
+  const enterMenuMusicScreen = () => {
+    startMenuMusic();
+    menuMusicScreenActiveRef.current = true;
+  };
+
+  const leaveMenuMusicScreen = () => {
+    if (menuMusicScreenActiveRef.current) stopMenuMusic();
+    menuMusicScreenActiveRef.current = false;
+  };
+
+  useEffect(() => {
+    if (screen === 'teamCustomization' || screen === 'stageSelect') {
+      if (!menuMusicScreenActiveRef.current) enterMenuMusicScreen();
+    } else {
+      leaveMenuMusicScreen();
+    }
+  }, [screen]);
+
+  useEffect(() => () => leaveMenuMusicScreen(), []);
 
   useEffect(() => {
     if (!accountIsAuthenticated) return undefined;
@@ -167,6 +189,7 @@ export default function App({ authBootstrap = {} }) {
 
   const startStage = (activeCampaign = campaign) => {
     if (!activeCampaign) return;
+    leaveMenuMusicScreen();
     prepareMatchAudio();
     void playCrowdCheer('kickoff');
     activeMatchInstanceRef.current += 1;
@@ -185,6 +208,7 @@ export default function App({ authBootstrap = {} }) {
     setCampaign(nextCampaign);
     setSelectedStage(1);
     setResult(null);
+    enterMenuMusicScreen();
     setScreen('stageSelect');
     if (profile.campaignSave) saveProfile({ ...profile, campaignSave: null }).catch(() => undefined);
   };
@@ -200,6 +224,7 @@ export default function App({ authBootstrap = {} }) {
 
   const openTeamCustomization = () => {
     setProfileError('');
+    enterMenuMusicScreen();
     setScreen('teamCustomization');
   };
 
@@ -317,6 +342,7 @@ export default function App({ authBootstrap = {} }) {
   };
 
   const home = () => {
+    leaveMenuMusicScreen();
     setScreen('start');
     setCampaign(null);
     setMatchState(null);
@@ -338,6 +364,7 @@ export default function App({ authBootstrap = {} }) {
     setCampaign(resumed);
     setSelectedStage(resumed.currentStage);
     setResult(null);
+    if (!resumed.pendingSkillOffer) enterMenuMusicScreen();
     setScreen(resumed.pendingSkillOffer ? 'skillReward' : 'stageSelect');
   };
 
@@ -408,7 +435,7 @@ export default function App({ authBootstrap = {} }) {
       {screen === 'teamCustomization' && <TeamCustomizationScreen
         customization={profile.teamCustomization}
         onSave={handleTeamCustomizationSave}
-        onBack={() => { setProfileError(''); setScreen('start'); }}
+        onBack={() => { setProfileError(''); leaveMenuMusicScreen(); setScreen('start'); }}
         errorMessage={profileError}
       />}
       {screen === 'stageSelect' && campaign && <StageSelectScreen
@@ -418,7 +445,7 @@ export default function App({ authBootstrap = {} }) {
         selectedStage={selectedStage}
         onSelectStage={selectStage}
         onStartStage={startSelectedStage}
-        onOpenLoadout={() => setScreen('loadout')}
+        onOpenLoadout={() => { leaveMenuMusicScreen(); setScreen('loadout'); }}
         onHome={home}
       />}
       {(screen === 'match' || screen === 'pause') && matchState && <Suspense fallback={<div className="game-screen-loading" role="status">경기장을 준비하고 있어요…</div>}>
@@ -453,7 +480,11 @@ export default function App({ authBootstrap = {} }) {
           const equippedIds = Array.isArray(campaign.equippedTeamSkillIds)
             ? campaign.equippedTeamSkillIds
             : [];
-          setScreen(equippedIds.length === 3 ? 'loadout' : 'stageSelect');
+          if (equippedIds.length === 3) setScreen('loadout');
+          else {
+            enterMenuMusicScreen();
+            setScreen('stageSelect');
+          }
         }}
         onHome={home}
       />}
@@ -465,8 +496,8 @@ export default function App({ authBootstrap = {} }) {
         onMove={moveTeamSkill}
         onEquip={equipCampaignSkill}
         onUnequip={unequipCampaignSkill}
-        onConfirm={() => setScreen('stageSelect')}
-        onBack={() => setScreen('stageSelect')}
+        onConfirm={() => { enterMenuMusicScreen(); setScreen('stageSelect'); }}
+        onBack={() => { enterMenuMusicScreen(); setScreen('stageSelect'); }}
       />}
       {screen === 'leaderboard' && <LeaderboardScreen records={records} onBack={() => setScreen('start')} />}
 
