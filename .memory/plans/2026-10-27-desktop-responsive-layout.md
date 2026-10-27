@@ -13,7 +13,7 @@ Use nearly the entire available desktop browser area on every post-login screen 
 | :--- | :--- | :--- | :--- |
 | P01 | `done` | Desktop shell, menus, match viewport, HUD, and legacy CSS cleanup | [P01](../phases/2026-10-27-desktop-responsive-layout/P01-desktop-responsive-ui/phase.md) |
 
-Implementation is complete. Authenticated start and live match visual checks remain outstanding before deployment.
+Live start and match component checks now pass at 800x600 through 3440x1440. T04 corrected goalkeeper clipping at 800x600. The fresh browser session had no Entra login, so authenticated end-to-end checks remain outstanding before deployment.
 
 ## Completion checks
 - At 800x600, 1280x720, 1920x1080, 2560x1440, and 3440x1440, post-login pages have no horizontal overflow or clipped primary actions.
