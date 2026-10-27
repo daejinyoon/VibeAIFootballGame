@@ -6,7 +6,7 @@ export default function StartScreen({ hasSave, nickname, profileError, onNicknam
   return (
     <section className="screen-panel start-panel" aria-labelledby="game-title">
       <div className="start-copy">
-        <p className="eyebrow"><span>DEX ARCADE</span> · SUNNY CUP</p>
+        <p className="eyebrow"><span>DEX ARCADE</span> · SUNNY CUP <b className="beta-badge">BETA</b></p>
         <p className="start-kicker">LOCAL ARCADE · 4 VS 4</p>
         <h1 id="game-title">골 넣고<br /><em>레벨 업!</em></h1>
         <p className="intro">필드 선수 3명과 골키퍼가 팀을 이뤄 5단계 AI 리그에 도전합니다. 승리할 때마다 스킬 카드를 골라 팀을 성장시키세요.</p>
