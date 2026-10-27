@@ -18,7 +18,7 @@
 - 작업 트리에 기존 수정·미추적 파일이 많다. 실행 시 각 Task의 산출물과 Task 문서만 선택적으로 Git stage한다.
 
 ## Deliverable
-- `presentation/football-dev-talk/2026-10-27-football-dev-presentation.pptx` — PowerPoint에서 편집 가능한 최종 파일; 슬라이드 8장과 각 장의 발표 메모 포함.
+- `presentation/football-dev-talk/2026-10-27-football-dev-presentation-with-screenshots.pptx` — 2D·3D 실제 경기장 캡처를 포함한 최종 파일; 편집 가능한 슬라이드 8장과 각 장의 발표 메모 포함.
 - `presentation/football-dev-talk/slide-content.json` — 근거, 화면 문구, 시간 배분, 메모의 단일 원본.
 - `presentation/football-dev-talk/build-deck.cjs`와 npm lockfile — 동일 PPTX 재생성을 위한 제작 소스.
 

@@ -7,7 +7,7 @@ T01의 `slide-content.json`에서 발표자가 바로 편집·발표할 수 있�
 
 ## Decision Summary
 - 생성 도구는 Node.js 20과 `pptxgenjs@4.0.1`이다. Python은 이 PC에서 Microsoft Store shim만 발견됐으므로 사용하지 않는다. PowerPoint가 설치돼 있어 실제 슬라이드 렌더 QA에 사용한다.
-- 화면은 내부 개발자용 기술 발표로 디자인한다. 게임 스크린샷·라이브 데모 대신 2D/3D 결정문 비교, 구현 연결 도식, 스킬 산출물, 태클 코드 한 줄, 배포 경계 도식을 사용한다.
+- 화면은 내부 개발자용 기술 발표로 디자인한다. 2026-10-27 후속 요청으로 S02에 당시 실제 2D·3D 경기장 캡처 두 장을 추가했고, 나머지는 결정문 비교, 구현 연결 도식, 스킬 산출물, 태클 코드 한 줄, 배포 경계 도식을 사용한다. 라이브 데모는 없다.
 - 완성 조건은 PPTX 생성만이 아니라 8개 notesSlide XML, 8개 슬라이드 이미지, 육안 판독, 민감정보·과장 주장 점검까지 포함한다.
 
 ## Implementation
@@ -19,7 +19,8 @@ T01의 `slide-content.json`에서 발표자가 바로 편집·발표할 수 있�
   - `presentation/football-dev-talk/package-lock.json` :: npm lockfile — `pptxgenjs@4.0.1`와 전이 의존성 고정; new
   - `presentation/football-dev-talk/slide-content.json` :: `PresentationContent`, `slides` — T01에서 완성된 원고의 유일한 문구 원본; read-only unless factual correction needed
   - `presentation/football-dev-talk/build-deck.cjs` :: `readContent`, `validateContent`, `drawSlide`, `buildPresentation` — PPTX 제작; new
-  - `presentation/football-dev-talk/2026-10-27-football-dev-presentation.pptx` :: PowerPoint package — 최종 산출물; new
+  - `presentation/football-dev-talk/2026-10-27-football-dev-presentation-with-screenshots.pptx` :: PowerPoint package — D10 후속 요청을 반영한 최종 산출물; new
+  - `presentation/football-dev-talk/assets/match-2d-2026-10-21-pitch.png`, `presentation/football-dev-talk/assets/match-3d-2026-10-22-pitch.png` :: 실제 경기장 캡처 — S02 화면 비교; new
 
 #### Details
 - **Signatures & Types**:
@@ -58,7 +59,7 @@ T01의 `slide-content.json`에서 발표자가 바로 편집·발표할 수 있�
 | ID | 화면 구성 | 필수 표시 |
 | :--- | :--- | :--- |
 | S01 | 어두운 표지, 큰 한 문장 제목, 날짜/청중 표시 | 10분 내부 개발자 발표라는 맥락 |
-| S02 | 10/21 초기 결정 → 10/22 변경 결정의 간결한 타임라인 | 2D 탑다운·6대6·3단계는 **초기 결정**으로 표기 |
+| S02 | 10/21 초기 2D 경기장과 10/22 3D 프로토타입 경기장 실제 캡처 두 장을 나란히 표시 | 날짜·Git/이미지 출처를 밝히고 최신 배포 화면이라고 주장하지 않음. 2D 탑다운·6대6·3단계는 **초기 결정**으로 표기 |
 | S03 | 2열 실제 결정 문서 발췌 비교 | 2D 문서와 3D 문서의 날짜·인용·출처; 긴 인용은 잘라 의미를 바꾸지 말고 T01의 짧은 정확 인용 사용 |
 | S04 | `원하는 표현 → 기획 항목 → 구현 파일` 3열 연결 도식 | 카메라·선수·공 세 줄과 4대4/5단계 범위 결정 |
 | S05 | `grill-me → memory-plan → memory-execute` 3단 흐름 | 각 단계의 실제 파일 산출물 경로와 인간 결정/AI 실행의 경계 |
@@ -72,7 +73,7 @@ T01의 `slide-content.json`에서 발표자가 바로 편집·발표할 수 있�
   - `presentation/football-dev-talk/verify-pptx.ps1` :: `Assert-PptxPackage` — ZIP 구조·8장·8개 메모·민감정보를 검사; new
   - `presentation/football-dev-talk/render-preview.ps1` :: `Export-SlidePreviews` — 설치된 PowerPoint COM으로 PNG 8장 추출; new
   - `presentation/football-dev-talk/build-deck.cjs` :: `drawSlide` — 시각 QA에서 발견한 넘침·대비 수정; modify
-  - `presentation/football-dev-talk/2026-10-27-football-dev-presentation.pptx` :: 최종 산출물 — 수정 후 재생성; modify
+  - `presentation/football-dev-talk/2026-10-27-football-dev-presentation-with-screenshots.pptx` :: 최종 산출물 — 수정 후 재생성; modify
 
 #### Details
 - **Signatures & Types**:
@@ -91,8 +92,8 @@ T01의 `slide-content.json`에서 발표자가 바로 편집·발표할 수 있�
   4. State Transition & Return: 최종 PPTX, 재생성 명령, 검증 결과를 보고한다. PPTX를 자동 배포하거나 외부 계정에 업로드하지 않는다.
 
 ## Acceptance Criteria
-- [x] `presentation/football-dev-talk/2026-10-27-football-dev-presentation.pptx`가 열리고 16:9 편집 가능한 슬라이드 8장과 메모 8개를 포함한다.
-- [x] 제목·본문·코드·출처가 1600×900 PNG에서 잘리지 않고 겹치지 않는다. 게임 캡처/시연 없이 기획 문서와 과정이 시각적 중심이다.
+- [x] `presentation/football-dev-talk/2026-10-27-football-dev-presentation-with-screenshots.pptx`가 열리고 16:9 편집 가능한 슬라이드 8장과 메모 8개를 포함한다.
+- [x] 제목·본문·코드·출처가 1600×900 PNG에서 잘리지 않고 겹치지 않는다. S02의 실제 경기 캡처 2장 외에는 기획 문서와 과정이 시각적 중심이다.
 - [x] S01–S04가 5분의 기획 설명을, 전체가 정확히 10분의 발표 메모를 제공한다.
 - [x] S06은 렌더 예외 수정과 브라우저 장시간 검증 미실시를 구분하고, S07은 잘못된 배포 수정과 이전 앱 원복 미완료를 구분한다.
 - [x] 민감한 계정·구독·연결 문자열·토큰이 PPTX/원고에 포함되지 않고, 기존 Git 변경 사항을 덮어쓰지 않는다.
@@ -125,3 +126,4 @@ Task: T02-build-and-verify-pptx
 - Windows 실행 정책이 PowerShell 스크립트를 막아 검증/렌더 명령에 `-ExecutionPolicy Bypass`를 이 프로세스에만 지정했다.
 - PowerPoint COM으로 모든 슬라이드를 PNG로 내보냈고, 전체 8장을 열어 확인했다. S01, S03, S07의 어색한 줄바꿈을 수정하고 재생성·재확인했다.
 - npm audit는 제작 전용 의존성 `pptxgenjs` → `image-size` 경로에서 high 등급 경고 2건을 보고했다. 외부 입력 이미지를 읽지 않는 이 로컬 제작 스크립트와 최종 PPTX 실행에는 직접 연결되지 않지만, 제작 도구를 재사용하거나 버전을 갱신할 때 확인이 필요하다.
+- D10 후속 요청: Git `9de6939`의 2D 경기를 별도 작업 폴더에서 실행해 실제 캔버스를 캡처했고, 2026-10-22 저장된 3D 프로토타입 화면의 경기장 영역과 S02에서 나란히 비교했다. 새 이름의 PPTX를 생성해 사용자가 열어 둔 기존 발표 파일을 덮어쓰지 않았다. 8장·8개 노트·PowerPoint 렌더 검증을 다시 통과했다.

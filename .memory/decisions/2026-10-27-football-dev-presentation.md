@@ -43,6 +43,11 @@
 - **Chosen**: 편집 가능한 PPTX 파일을 만들고 각 슬라이드에 10분 발표용 핵심 멘트와 전환 문장을 발표 메모로 포함한다.
 - **Rationale**: 사용자가 다음 날 직접 발표하며, 메모가 시간 관리와 설명을 돕는다.
 
+## D10. 실제 2D·3D 화면 비교 (후속 요청)
+- **Chosen**: 2D에서 3D로 바뀐 과정을 보여주는 슬라이드에 실제 경기장 캡처 두 장을 나란히 넣는다. 2D는 Git commit `9de6939`의 2026-10-21 빌드를 별도 작업 폴더에서 실행해 캡처하고, 3D는 2026-10-22에 저장한 프로토타입 캡처를 사용한다. 날짜와 시점을 명시하고, 현재 배포 화면이라고 주장하지 않는다. 기존 결정 문서 원문 비교 슬라이드는 유지한다.
+- **Rationale**: 개발자 청중이 2D 탑다운과 실제 3D 장면의 차이를 한눈에 볼 수 있고, 기획 문서가 만든 결과의 변화를 시각적으로 확인할 수 있다.
+- **Assets**: `presentation/football-dev-talk/assets/`의 원본·경기장 영역 캡처와 출처 README.
+
 ## Codebase findings and boundaries
 - `game/`은 React·JavaScript 앱이고 3D 경기는 React Three Fiber·Three.js로 구현되어 있다. 초기 2D 문서의 일부 규칙은 이후 결정으로 대체되었다.
 - `.memory/current.md`의 기존 Desktop Responsive Layout 계획은 Task가 모두 완료되어 있다. 이 발표 작업의 계획 단계에서 새 포인터를 설정할 때 기존 완료 기록을 보존한다.

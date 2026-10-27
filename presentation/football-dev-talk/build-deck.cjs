@@ -4,7 +4,7 @@ const PptxGenJS = require('pptxgenjs');
 
 const ROOT = __dirname;
 const CONTENT_PATH = path.join(ROOT, 'slide-content.json');
-const OUTPUT_PATH = path.join(ROOT, '2026-10-27-football-dev-presentation.pptx');
+const OUTPUT_PATH = path.join(ROOT, '2026-10-27-football-dev-presentation-with-screenshots.pptx');
 const W = 13.333;
 const H = 7.5;
 const C = {
@@ -104,6 +104,26 @@ function sourceLabel(spec, content) {
   }).join('   ·   ');
 }
 
+function sourceAsset(content, key) {
+  const source = content.sourceCatalog[key];
+  if (!source) throw new Error(`이미지 출처 키가 없습니다: ${key}`);
+  const file = path.resolve(ROOT, '..', '..', source.path);
+  if (!fs.existsSync(file)) throw new Error(`실제 화면 캡처를 찾지 못했습니다: ${file}`);
+  return file;
+}
+
+function addContainedPng(slide, file, x, y, w, h) {
+  const header = fs.readFileSync(file).subarray(0, 24);
+  if (header.subarray(1, 4).toString('ascii') !== 'PNG') throw new Error(`PNG 화면 캡처가 아닙니다: ${file}`);
+  const width = header.readUInt32BE(16);
+  const height = header.readUInt32BE(20);
+  if (!width || !height) throw new Error(`PNG 크기를 읽을 수 없습니다: ${file}`);
+  const scale = Math.min(w / width, h / height);
+  const imageW = width * scale;
+  const imageH = height * scale;
+  slide.addImage({ path: file, x: x + (w - imageW) / 2, y: y + (h - imageH) / 2, w: imageW, h: imageH });
+}
+
 function baseSlide(pptx, spec, index, content) {
   const slide = pptx.addSlide();
   slide.background = { color: C.paper };
@@ -157,29 +177,19 @@ function drawTitle(slide, spec) {
 }
 
 function drawTimeline(slide, spec, content) {
-  line(slide, 1.12, 2.28, 12.04, 2.28, C.line, 4);
-  [1.55, 11.6].forEach((x, i) => {
-    shape(slide, 'ellipse', x, 2.15, 0.27, 0.27, i ? C.teal : C.coral);
+  const cards = [
+    { x: 0.74, label: '2026.10.21  /  2D 실제 경기', body: '초기 6대6 · 3단계 빌드', key: 'initialCapture', fill: C.white, tagFill: C.lightCoral, tagColor: C.coral },
+    { x: 6.82, label: '2026.10.22  /  3D 실제 경기', body: '3D 프로토타입 · 4대4', key: 'threeDCapture', fill: C.lightTeal, tagFill: C.teal, tagColor: C.white },
+  ];
+  cards.forEach(card => {
+    shape(slide, 'roundRect', card.x, 2.12, 5.76, 3.82, card.fill, card.fill === C.white ? C.line : card.fill);
+    pill(slide, card.label, card.x + 0.27, 2.35, 2.61, card.tagFill, card.tagColor);
+    const imagePath = sourceAsset(content, card.key);
+    addContainedPng(slide, imagePath, card.x + 0.18, 2.79, 5.4, 2.64);
+    addText(slide, card.body, card.x + 0.26, 5.49, 5.22, 0.3,
+      { fontSize: 15, bold: true, color: C.muted });
   });
-  const old = { x: 0.74, y: 2.62, w: 5.62, h: 2.93 };
-  const next = { x: 6.98, y: 2.62, w: 5.62, h: 2.93 };
-  shape(slide, 'roundRect', old.x, old.y, old.w, old.h, C.white, C.line);
-  shape(slide, 'roundRect', next.x, next.y, next.w, next.h, C.lightTeal);
-  pill(slide, '2026.10.21 / 초기 결정', old.x + 0.32, old.y + 0.3, 2.23, C.lightCoral, C.coral);
-  pill(slide, '2026.10.22 / 목표 구체화', next.x + 0.32, next.y + 0.3, 2.51);
-  addText(slide, '2D 탑다운', old.x + 0.34, old.y + 0.86, 4.8, 0.45,
-    { fontSize: 25, bold: true });
-  spec.blocks.forEach((block, i) => {
-    addText(slide, `${block.label}  ${block.body}`, old.x + 0.35, old.y + 1.42 + i * 0.43, 4.9, 0.35,
-      { fontSize: 16, color: C.muted });
-  });
-  addText(slide, '실제 3D 장면', next.x + 0.34, next.y + 0.86, 4.8, 0.45,
-    { fontSize: 25, bold: true });
-  addText(slide, content.slides[2].blocks[1].body, next.x + 0.35, next.y + 1.44, 4.85, 0.75,
-    { fontSize: 17, color: C.muted, valign: 'top' });
-  addText(slide, content.slides[2].blocks[2].body, next.x + 0.35, next.y + 2.31, 4.85, 0.35,
-    { fontFace: 'Aptos', fontSize: 16, bold: true, color: C.teal });
-  messageBand(slide, spec.message, 5.9);
+  messageBand(slide, spec.message, 6.1);
 }
 
 function drawComparison(slide, spec, content) {

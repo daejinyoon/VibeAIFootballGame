@@ -19,6 +19,16 @@
       "locator": "D02, D04, D05",
       "claim": "실제 3D 렌더링·카메라·높이·4대4·5단계 결정"
     },
+    "initialCapture": {
+      "path": "presentation/football-dev-talk/assets/match-2d-2026-10-21-pitch.png",
+      "locator": "git 9de6939의 2D 경기를 로컬 실행해 캡처한 경기장 영역",
+      "claim": "2026-10-21 초기 2D 경기 캔버스의 실제 화면"
+    },
+    "threeDCapture": {
+      "path": "presentation/football-dev-talk/assets/match-3d-2026-10-22-pitch.png",
+      "locator": "2026-10-22 저장된 3D 프로토타입 캡처의 경기장 영역",
+      "claim": "2026-10-22 3D 프로토타입 경기장 캔버스의 실제 화면"
+    },
     "cameraCode": {
       "path": "game/src/components/TrackingCamera3D.jsx",
       "locator": "TrackingCamera3D",
@@ -70,7 +80,7 @@
       "id": "S02",
       "kind": "timeline",
       "title": "첫 기획은 2D 탑다운이었다",
-      "subtitle": "2026.10.21 · 첫 로컬 PC 웹 버전의 결정",
+      "subtitle": "2026.10.21 2D 빌드 → 2026.10.22 3D 프로토타입 · 실제 경기 캡처",
       "durationSec": 65,
       "message": "초기 범위는 빠르게 플레이 가능한 로컬 버전을 만드는 데 맞춰져 있었습니다.",
       "blocks": [
@@ -79,8 +89,8 @@
         { "label": "구현", "body": "React + JavaScript · 브라우저 로컬 저장" }
       ],
       "quotes": [],
-      "sourceRefs": ["initialDecision"],
-      "notes": "첫 결정 문서를 보면 범위가 분명합니다. PC 브라우저에서 먼저 플레이할 수 있는 로컬 버전, 위에서 내려다보는 2D 화면, 팀당 여섯 명, 세 단계 캠페인입니다. 이는 당시 빠르게 시작하기 위한 출발점이었습니다. 그런데 제가 기대한 장면을 더 자세히 설명하면서, 카메라 시점과 선수의 입체적인 움직임, 공이 떠오르는 높이가 중요하다는 걸 알게 됐습니다. 그래서 기존 계획을 그대로 늘리는 대신 목표 경험을 다시 정의했습니다."
+      "sourceRefs": ["initialDecision", "initialCapture", "threeDCapture"],
+      "notes": "왼쪽은 10월 21일 당시 Git 버전 9de6939의 2D 경기를 별도 작업 폴더에서 실행해 캡처한 경기장입니다. 오른쪽은 10월 22일에 저장된 실제 3D 프로토타입 캡처에서 경기장 영역을 보여줍니다. 최신 배포 화면이 아니라 각 시점의 구현 결과를 비교하는 자료입니다. 첫 결정 문서를 보면 PC 브라우저의 로컬 버전, 위에서 내려다보는 2D 화면, 팀당 여섯 명, 세 단계 캠페인이었습니다. 그런데 제가 기대한 장면을 더 자세히 설명하면서 카메라 시점, 선수의 입체적인 움직임, 공의 높이가 중요해졌습니다. 그래서 기존 계획을 늘리기보다 목표 경험을 다시 정의했습니다."
     },
     {
       "id": "S03",

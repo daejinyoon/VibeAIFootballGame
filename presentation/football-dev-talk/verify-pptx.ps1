@@ -1,5 +1,5 @@
 param(
-  [string]$PptxPath = (Join-Path $PSScriptRoot '2026-10-27-football-dev-presentation.pptx')
+  [string]$PptxPath = (Join-Path $PSScriptRoot '2026-10-27-football-dev-presentation-with-screenshots.pptx')
 )
 
 $ErrorActionPreference = 'Stop'
