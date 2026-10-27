@@ -24,20 +24,67 @@ const createInitialGameState = (options) => {
   return state;
 };
 
-test('the opening clock stays stopped until the opening taker actually kicks the ball', () => {
-  const state = createGameState();
+test('the opening clock stays stopped until the opening taker kicks and starts opponent skill grace', () => {
+  const state = createGameState({
+    teamSkillDeck: [{ skillId: 'eagleShot', level: 1 }],
+    opponentSkillDeck: [{ skillId: 'eulryongta', level: 1 }],
+  });
 
   stepGame(state, frame(), 0.05);
   stepGame(state, frame({ moveX: 1 }), 0.05);
   assert.equal(state.remainingSeconds, 60);
   assert.equal(state.hasMatchClockStarted, false);
 
-  stepGame(state, frame({ pressed: ['s'] }), 0.05);
+  const kickoffEvents = stepGame(state, frame({ pressed: ['s'] }), 0.05);
   assert.equal(state.hasMatchClockStarted, true);
   assert.equal(state.remainingSeconds, 60, 'the kick frame is not charged');
+  assert.equal(state.aiSkillGraceSecondsRemaining, 3);
+  assert.ok(kickoffEvents.some((event) => event.type === 'pass'));
+
+  const homeSkillEvents = stepGame(state, frame({ pressed: ['f'] }), 0.05);
+  assert.ok(homeSkillEvents.some((event) => event.type === 'skillUsed' && event.team === 'home'));
+  assert.ok(!homeSkillEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'));
+  assert.equal(state.remainingSeconds, 59.95);
+  let awayEvents = [];
+  for (let index = 0; index < 58; index += 1) {
+    awayEvents = stepGame(state, frame(), 0.05);
+    assert.ok(!awayEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'));
+  }
+  assert.ok(state.aiSkillGraceSecondsRemaining > 0);
+  awayEvents = stepGame(state, frame(), 0.05);
+  assert.ok(awayEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'));
+
+  const shotState = createGameState();
+  const shotEvents = stepGame(shotState, frame({ pressed: ['d'] }), 0.05);
+  assert.ok(shotEvents.some((event) => event.type === 'shot'));
+  assert.equal(shotState.aiSkillGraceSecondsRemaining, 3);
+});
+
+test('goal pause does not consume opponent skill grace before a post-goal kickoff', () => {
+  const state = createGameState({
+    teamSkillDeck: [{ skillId: 'eagleShot', level: 1 }],
+    opponentSkillDeck: [{ skillId: 'eulryongta', level: 1 }],
+  });
+  state.hasMatchClockStarted = true;
+  state.phase = 'goalPause';
+  state.phaseSeconds = 0.1;
+  state.pendingKickoffTeam = 'away';
+  state.aiSkillGraceSecondsRemaining = 1.25;
 
   stepGame(state, frame(), 0.05);
-  assert.equal(state.remainingSeconds, 59.95);
+  assert.equal(state.aiSkillGraceSecondsRemaining, 1.25);
+  const kickoffEvents = stepGame(state, frame(), 0.05);
+  assert.ok(kickoffEvents.some((event) => event.type === 'kickoff' && event.team === 'away'));
+  assert.equal(state.aiSkillGraceSecondsRemaining, 3);
+
+  let awayEvents = [];
+  for (let index = 0; index < 59; index += 1) {
+    awayEvents = stepGame(state, frame(), 0.05);
+    assert.ok(!awayEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'));
+  }
+  assert.ok(state.aiSkillGraceSecondsRemaining > 0);
+  awayEvents = stepGame(state, frame(), 0.05);
+  assert.ok(awayEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'));
 });
 
 test('Vacuum Cleaner moves the live ball along an accelerating spiral path and completes at 0.7 seconds', () => {

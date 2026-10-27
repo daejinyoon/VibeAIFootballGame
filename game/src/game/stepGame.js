@@ -1,6 +1,7 @@
 import {
   BALL_GRAVITY,
   BALL_RADIUS,
+  AI_KICKOFF_SKILL_GRACE_SECONDS,
   EAGLE_ASCENT_SECONDS,
   EAGLE_FLIGHT_HEIGHT,
   EAGLE_SHOT_INTERVAL_SECONDS,
@@ -300,6 +301,7 @@ function releasePass(state, player, kind, receiverOverride = null) {
   if (direction.x === 0 && direction.y === 0) return [];
   if (!state.hasMatchClockStarted && player.id === state.openingKickoffTakerId) {
     state.hasMatchClockStarted = true;
+    state.aiSkillGraceSecondsRemaining = AI_KICKOFF_SKILL_GRACE_SECONDS;
   }
   setTimedMotion(player, 'pass', 0.32);
   const speed = kind === 'lobPass' ? 300 : 330;
@@ -349,6 +351,7 @@ function releaseShot(state, player) {
   putBallAtPlayer(state, player);
   if (!state.hasMatchClockStarted && player.id === state.openingKickoffTakerId) {
     state.hasMatchClockStarted = true;
+    state.aiSkillGraceSecondsRemaining = AI_KICKOFF_SKILL_GRACE_SECONDS;
   }
   setTimedMotion(player, 'shot', 0.42);
   const start = { x: state.ball.x, y: state.ball.y };
@@ -478,6 +481,7 @@ function resetForKickoff(state, kickoffTeam) {
   Object.assign(state, fresh, {
     score,
     hasMatchClockStarted,
+    aiSkillGraceSecondsRemaining: AI_KICKOFF_SKILL_GRACE_SECONDS,
     openingKickoffTakerId,
     remainingSeconds,
     overtimeRemainingSeconds,
@@ -1716,6 +1720,7 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
 
 function maybeUseAiSkill(state, team, events) {
   if (!state.hasMatchClockStarted) return;
+  if (team === 'away' && (state.aiSkillGraceSecondsRemaining ?? 0) > 0) return;
   const candidates = activePlayers(state, team).filter((player) => player.knockdownSeconds <= 0 && player.motionAction !== 'recover'
     && (player.airborneSecondsRemaining ?? 0) <= 0);
   const actor = candidates.find((player) => player.id === state.ball.ownerId)
@@ -1977,6 +1982,10 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
     const remaining = (teamGlobalCooldowns[team] ?? 0) - dt;
     return [team, remaining <= 1e-9 ? 0 : remaining];
   }));
+  if (state.phase !== 'goalPause') {
+    const graceRemaining = (state.aiSkillGraceSecondsRemaining ?? 0) - dt;
+    state.aiSkillGraceSecondsRemaining = graceRemaining <= 1e-9 ? 0 : graceRemaining;
+  }
   if (state.phase === 'overtime' && state.overtimeRemainingSeconds == null) {
     state.overtimeRemainingSeconds = GOLDEN_GOAL_SECONDS;
   }

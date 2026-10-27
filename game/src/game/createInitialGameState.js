@@ -119,6 +119,7 @@ export function createInitialGameState({
     kickoffTakerId: 'home-fw',
     openingKickoffTakerId: 'home-fw',
     hasMatchClockStarted: false,
+    aiSkillGraceSecondsRemaining: 0,
     remainingSeconds: REGULATION_SECONDS,
     overtimeRemainingSeconds: null,
     score: { home: 0, away: 0 },

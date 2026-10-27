@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { FIELD, KICKOFF_CIRCLE_RADIUS } from './constants.js';
+import { AI_KICKOFF_SKILL_GRACE_SECONDS, FIELD, KICKOFF_CIRCLE_RADIUS } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
 import { getAwayHudAccent, getTeamBranding } from './teamBranding.js';
 
@@ -28,6 +28,8 @@ test('starts stage one at a home kickoff with a clean score and no skill gauges'
   assert.equal(state.kickoffTakerId, 'home-fw');
   assert.equal(state.openingKickoffTakerId, 'home-fw');
   assert.equal(state.hasMatchClockStarted, false);
+  assert.equal(state.aiSkillGraceSecondsRemaining, 0);
+  assert.equal(AI_KICKOFF_SKILL_GRACE_SECONDS, 3);
   assert.equal(state.remainingSeconds, 60);
   assert.deepEqual(state.score, { home: 0, away: 0 });
   assert.equal(state.ball.ownerId, 'home-fw');
