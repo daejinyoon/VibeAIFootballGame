@@ -7,11 +7,12 @@
 [P01 Campaign Match AI](./phases/2026-10-29-campaign-goal-kick-and-loose-ball-ai/P01-campaign-match-ai/phase.md)
 
 ## Active Task
-[T03 Loose-Ball Pursuit](./phases/2026-10-29-campaign-goal-kick-and-loose-ball-ai/P01-campaign-match-ai/T03-loose-ball-pursuit.md)
+None; all tasks in P01 are complete.
 
 ## Status
-- T01 Stage 1 Opponent Tuning and T02 Goal-Kick Positioning are complete; T03 is ready to start.
-- The full stepGame test command still reports the same three baseline failures documented in T01.
+- T01, T02, and T03 are complete.
+- The full stepGame test command reports the same three baseline failures recorded at baseline: opening clock, Eulryongta handoff, and knockdown recovery.
+- Production build succeeds; Vite reports existing large JavaScript chunk warnings.
 
-## Next Step (IMPORTANT)
-Read T03's blueprint and implement campaign loose-ball chaser selection and movement in `game/src/game/stepGame.js` and `game/src/game/stepGame.test.js`.
+## Next Step
+P01 is complete. No next task is defined in this plan.

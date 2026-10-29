@@ -1321,6 +1321,91 @@ function collectLooseBall(state) {
   ];
 }
 
+function getLooseBallContestTarget(state) {
+  const { ball } = state;
+  if (ball.ownerId || ![ball.x, ball.y].every(Number.isFinite) || ball.flightKind === 'skill-shot') return null;
+
+  const hasFiniteTarget = (target) => target
+    && Number.isFinite(target.x)
+    && Number.isFinite(target.y);
+  const isTargetedGroundPass = ball.flightKind === 'ground'
+    && (hasFiniteTarget(ball.passTarget) || (typeof ball.passReceiverId === 'string' && ball.passReceiverId.length > 0));
+  if (isTargetedGroundPass) return null;
+
+  const isAerial = ['shot', 'lob', 'cross', 'header'].includes(ball.flightKind) && ball.height > 0;
+  const isGround = ball.flightKind === 'ground' || (ball.flightKind === 'shot' && ball.height === 0);
+  if (!isGround && !isAerial) return null;
+
+  if (isAerial && ['home', 'away'].includes(ball.passTeam) && hasFiniteTarget(ball.flightTarget)) return null;
+  if (isGround) {
+    return {
+      x: clamp(ball.x, 0, FIELD.width),
+      y: clamp(ball.y, 0, FIELD.height),
+    };
+  }
+
+  if (hasFiniteTarget(ball.flightTarget)) {
+    return {
+      x: clamp(ball.flightTarget.x, 0, FIELD.width),
+      y: clamp(ball.flightTarget.y, 0, FIELD.height),
+    };
+  }
+
+  const height = Number.isFinite(ball.height) ? ball.height : NaN;
+  const velocityX = Number.isFinite(ball.vx) ? ball.vx : NaN;
+  const velocityY = Number.isFinite(ball.vy) ? ball.vy : NaN;
+  const verticalVelocity = ball.verticalVelocity == null ? 0 : ball.verticalVelocity;
+  if (height < 0 || ![height, velocityX, velocityY, verticalVelocity, BALL_GRAVITY].every(Number.isFinite)
+      || BALL_GRAVITY <= 0) return null;
+  const discriminant = verticalVelocity ** 2 + 2 * BALL_GRAVITY * height;
+  if (!Number.isFinite(discriminant) || discriminant < 0) return null;
+  const landingSeconds = height === 0
+    ? 0
+    : (verticalVelocity + Math.sqrt(discriminant)) / BALL_GRAVITY;
+  if (!Number.isFinite(landingSeconds) || landingSeconds < 0) return null;
+  const target = {
+    x: clamp(ball.x + velocityX * landingSeconds, 0, FIELD.width),
+    y: clamp(ball.y + velocityY * landingSeconds, 0, FIELD.height),
+  };
+  return [target.x, target.y].every(Number.isFinite) ? target : null;
+}
+
+function findLooseBallChasers(state, controlledPlayerId, target) {
+  const chasers = new Map([['home', null], ['away', null]]);
+  if (!target || ![target.x, target.y].every(Number.isFinite)) return chasers;
+
+  for (const team of ['home', 'away']) {
+    const ownGoalX = team === 'home' ? 0 : FIELD.width;
+    // Match the existing 180-unit defensive band: keepers contest only near their own goal line.
+    const candidates = state.players
+      .filter((player) => player.team === team
+        && !player.dismissed
+        && (player.knockdownSeconds ?? 0) <= 0
+        && (player.stunnedSeconds ?? 0) <= 0
+        && player.motionAction !== 'recover'
+        && (player.airborneSecondsRemaining ?? 0) <= 0
+        && !(team === 'home' && player.id === controlledPlayerId)
+        && (player.role !== 'goalkeeper' || Math.abs(target.x - ownGoalX) <= 180))
+      .sort((a, b) => distance(a, target) - distance(b, target)
+        || a.role.localeCompare(b.role)
+        || a.id.localeCompare(b.id));
+    chasers.set(team, candidates[0]?.id ?? null);
+  }
+  return chasers;
+}
+
+function updateLooseBallChasers(state, chasers, target, deltaSeconds) {
+  if (!target) return;
+  for (const team of ['home', 'away']) {
+    const playerId = chasers.get(team);
+    const player = playerId ? byId(state, playerId) : null;
+    if (!player || player.team !== team || player.dismissed) continue;
+    player.aiTarget = { x: target.x, y: target.y };
+    player.aiRetargetSeconds = 0;
+    moveToward(player, target, AI_SPEED, deltaSeconds, false);
+  }
+}
+
 function handleHomeAttack(state, controlled, input) {
   if (state.ball.ownerId !== controlled.id) return [];
   if (input.pressed.has('a')) return releasePass(state, controlled, 'lobPass');
@@ -1354,7 +1439,7 @@ function updateSupportPlayer(state, player, deltaSeconds) {
   moveToward(player, player.aiTarget, AI_SPEED, deltaSeconds);
 }
 
-function updateHomeSupportAi(state, controlled, deltaSeconds) {
+function updateHomeSupportAi(state, controlled, deltaSeconds, looseBallChaserIds = new Set()) {
   const ballCarrier = carrier(state);
   const supportPlayers = activePlayers(state, 'home')
     .filter((player) => player.role !== 'goalkeeper'
@@ -1368,7 +1453,8 @@ function updateHomeSupportAi(state, controlled, deltaSeconds) {
         || player.dismissed
         || player.role === 'goalkeeper'
         || player.id === controlled?.id
-        || player.id === state.ball.ownerId) continue;
+        || player.id === state.ball.ownerId
+        || looseBallChaserIds.has(player.id)) continue;
     if (state.possessionTeam === 'home' && ballCarrier?.team === 'home') {
       player.aiRetargetSeconds = Math.max(0, (player.aiRetargetSeconds ?? 0) - deltaSeconds);
       if (!player.aiTarget || player.aiRetargetSeconds <= 0) {
@@ -1407,13 +1493,16 @@ function homeSupportTarget(state, player, ballCarrier, isShortOutlet) {
   };
 }
 
-function updateAwayDefense(state, deltaSeconds, events, defendingTeam = 'away', controlled = null) {
+function updateAwayDefense(state, deltaSeconds, events, defendingTeam = 'away', controlled = null, looseBallChaserIds = new Set()) {
   const defendingCarrier = carrier(state);
   if (!defendingCarrier || defendingCarrier.team === defendingTeam) {
     state.aiPressingPlayerId = null;
     state.aiPressingLostSeconds = 0;
     state.aiObservedCarrierId = null;
-    updateKeeperPosition(state, defendingTeam, defendingCarrier, deltaSeconds, controlled);
+    const keeper = activePlayers(state, defendingTeam).find((player) => player.role === 'goalkeeper');
+    if (!looseBallChaserIds.has(keeper?.id)) {
+      updateKeeperPosition(state, defendingTeam, defendingCarrier, deltaSeconds, controlled);
+    }
     return;
   }
   const defenders = activePlayers(state, defendingTeam)
@@ -1693,7 +1782,7 @@ function chooseAiPass(state, passer) {
   return candidates[0] ?? null;
 }
 
-function updateAi(state, controlled, input, deltaSeconds, events) {
+function updateAi(state, controlled, input, deltaSeconds, events, looseBallChaserIds = new Set()) {
   const ballCarrier = carrier(state);
   const opponentCarrier = state.players.find((player) => player.team !== 'home' && !player.dismissed && player.id === state.ball.ownerId);
 
@@ -1728,6 +1817,7 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
   for (const player of state.players) {
     if (player.dismissed || player.id === controlled?.id || player.knockdownSeconds > 0 || player.motionAction === 'recover') continue;
     if (player.team !== 'away') continue;
+    if (looseBallChaserIds.has(player.id)) continue;
     if (player.id === state.ball.ownerId) {
       const direction = player.team === 'home' ? 1 : -1;
       const goal = { x: direction > 0 ? FIELD.width : 0, y: FIELD.height / 2 };
@@ -2130,19 +2220,26 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
     controlled = byId(state, state.controlledPlayerId);
   }
 
+  const looseBallTarget = pvpMode ? null : getLooseBallContestTarget(state);
+  const looseBallChasers = looseBallTarget
+    ? findLooseBallChasers(state, state.controlledPlayerId, looseBallTarget)
+    : new Map([['home', null], ['away', null]]);
+  const looseBallChaserIds = new Set([...looseBallChasers.values()].filter(Boolean));
+
   if (state.possessionTeam === 'home') {
     if (controlled) {
       moveByInput(controlled, input.moveX, input.moveY, PLAYER_SPEED, dt, input.down.has('e'));
       events.push(...controlBallAction(state, controlled, input));
     }
-    updateHomeSupportAi(state, byId(state, state.controlledPlayerId), dt);
-      updateAwayDefense(state, dt, events, 'away', null);
+    updateHomeSupportAi(state, byId(state, state.controlledPlayerId), dt, looseBallChaserIds);
+    updateAwayDefense(state, dt, events, 'away', null, looseBallChaserIds);
   } else {
-    if (controlled) controlled = updateAi(state, controlled, input, dt, events);
-    updateAwayDefense(state, dt, events, 'home', controlled);
+    if (controlled) controlled = updateAi(state, controlled, input, dt, events, looseBallChaserIds);
+    updateAwayDefense(state, dt, events, 'home', controlled, looseBallChaserIds);
   }
 
   enforceKickoffCircle(state);
+  updateLooseBallChasers(state, looseBallChasers, looseBallTarget, dt);
 
   if (state.eagleVolley) {
     events.push(...advanceEagleVolley(state, dt, { pvpMode }));

@@ -24,6 +24,31 @@ const createInitialGameState = (options) => {
   return state;
 };
 
+const prepareLooseBallState = (state, overrides = {}) => {
+  state.possessionTeam = 'away';
+  Object.assign(state.ball, {
+    ownerId: null,
+    x: 400,
+    y: 270,
+    vx: 0,
+    vy: 0,
+    height: 0,
+    verticalVelocity: 0,
+    flightKind: 'ground',
+    flightTarget: null,
+    passTarget: null,
+    passReceiverId: null,
+    passTeam: null,
+    skillId: null,
+    ...overrides,
+  });
+  for (const player of state.players) {
+    player.aiTarget = { x: player.x, y: player.y };
+    player.aiRetargetSeconds = 10;
+  }
+  return state;
+};
+
 test('the opening clock stays stopped until the opening taker kicks and starts opponent skill grace', () => {
   const state = createGameState({
     teamSkillDeck: [{ skillId: 'eagleShot', level: 1 }],
@@ -76,6 +101,13 @@ test('goal pause does not consume opponent skill grace before a post-goal kickof
   const kickoffEvents = stepGame(state, frame(), 0.05);
   assert.ok(kickoffEvents.some((event) => event.type === 'kickoff' && event.team === 'away'));
   assert.equal(state.aiSkillGraceSecondsRemaining, 3);
+  const awayCarrier = state.players.find((player) => player.id === 'away-fw');
+  awayCarrier.x = 850;
+  state.ball.x = 833;
+  state.aiShotCooldownSeconds = 10;
+  for (const player of state.players.filter((candidate) => candidate.team === 'home' && candidate.role !== 'goalkeeper')) {
+    player.x = 1100;
+  }
 
   let awayEvents = [];
   for (let index = 0; index < 59; index += 1) {
@@ -83,6 +115,9 @@ test('goal pause does not consume opponent skill grace before a post-goal kickof
     assert.ok(!awayEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'));
   }
   assert.ok(state.aiSkillGraceSecondsRemaining > 0);
+  const homeTarget = state.players.find((player) => player.id === 'home-def-1');
+  homeTarget.x = awayCarrier.x - 70;
+  homeTarget.y = awayCarrier.y;
   awayEvents = stepGame(state, frame(), 0.05);
   assert.ok(awayEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'));
 });
@@ -994,6 +1029,230 @@ test('an opponent can collect a ground pass at its endpoint without pass immunit
 
   assert.equal(state.ball.ownerId, opponent.id);
   assert.equal(state.possessionTeam, 'away');
+});
+
+test('the nearest campaign AI from each team runs toward an unowned ground ball once', () => {
+  const state = createInitialGameState();
+  const controlled = state.players.find((player) => player.id === 'home-fw');
+  const homeChaser = state.players.find((player) => player.id === 'home-mid-1');
+  const homeTeammate = state.players.find((player) => player.id === 'home-def-1');
+  const awayChaser = state.players.find((player) => player.id === 'away-fw');
+  const awayTeammate = state.players.find((player) => player.id === 'away-mid-1');
+  Object.assign(controlled, { x: 700, y: 270 });
+  Object.assign(homeChaser, { x: 360, y: 270 });
+  Object.assign(homeTeammate, { x: 200, y: 200 });
+  Object.assign(awayChaser, { x: 450, y: 270 });
+  Object.assign(awayTeammate, { x: 800, y: 400 });
+  prepareLooseBallState(state);
+  const homeTeammateStart = { x: homeTeammate.x, y: homeTeammate.y };
+  const awayTeammateStart = { x: awayTeammate.x, y: awayTeammate.y };
+  const homeChaserStart = { x: homeChaser.x, y: homeChaser.y };
+  const awayChaserStart = { x: awayChaser.x, y: awayChaser.y };
+
+  stepGame(state, frame(), 0.05);
+
+  assert.deepEqual(homeChaser.aiTarget, { x: 400, y: 270 });
+  assert.deepEqual(awayChaser.aiTarget, { x: 400, y: 270 });
+  assert.ok(Math.abs((homeChaser.x - homeChaserStart.x) - 6.8) < 1e-9);
+  assert.ok(Math.abs((awayChaser.x - awayChaserStart.x) + 6.8) < 1e-9);
+  assert.ok(Math.hypot(homeChaser.x - homeChaserStart.x, homeChaser.y - homeChaserStart.y) <= 136 * 0.05 + 1e-9);
+  assert.ok(Math.hypot(awayChaser.x - awayChaserStart.x, awayChaser.y - awayChaserStart.y) <= 136 * 0.05 + 1e-9);
+  assert.deepEqual({ x: homeTeammate.x, y: homeTeammate.y }, homeTeammateStart);
+  assert.deepEqual({ x: awayTeammate.x, y: awayTeammate.y }, awayTeammateStart);
+  assert.equal(state.ball.ownerId, null);
+  assert.equal(state.possessionTeam, 'away');
+});
+
+test('the controlled home player keeps input while its nearest AI teammate chases', () => {
+  const state = createInitialGameState();
+  const controlled = state.players.find((player) => player.id === 'home-fw');
+  const homeChaser = state.players.find((player) => player.id === 'home-mid-1');
+  const homeDefender = state.players.find((player) => player.id === 'home-def-1');
+  Object.assign(controlled, { x: 401, y: 270 });
+  Object.assign(homeChaser, { x: 450, y: 270 });
+  Object.assign(homeDefender, { x: 520, y: 270 });
+  state.controlledPlayerId = controlled.id;
+  prepareLooseBallState(state);
+
+  stepGame(state, frame({ moveX: 1 }), 0.05);
+
+  assert.equal(controlled.x, 409.8);
+  assert.deepEqual(homeChaser.aiTarget, { x: 400, y: 270 });
+  assert.equal(homeChaser.x, 443.2);
+});
+
+test('aerial loose-ball chasers aim at the predicted landing point or declared flight target', () => {
+  const state = createInitialGameState();
+  const homeChaser = state.players.find((player) => player.id === 'home-mid-1');
+  const awayChaser = state.players.find((player) => player.id === 'away-fw');
+  Object.assign(state.players.find((player) => player.id === 'home-fw'), { x: 850, y: 480 });
+  Object.assign(homeChaser, { x: 250, y: 250 });
+  Object.assign(awayChaser, { x: 380, y: 250 });
+  prepareLooseBallState(state, {
+    x: 300,
+    y: 250,
+    vx: 100,
+    vy: 20,
+    height: 40,
+    verticalVelocity: 0,
+    flightKind: 'lob',
+  });
+  const landingSeconds = Math.sqrt(2 * 900 * 40) / 900;
+  const projectedLanding = { x: 300 + 100 * landingSeconds, y: 250 + 20 * landingSeconds };
+
+  stepGame(state, frame(), 0.05);
+
+  assert.ok(Math.abs(homeChaser.aiTarget.x - projectedLanding.x) < 0.001);
+  assert.ok(Math.abs(homeChaser.aiTarget.y - projectedLanding.y) < 0.001);
+  assert.deepEqual(awayChaser.aiTarget, projectedLanding);
+  assert.ok(Math.hypot(homeChaser.x - 250, homeChaser.y - 250) <= 136 * 0.05);
+  assert.ok(Math.hypot(awayChaser.x - 380, awayChaser.y - 250) <= 136 * 0.05);
+
+  const targetState = createInitialGameState();
+  const targetChaser = targetState.players.find((player) => player.id === 'away-fw');
+  Object.assign(targetState.players.find((player) => player.id === 'home-fw'), { x: 850, y: 480 });
+  Object.assign(targetChaser, { x: 570, y: 100 });
+  prepareLooseBallState(targetState, {
+    x: 300,
+    y: 250,
+    vx: 100,
+    vy: 20,
+    height: 40,
+    verticalVelocity: 0,
+    flightKind: 'lob',
+    flightTarget: { x: 600, y: 100 },
+  });
+
+  stepGame(targetState, frame(), 0.05);
+
+  assert.deepEqual(targetChaser.aiTarget, { x: 600, y: 100 });
+});
+
+test('goalkeepers contest loose balls only near their own goal', () => {
+  const nearGoalState = createInitialGameState();
+  const nearGoalkeeper = nearGoalState.players.find((player) => player.id === 'home-gk');
+  const nearGoalDefender = nearGoalState.players.find((player) => player.id === 'home-def-1');
+  Object.assign(nearGoalkeeper, { x: 50, y: 270 });
+  Object.assign(nearGoalDefender, { x: 350, y: 270 });
+  Object.assign(nearGoalState.players.find((player) => player.id === 'home-fw'), { x: 700, y: 400 });
+  prepareLooseBallState(nearGoalState, { x: 170, y: 270 });
+
+  stepGame(nearGoalState, frame(), 0.05);
+
+  assert.deepEqual(nearGoalkeeper.aiTarget, { x: 170, y: 270 });
+  assert.equal(nearGoalkeeper.x, 56.8);
+
+  const outsideGoalState = createInitialGameState();
+  const outsideGoalkeeper = outsideGoalState.players.find((player) => player.id === 'home-gk');
+  const outsideGoalDefender = outsideGoalState.players.find((player) => player.id === 'home-def-1');
+  Object.assign(outsideGoalkeeper, { x: 50, y: 270 });
+  Object.assign(outsideGoalDefender, { x: 250, y: 270 });
+  Object.assign(outsideGoalState.players.find((player) => player.id === 'home-fw'), { x: 800, y: 400 });
+  prepareLooseBallState(outsideGoalState, { x: 200, y: 270 });
+
+  stepGame(outsideGoalState, frame(), 0.05);
+
+  assert.deepEqual(outsideGoalDefender.aiTarget, { x: 200, y: 270 });
+  assert.notDeepEqual(outsideGoalkeeper.aiTarget, { x: 200, y: 270 });
+  assert.equal(outsideGoalDefender.x, 243.2);
+});
+
+test('loose-ball chaser selection skips unavailable players and breaks distance ties deterministically', () => {
+  const tieState = createInitialGameState();
+  const expectedChaser = tieState.players.find((player) => player.id === 'away-def-1');
+  for (const player of tieState.players.filter((candidate) => candidate.team === 'away' && candidate.role !== 'goalkeeper')) {
+    Object.assign(player, { x: 350, y: 270 });
+  }
+  prepareLooseBallState(tieState);
+
+  stepGame(tieState, frame(), 0.05);
+
+  assert.deepEqual(expectedChaser.aiTarget, { x: 400, y: 270 });
+  assert.equal(expectedChaser.x, 356.8);
+  for (const player of tieState.players.filter((candidate) => candidate.team === 'away'
+      && candidate.id !== expectedChaser.id && candidate.role !== 'goalkeeper')) {
+    assert.notDeepEqual(player.aiTarget, { x: 400, y: 270 });
+  }
+
+  const filteredState = createInitialGameState();
+  const dismissed = filteredState.players.find((player) => player.id === 'away-def-1');
+  const knockedDown = filteredState.players.find((player) => player.id === 'away-mid-1');
+  const stunned = filteredState.players.find((player) => player.id === 'away-fw');
+  const airborne = stunned;
+  dismissed.dismissed = true;
+  knockedDown.knockdownSeconds = 2;
+  stunned.stunnedSeconds = 2;
+  airborne.airborneSecondsRemaining = 2;
+  Object.assign(filteredState.players.find((player) => player.id === 'home-fw'), { x: 700, y: 400 });
+  prepareLooseBallState(filteredState);
+  const unavailableTargets = [dismissed, knockedDown, stunned, airborne].map((player) => ({ ...player.aiTarget }));
+
+  stepGame(filteredState, frame(), 0.05);
+
+  assert.deepEqual(dismissed.aiTarget, unavailableTargets[0]);
+  assert.deepEqual(knockedDown.aiTarget, unavailableTargets[1]);
+  assert.deepEqual(stunned.aiTarget, unavailableTargets[2]);
+  assert.deepEqual(airborne.aiTarget, unavailableTargets[3]);
+});
+
+test('targeted passes, skill shots, invalid aerial projections, and PvP do not start loose-ball chases', () => {
+  const excludedScenarios = [
+    {
+      name: 'targeted ground pass',
+      ball: { passTeam: 'home', passReceiverId: 'home-mid-1', passTarget: { x: 650, y: 270 } },
+    },
+    {
+      name: 'targeted aerial pass',
+      ball: { flightKind: 'lob', height: 40, passTeam: 'home', flightTarget: { x: 650, y: 270 } },
+    },
+    {
+      name: 'skill shot',
+      ball: { flightKind: 'skill-shot', skillId: 'tornadoShot', height: 40, vx: 100, vy: 0 },
+    },
+    {
+      name: 'invalid aerial projection',
+      ball: { flightKind: 'lob', height: 40, verticalVelocity: 0, vx: Number.NaN, vy: 0 },
+    },
+  ];
+
+  for (const scenario of excludedScenarios) {
+    const state = createInitialGameState();
+    const homeSupport = state.players.find((player) => player.id === 'home-mid-1');
+    const awaySupport = state.players.find((player) => player.id === 'away-mid-1');
+    prepareLooseBallState(state, {
+      x: 400,
+      y: 270,
+      vx: 0,
+      vy: 0,
+      ...scenario.ball,
+    });
+    const homeTargetBefore = { ...homeSupport.aiTarget };
+    const awayTargetBefore = { ...awaySupport.aiTarget };
+
+    stepGame(state, frame(), 0.01);
+
+    assert.deepEqual(homeSupport.aiTarget, homeTargetBefore, scenario.name);
+    assert.deepEqual(awaySupport.aiTarget, awayTargetBefore, scenario.name);
+  }
+
+  const ownedState = createInitialGameState();
+  const homeSupport = ownedState.players.find((player) => player.id === 'home-mid-1');
+  const awaySupport = ownedState.players.find((player) => player.id === 'away-mid-1');
+  prepareLooseBallState(ownedState, { ownerId: 'away-fw' });
+  ownedState.aiShotCooldownSeconds = 10;
+  stepGame(ownedState, frame(), 0.01);
+  assert.notDeepEqual(homeSupport.aiTarget, { x: 400, y: 270 }, 'owned ball, home AI');
+  assert.notDeepEqual(awaySupport.aiTarget, { x: 400, y: 270 }, 'owned ball, away AI');
+
+  const pvpState = createInitialGameState();
+  const pvpHomeSupport = pvpState.players.find((player) => player.id === 'home-mid-1');
+  const pvpAwaySupport = pvpState.players.find((player) => player.id === 'away-mid-1');
+  prepareLooseBallState(pvpState);
+  const pvpHomeTargetBefore = { ...pvpHomeSupport.aiTarget };
+  const pvpAwayTargetBefore = { ...pvpAwaySupport.aiTarget };
+  stepGame(pvpState, { home: frame(), away: frame() }, 0.01, { controlledTeams: ['home', 'away'] });
+  assert.deepEqual(pvpHomeSupport.aiTarget, pvpHomeTargetBefore, 'PvP home support');
+  assert.deepEqual(pvpAwaySupport.aiTarget, pvpAwayTargetBefore, 'PvP away support');
 });
 
 test('a keeper catches an ordinary shot and starts a timed goal kick', () => {
