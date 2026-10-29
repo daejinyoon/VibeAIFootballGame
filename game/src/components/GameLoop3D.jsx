@@ -6,6 +6,7 @@ import { getPlayerFacingYaw } from '../game/playerOrientation.js';
 import { playCrowdCheer } from '../game/matchAudio.js';
 import { playSkillAudio, prepareSkillAudio } from '../game/skillAudio.js';
 import { stepGame } from '../game/stepGame.js';
+import { createPvpInputBuffer, serializeInputFrame } from '../pvp/pvpInput.js';
 
 function worldX(x) {
   return x / 80 - FIELD.width / 160;
@@ -24,20 +25,29 @@ export function GameLoop3D({
   actorsRef,
   gameStateRef: sharedGameStateRef,
   crowdReactionRef,
+  simulationMode = 'local',
+  localTeam = 'home',
+  remoteInputRef,
+  snapshotRef,
+  onLocalInput,
 }) {
   const localGameStateRef = useRef(structuredClone(initialState));
   const gameStateRef = sharedGameStateRef ?? localGameStateRef;
   const initialStateRef = useRef(initialState);
   const inputRef = useRef(null);
-  const callbacksRef = useRef({ onGameEvents, onStateChange });
   const framesSinceSnapshotRef = useRef(0);
+  const inputSequenceRef = useRef(0);
+  const snapshotSequenceRef = useRef(-1);
+  const inputSendElapsedRef = useRef(0);
+  const inputBufferRef = useRef(createPvpInputBuffer());
+  const callbacksRef = useRef({ onGameEvents, onStateChange, onLocalInput });
 
   if (initialStateRef.current !== initialState) {
     initialStateRef.current = initialState;
     gameStateRef.current = structuredClone(initialState);
     framesSinceSnapshotRef.current = 0;
   }
-  callbacksRef.current = { onGameEvents, onStateChange };
+  callbacksRef.current = { onGameEvents, onStateChange, onLocalInput };
 
   useEffect(() => {
     if (!focused || paused) return undefined;
@@ -52,10 +62,44 @@ export function GameLoop3D({
 
   const animationTimeRef = useRef(0);
   useFrame((_, delta) => {
-    const state = gameStateRef.current;
     if (paused) return;
+    if (simulationMode === 'host') {
+      const packet = remoteInputRef?.current;
+      if (packet) {
+        if (inputBufferRef.current.push(packet)) remoteInputRef.current = null;
+      }
+    }
+    if (simulationMode === 'remote') {
+      const packet = snapshotRef?.current;
+      if (packet?.type === 'snapshot' && Number.isSafeInteger(packet.sequence)
+          && packet.sequence > snapshotSequenceRef.current && packet.state
+          && Array.isArray(packet.state.players) && packet.state.ball) {
+        try {
+          const snapshot = structuredClone(packet.state);
+          if (snapshot.players.every((player) => player && typeof player.id === 'string'
+              && Number.isFinite(player.x) && Number.isFinite(player.y))
+              && Number.isFinite(snapshot.ball.x) && Number.isFinite(snapshot.ball.y)) {
+            gameStateRef.current = snapshot;
+            snapshotSequenceRef.current = packet.sequence;
+            snapshotRef.current = null;
+            callbacksRef.current.onStateChange?.(structuredClone(snapshot));
+          }
+        } catch { /* Ignore malformed snapshots; the next authoritative frame can recover. */ }
+      }
+      const inputFrame = inputRef.current?.readFrame();
+      if (inputFrame) {
+        inputSendElapsedRef.current += Math.max(0, delta);
+        const hasEdge = inputFrame.pressed.size > 0 || inputFrame.released.size > 0;
+        if (hasEdge || inputSendElapsedRef.current >= 0.05) {
+          const message = serializeInputFrame(inputFrame, inputSequenceRef.current++);
+          if (message) callbacksRef.current.onLocalInput?.(message);
+          inputSendElapsedRef.current = 0;
+        }
+      }
+    }
+    const state = gameStateRef.current;
     animationTimeRef.current += Math.max(0, delta);
-    if (state.skillCutIn) {
+    if (simulationMode !== 'remote' && state.skillCutIn) {
       state.skillCutIn.elapsedSeconds += Math.max(0, delta);
       if (state.skillCutIn.elapsedSeconds >= state.skillCutIn.durationSeconds) {
         state.skillCutIn = null;
@@ -63,7 +107,15 @@ export function GameLoop3D({
     }
     const presentationScale = state.skillCutIn ? 0.4 : 1;
     const simulationDelta = Math.min(delta, 0.05) * presentationScale;
-    const events = stepGame(state, inputRef.current?.readFrame(), simulationDelta);
+    let events = [];
+    if (simulationMode === 'host') {
+      const localInput = inputRef.current?.readFrame() ?? { moveX: 0, moveY: 0, down: new Set(), pressed: new Set(), released: new Set() };
+      const remoteInput = inputBufferRef.current.readFrame();
+      const frames = localTeam === 'away' ? { home: remoteInput, away: localInput } : { home: localInput, away: remoteInput };
+      events = stepGame(state, frames, simulationDelta, { controlledTeams: ['home', 'away'] });
+    } else if (simulationMode !== 'remote') {
+      events = stepGame(state, inputRef.current?.readFrame(), simulationDelta);
+    }
     const crowdReaction = crowdReactionRef?.current;
     if (crowdReaction) {
       crowdReaction.elapsedSeconds += simulationDelta;
@@ -104,7 +156,9 @@ export function GameLoop3D({
         + (airborne ? animationTimeRef.current * 7 * spin : 0);
       const marker = actorsRef.current.selectedMarkers.get(player.id);
       if (marker) {
-        marker.visible = !player.dismissed && player.id === state.controlledPlayerId;
+        const selectedId = simulationMode === 'local' ? state.controlledPlayerId
+          : state.controlledPlayerIds?.[localTeam] ?? (localTeam === 'home' ? state.controlledPlayerId : null);
+        marker.visible = !player.dismissed && player.id === selectedId;
         marker.position.y = 0.035;
       }
     }
@@ -124,7 +178,14 @@ export function GameLoop3D({
 
     if (events.length > 0) callbacksRef.current.onGameEvents?.(events);
     framesSinceSnapshotRef.current += 1;
-    if (framesSinceSnapshotRef.current >= 6) {
+    if (simulationMode === 'host' && framesSinceSnapshotRef.current >= 3) {
+      framesSinceSnapshotRef.current = 0;
+      const snapshot = { type: 'snapshot', sequence: snapshotSequenceRef.current + 1, state: structuredClone(state) };
+      snapshotSequenceRef.current = snapshot.sequence;
+      if (typeof snapshotRef?.current === 'function') snapshotRef.current(snapshot);
+      else if (snapshotRef) snapshotRef.current = snapshot;
+      callbacksRef.current.onStateChange?.(structuredClone(state));
+    } else if (simulationMode !== 'host' && simulationMode !== 'remote' && framesSinceSnapshotRef.current >= 6) {
       framesSinceSnapshotRef.current = 0;
       callbacksRef.current.onStateChange?.(structuredClone(state));
     }

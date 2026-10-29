@@ -1,16 +1,13 @@
 # Current Context
 
 ## Active Plan
-[Football Guide Gameplay Screen](./plans/2026-10-28-football-guide-gameplay-screen.md)
+[Football PvP Invite Matches](./plans/2026-10-29-football-pvp-invite.md)
 
 ## Active Phase
-[P01 Embed Gameplay Image](./phases/2026-10-28-football-guide-gameplay-screen/P01-embed-gameplay-image/phase.md)
-
+[P02 Game Client](./phases/2026-10-29-football-pvp-invite/P02-game-client/phase.md)
 ## Active Task
-None — all Tasks in this plan are complete.
-
+[T03 PvP Match Results and Leaderboard](./phases/2026-10-29-football-pvp-invite/P02-game-client/T03-pvp-match-results-and-leaderboard.md)
 ## Status
-- T01 HTML 이미지 삽입 및 출처 캡션 추가 완료; 정적 검증 통과.
-
+- P02 T01 and T02 done; T03 in progress
 ## Next Step (IMPORTANT)
-이 계획의 모든 Task가 완료되었다. HTML은 `C:/Users/DEX/Downloads/ydj-football-arcade-guide.html`에서 확인한다.
+Read the P02 T03 blueprint and connect lobby rooms to live PvP matches, results, and the leaderboard.

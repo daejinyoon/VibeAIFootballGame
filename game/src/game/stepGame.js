@@ -337,7 +337,10 @@ function releasePass(state, player, kind, receiverOverride = null) {
   }
   state.ball.lastTouchTeam = player.team;
   state.possessionTeam = player.team;
-  if (player.team === 'home' && receiver) state.controlledPlayerId = receiver.id;
+  if (receiver && player.team === 'home') state.controlledPlayerId = receiver.id;
+  if (receiver && state.controlledPlayerIds && player.team in state.controlledPlayerIds) {
+    state.controlledPlayerIds[player.team] = receiver.id;
+  }
 
   return [{
     type: 'pass', team: player.team,
@@ -1272,6 +1275,7 @@ function collectLooseBall(state) {
   const completedPass = ball.passTeam === pickedUp.team;
   setBallOwner(state, pickedUp);
   if (pickedUp.team === 'home') state.controlledPlayerId = pickedUp.id;
+  if (state.controlledPlayerIds && pickedUp.team in state.controlledPlayerIds) state.controlledPlayerIds[pickedUp.team] = pickedUp.id;
   return [
     ...(previousTeam !== pickedUp.team ? [{ type: 'possessionChange', team: pickedUp.team, playerId: pickedUp.id }] : []),
     ...(completedPass ? [{ type: 'pass', team: pickedUp.team, completed: true, receiverId: pickedUp.id }] : []),
@@ -1291,7 +1295,7 @@ function controlBallAction(state, controlled, input) {
       || (controlled.airborneSecondsRemaining ?? 0) > 0) {
     return [];
   }
-  if (state.possessionTeam !== 'home') return [];
+  if (state.possessionTeam !== controlled.team) return [];
 
   return handleHomeAttack(state, controlled, input);
 }
@@ -1962,7 +1966,7 @@ function beginKickoff(state, deltaSeconds) {
 }
 
 /** Advance the football simulation by one clamped frame, mutating state in place. */
-export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
+export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {}) {
   if (!state || !Array.isArray(state.players) || !state.ball) {
     throw new TypeError('stepGame에는 유효한 경기 상태가 필요합니다.');
   }
@@ -1975,6 +1979,23 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
     pressed: inputFrame.pressed instanceof Set ? inputFrame.pressed : new Set(),
     released: inputFrame.released instanceof Set ? inputFrame.released : new Set(),
   };
+  const controlledTeams = Array.isArray(options?.controlledTeams)
+    ? [...new Set(options.controlledTeams.filter((team) => team === 'home' || team === 'away'))]
+    : [];
+  const pvpMode = controlledTeams.includes('away');
+  const teamInputs = pvpMode && inputFrame && typeof inputFrame === 'object'
+    && ('home' in inputFrame || 'away' in inputFrame)
+    ? Object.fromEntries(['home', 'away'].map((team) => {
+      const frame = inputFrame[team] ?? {};
+      return [team, {
+        moveX: Number.isFinite(frame.moveX) && [-1, 0, 1].includes(frame.moveX) ? frame.moveX : 0,
+        moveY: Number.isFinite(frame.moveY) && [-1, 0, 1].includes(frame.moveY) ? frame.moveY : 0,
+        down: frame.down instanceof Set ? frame.down : new Set(),
+        pressed: frame.pressed instanceof Set ? frame.pressed : new Set(),
+        released: frame.released instanceof Set ? frame.released : new Set(),
+      }];
+    }))
+    : { home: input, away: { moveX: 0, moveY: 0, down: new Set(), pressed: new Set(), released: new Set() } };
   const events = [];
 
   if (state.phase === 'finished' || dt === 0) return events;
@@ -2059,6 +2080,81 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   if (state.phase === 'throwIn' || state.phase === 'cornerKick') return finishFrame(events);
   if (state.phase === 'freeKick' || state.phase === 'penaltyKick') return finishFrame([...events, ...beginSetPiece(state, dt)]);
 
+  if (pvpMode) {
+    state.controlledPlayerIds ??= { home: state.controlledPlayerId ?? 'home-fw', away: 'away-fw' };
+    for (const team of ['home', 'away']) {
+      if (!controlledTeams.includes(team)) continue;
+      const available = activePlayers(state, team).filter((player) => player.role !== 'goalkeeper');
+      let selected = byId(state, state.controlledPlayerIds[team]);
+      if (!selected || selected.team !== team || selected.role === 'goalkeeper' || selected.dismissed
+          || selected.knockdownSeconds > 0 || selected.motionAction === 'recover') {
+        selected = nearestPlayer(available.filter((player) => player.knockdownSeconds <= 0
+          && player.motionAction !== 'recover' && player.stunnedSeconds <= 0), state.ball) ?? available[0] ?? null;
+        state.controlledPlayerIds[team] = selected?.id ?? null;
+      }
+      const teamInput = teamInputs[team];
+      if (selected && state.possessionTeam !== team && teamInput.pressed.has('s') && available.length) {
+        const index = available.findIndex((player) => player.id === selected.id);
+        selected = available[(index + 1 + available.length) % available.length];
+        state.controlledPlayerIds[team] = selected.id;
+      }
+      if (selected && selected.stunnedSeconds <= 0 && selected.knockdownSeconds <= 0
+          && selected.motionAction !== 'recover') {
+        const opponentCarrier = carrier(state);
+        if (state.possessionTeam !== team && teamInput.down.has('d') && opponentCarrier) {
+          moveToward(selected, opponentCarrier, PRESSURE_SPEED, dt);
+        } else if (selected.slideSeconds > 0 && opponentCarrier) {
+          moveToward(selected, opponentCarrier, SLIDE_SPEED, dt);
+          selected.slideSeconds = Math.max(0, selected.slideSeconds - dt);
+        } else {
+          moveByInput(selected, teamInput.moveX, teamInput.moveY, PLAYER_SPEED, dt, teamInput.down.has('e'));
+        }
+        if (state.possessionTeam === team && state.hasMatchClockStarted && teamInput.pressed.has('f')) {
+          const attempt = activateNextTeamSkill(state, team, selected.id);
+          if (attempt.ok) events.push(...attempt.events);
+        }
+        if (state.possessionTeam === team) events.push(...controlBallAction(state, selected, teamInput));
+        else if (teamInput.pressed.has('a')) selected.slideSeconds = 0.25;
+        if (state.possessionTeam !== team && opponentCarrier && selected.slideSeconds > 0
+            && distance(selected, opponentCarrier) <= 34 && selected.aiTackleCooldownSeconds <= 0) {
+          selected.aiTackleCooldownSeconds = 1.35;
+          selected.slideSeconds = 0;
+          events.push(...resolveTackle(state, selected, opponentCarrier));
+        }
+      }
+    }
+    state.controlledPlayerId = state.controlledPlayerIds.home;
+    for (const player of state.players) {
+      if (player.dismissed || player.role === 'goalkeeper' || player.id === state.ball.ownerId
+          || Object.values(state.controlledPlayerIds).includes(player.id)) continue;
+      updateSupportPlayer(state, player, dt);
+    }
+    for (const team of ['home', 'away']) {
+      const keeper = activePlayers(state, team).find((player) => player.role === 'goalkeeper');
+      if (keeper) updateKeeperPosition(state, team, carrier(state), dt, null);
+    }
+    enforceKickoffCircle(state);
+    if (state.eagleVolley) events.push(...advanceEagleVolley(state, dt));
+    else if (state.vacuumEffect) events.push(...advanceVacuum(state, dt));
+    else {
+      const owner = carrier(state);
+      if (owner && Object.values(state.controlledPlayerIds).includes(owner.id)) updateOwnedBall(state);
+      else if (state.ball.ownerId && owner) {
+        owner.facingX = owner.team === 'home' ? 1 : -1;
+        updateOwnedBall(state);
+      } else {
+        const previousBallPosition = { x: state.ball.x, y: state.ball.y };
+        events.push(...integrateLooseBall(state, dt));
+        events.push(...handleKeeperContact(state, previousBallPosition));
+        events.push(...resolveAerialHeader(state));
+        events.push(...checkBallBoundary(state));
+        if (!['goalPause', 'goalKick', 'finished'].includes(state.phase)) events.push(...collectLooseBall(state));
+      }
+    }
+    releaseKickoffLockIfBallCleared(state);
+    return finishFrame(events);
+  }
+
   updateAutomaticHomeDefender(state);
   let controlled = byId(state, state.controlledPlayerId);
   if (!controlled || controlled.dismissed) {
@@ -2118,6 +2214,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   }
 
   releaseKickoffLockIfBallCleared(state);
+  if (state.controlledPlayerIds) state.controlledPlayerIds.home = state.controlledPlayerId;
 
   return finishFrame(events);
 }

@@ -35,6 +35,7 @@ test('starts stage one at a home kickoff with a clean score and no skill gauges'
   assert.equal(state.ball.ownerId, 'home-fw');
   assert.equal(state.ball.passReceiverId, null);
   assert.equal(state.controlledPlayerId, 'home-fw');
+  assert.deepEqual(state.controlledPlayerIds, { home: 'home-fw', away: 'away-fw' });
   assert.equal(state.possessionTeam, 'home');
   const center = { x: FIELD.width / 2, y: FIELD.height / 2 };
   assert.ok(state.players.filter((player) => Math.hypot(player.x - center.x, player.y - center.y) < KICKOFF_CIRCLE_RADIUS).every((player) => player.id === state.kickoffTakerId));

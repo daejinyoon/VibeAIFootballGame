@@ -140,6 +140,7 @@ export function createInitialGameState({
       passProtectionSeconds: 0,
     },
     controlledPlayerId: 'home-fw',
+    controlledPlayerIds: { home: 'home-fw', away: 'away-fw' },
     possessionTeam: 'home',
     aiPressingPlayerId: null,
     aiPressingLostSeconds: 0,

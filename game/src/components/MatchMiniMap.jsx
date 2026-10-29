@@ -6,8 +6,9 @@ function isValidPosition(entity) {
     && entity.y >= 0 && entity.y <= FIELD.height;
 }
 
-export function MatchMiniMap({ players = [], ball, controlledPlayerId, homeAccent = '#1ab6d1', awayAccent = '#E94B55' }) {
+export function MatchMiniMap({ players = [], ball, controlledPlayerId, controlledPlayerIds, localTeam = 'home', homeAccent = '#1ab6d1', awayAccent = '#E94B55' }) {
   const activePlayers = players.filter((player) => !player.dismissed && isValidPosition(player));
+  const viewerControlledPlayerId = controlledPlayerIds?.[localTeam] ?? controlledPlayerId;
 
   return (
     <div className="match-minimap" style={{ '--home-team-accent': homeAccent, '--away-team-accent': awayAccent }} role="img" aria-label="경기장 미니맵: 양 팀 선수, 공, 조작 선수 위치">
@@ -27,7 +28,7 @@ export function MatchMiniMap({ players = [], ball, controlledPlayerId, homeAccen
         </g>
         <g clipPath="url(#match-minimap-field-clip)">
           {activePlayers.map((player) => {
-            const controlled = player.id === controlledPlayerId;
+            const controlled = player.id === viewerControlledPlayerId;
             const keeper = player.role === 'goalkeeper';
             const className = [
               'minimap-player',

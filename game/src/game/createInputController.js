@@ -1,4 +1,4 @@
-const GAME_KEYS = new Set([
+export const GAME_KEYS = new Set([
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
   'a', 's', 'd', 'f', 'e', 'Escape',
 ]);

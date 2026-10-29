@@ -24,6 +24,30 @@ const createInitialGameState = (options) => {
   return state;
 };
 
+test('PvP controlled teams move independently, switch defenders, and use their own attack input', () => {
+  const state = createInitialGameState();
+  const homeBefore = state.players.find((player) => player.id === 'home-fw').x;
+  const awayBefore = state.players.find((player) => player.id === 'away-fw').x;
+  stepGame(state, {
+    home: frame({ moveX: 1 }),
+    away: frame({ moveX: -1 }),
+  }, 0.05, { controlledTeams: ['home', 'away'] });
+  assert.ok(state.players.find((player) => player.id === 'home-fw').x > homeBefore);
+  assert.ok(state.players.find((player) => player.id === 'away-fw').x < awayBefore);
+  assert.equal(state.controlledPlayerIds.home, state.controlledPlayerId);
+
+  state.ball.ownerId = 'home-fw';
+  state.possessionTeam = 'home';
+  stepGame(state, { home: frame(), away: frame({ pressed: ['s'] }) }, 0.05, { controlledTeams: ['home', 'away'] });
+  assert.equal(state.controlledPlayerIds.away, 'away-def-1');
+
+  state.ball.ownerId = 'away-fw';
+  state.possessionTeam = 'away';
+  state.controlledPlayerIds.away = 'away-fw';
+  const events = stepGame(state, { home: frame(), away: frame({ pressed: ['s'] }) }, 0.05, { controlledTeams: ['home', 'away'] });
+  assert.ok(events.some((event) => event.type === 'pass' && event.team === 'away' && !event.completed));
+});
+
 test('the opening clock stays stopped until the opening taker kicks and starts opponent skill grace', () => {
   const state = createGameState({
     teamSkillDeck: [{ skillId: 'eagleShot', level: 1 }],
