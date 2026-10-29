@@ -29,6 +29,7 @@ export function GameLoop3D({
   localTeam = 'home',
   remoteInputRef,
   snapshotRef,
+  onSnapshot,
   onLocalInput,
 }) {
   const localGameStateRef = useRef(structuredClone(initialState));
@@ -38,16 +39,18 @@ export function GameLoop3D({
   const framesSinceSnapshotRef = useRef(0);
   const inputSequenceRef = useRef(0);
   const snapshotSequenceRef = useRef(-1);
+  const remoteTerminalSentRef = useRef(false);
   const inputSendElapsedRef = useRef(0);
   const inputBufferRef = useRef(createPvpInputBuffer());
-  const callbacksRef = useRef({ onGameEvents, onStateChange, onLocalInput });
+  const callbacksRef = useRef({ onGameEvents, onStateChange, onLocalInput, onSnapshot });
 
   if (initialStateRef.current !== initialState) {
     initialStateRef.current = initialState;
     gameStateRef.current = structuredClone(initialState);
     framesSinceSnapshotRef.current = 0;
+    remoteTerminalSentRef.current = false;
   }
-  callbacksRef.current = { onGameEvents, onStateChange, onLocalInput };
+  callbacksRef.current = { onGameEvents, onStateChange, onLocalInput, onSnapshot };
 
   useEffect(() => {
     if (!focused || paused) return undefined;
@@ -71,6 +74,9 @@ export function GameLoop3D({
     }
     if (simulationMode === 'remote') {
       const packet = snapshotRef?.current;
+      if (packet && (!Number.isSafeInteger(packet.sequence) || packet.sequence <= snapshotSequenceRef.current)) {
+        snapshotRef.current = null;
+      }
       if (packet?.type === 'snapshot' && Number.isSafeInteger(packet.sequence)
           && packet.sequence > snapshotSequenceRef.current && packet.state
           && Array.isArray(packet.state.players) && packet.state.ball) {
@@ -83,8 +89,16 @@ export function GameLoop3D({
             snapshotSequenceRef.current = packet.sequence;
             snapshotRef.current = null;
             callbacksRef.current.onStateChange?.(structuredClone(snapshot));
+            if (snapshot.phase === 'finished' && !remoteTerminalSentRef.current) {
+              remoteTerminalSentRef.current = true;
+              const { home = 0, away = 0 } = snapshot.score ?? {};
+              const outcome = home === away ? 'matchDraw'
+                : (home > away) === (localTeam === 'home') ? 'matchWon' : 'matchLost';
+              callbacksRef.current.onGameEvents?.([{ type: outcome, score: { home, away } }]);
+            }
           }
         } catch { /* Ignore malformed snapshots; the next authoritative frame can recover. */ }
+        if (snapshotRef.current === packet) snapshotRef.current = null;
       }
       const inputFrame = inputRef.current?.readFrame();
       if (inputFrame) {
@@ -182,8 +196,9 @@ export function GameLoop3D({
       framesSinceSnapshotRef.current = 0;
       const snapshot = { type: 'snapshot', sequence: snapshotSequenceRef.current + 1, state: structuredClone(state) };
       snapshotSequenceRef.current = snapshot.sequence;
-      if (typeof snapshotRef?.current === 'function') snapshotRef.current(snapshot);
-      else if (snapshotRef) snapshotRef.current = snapshot;
+      callbacksRef.current.onSnapshot?.(snapshot);
+      if (!callbacksRef.current.onSnapshot && typeof snapshotRef?.current === 'function') snapshotRef.current(snapshot);
+      else if (!callbacksRef.current.onSnapshot && snapshotRef) snapshotRef.current = snapshot;
       callbacksRef.current.onStateChange?.(structuredClone(state));
     } else if (simulationMode !== 'host' && simulationMode !== 'remote' && framesSinceSnapshotRef.current >= 6) {
       framesSinceSnapshotRef.current = 0;

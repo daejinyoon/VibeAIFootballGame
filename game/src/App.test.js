@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { canStartPvpRoom, isPvpLoadoutSaved, shouldPollPvpRoom } from './pvp/pvpLobbyState.js';
+import { createForfeitPvpResult, createNormalPvpResult, createPvpMatchState, getConfirmationStatus } from './pvp/pvpMatchFlow.js';
 
 const room = {
   code: 'ABC234', status: 'ready', isHost: true,
@@ -27,4 +28,27 @@ test('ready requires the exact ordered loadout to have been saved', () => {
   assert.equal(isPvpLoadoutSaved(room.hostSkillIds, room.hostSkillIds), true);
   assert.equal(isPvpLoadoutSaved([...room.hostSkillIds].reverse(), room.hostSkillIds), false);
   assert.equal(isPvpLoadoutSaved(['eagleShot', 'eagleShot', 'eulryongta'], room.hostSkillIds), false);
+});
+
+test('PvP match setup fixes stage, ordered skill decks, and team branding independent of campaign data', () => {
+  const initialState = createPvpMatchState({
+    code: 'ABC234', status: 'playing', isHost: true,
+    hostSkillIds: ['eagleShot', 'tornadoShot', 'eulryongta'],
+    guestSkillIds: ['vacuumCleaner', 'tornadoShot', 'eagleShot'],
+  });
+  assert.equal(initialState.stage, 1);
+  assert.deepEqual(initialState.teamSkillDecks.home.map(({ skillId }) => skillId), ['eagleShot', 'tornadoShot', 'eulryongta']);
+  assert.deepEqual(initialState.teamSkillDecks.away.map(({ skillId }) => skillId), ['vacuumCleaner', 'tornadoShot', 'eagleShot']);
+  assert.equal(createPvpMatchState({ ...room, status: 'waiting' }), null);
+});
+
+test('PvP results use team-relative outcomes, never fabricate a forfeit score, and map confirmation states', () => {
+  assert.deepEqual(createNormalPvpResult({ home: 4, away: 1 }, 'away'), {
+    kind: 'normal', homeGoals: 4, awayGoals: 1, localOutcome: 'loss',
+  });
+  assert.deepEqual(createNormalPvpResult({ home: 2, away: 2 }, 'home').localOutcome, 'draw');
+  assert.deepEqual(createForfeitPvpResult('away', 'home'), { kind: 'forfeit', loser: 'away', localOutcome: 'win' });
+  assert.deepEqual(['awaitingResults', 'completed', 'disputed', 'forfeit'].map(getConfirmationStatus), [
+    'awaitingOpponent', 'recorded', 'disputed', 'recorded',
+  ]);
 });

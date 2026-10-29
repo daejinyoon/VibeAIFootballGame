@@ -15,11 +15,15 @@ import ResultsScreen from './components/ResultsScreen.jsx';
 import LoadoutScreen from './components/LoadoutScreen.jsx';
 import SignInScreen from './components/SignInScreen.jsx';
 import PvpLobbyScreen from './components/PvpLobbyScreen.jsx';
+import PvpResultsScreen from './components/PvpResultsScreen.jsx';
+import PvpLeaderboardScreen from './components/PvpLeaderboardScreen.jsx';
 import SkillRewardScreen from './components/SkillRewardScreen.jsx';
 import StartScreen from './components/StartScreen.jsx';
 import StageSelectScreen from './components/StageSelectScreen.jsx';
 import TeamCustomizationScreen from './components/TeamCustomizationScreen.jsx';
 import { createPvpApi } from './pvp/pvpApi.js';
+import { createPvpConnection } from './pvp/pvpConnection.js';
+import { createForfeitPvpResult, createNormalPvpResult, createPvpMatchState, getConfirmationStatus } from './pvp/pvpMatchFlow.js';
 import { shouldPollPvpRoom } from './pvp/pvpLobbyState.js';
 
 const GameScreen = lazy(() => import('./components/GameScreen.jsx'));
@@ -90,6 +94,16 @@ export default function App({ authBootstrap = {} }) {
   const [pvpRoom, setPvpRoom] = useState(null);
   const [pvpLoading, setPvpLoading] = useState(false);
   const [pvpError, setPvpError] = useState('');
+  const [pvpMatch, setPvpMatch] = useState(null);
+  const [pvpResult, setPvpResult] = useState(null);
+  const [pvpConfirmationStatus, setPvpConfirmationStatus] = useState('submitting');
+  const [pvpResultError, setPvpResultError] = useState('');
+  const [pvpConnectionStatus, setPvpConnectionStatus] = useState('disconnected');
+  const [pvpConnectionRetry, setPvpConnectionRetry] = useState(0);
+  const [pvpLeaderboardRecords, setPvpLeaderboardRecords] = useState([]);
+  const [pvpLeaderboardLoading, setPvpLeaderboardLoading] = useState(false);
+  const [pvpLeaderboardError, setPvpLeaderboardError] = useState('');
+  const [pvpLeaderboardRetry, setPvpLeaderboardRetry] = useState(0);
   const [campaign, setCampaign] = useState(null);
   const [selectedStage, setSelectedStage] = useState(1);
   const [matchState, setMatchState] = useState(null);
@@ -102,6 +116,13 @@ export default function App({ authBootstrap = {} }) {
   const pendingProfileRef = useRef(null);
   const saveQueueRef = useRef(Promise.resolve());
   const pvpApiRef = useRef(null);
+  const pvpConnectionRef = useRef(null);
+  const pvpRemoteInputRef = useRef(null);
+  const pvpSnapshotRef = useRef(null);
+  const pvpResultSubmittedRef = useRef(false);
+  const pvpForfeitRef = useRef(false);
+  const pvpTerminalMatchRef = useRef(null);
+  const pvpLeaderboardReturnRef = useRef('start');
   if (!pvpApiRef.current) pvpApiRef.current = createPvpApi({ acquireToken: getProfileApiToken });
 
   useEffect(() => {
@@ -123,6 +144,123 @@ export default function App({ authBootstrap = {} }) {
       window.clearInterval(timer);
     };
   }, [screen, pvpRoom?.code, pvpRoom?.status]);
+
+  useEffect(() => {
+    if (!pvpRoom?.code || pvpRoom.status !== 'playing') return undefined;
+    let active = true;
+    const room = pvpRoom;
+    const localTeam = room.isHost ? 'home' : 'away';
+    const initialState = createPvpMatchState(room);
+    if (!initialState) {
+      setPvpError('방의 경기 설정을 읽지 못했습니다. 방을 새로고침해 주세요.');
+      setPvpConnectionStatus('failed');
+      setScreen('pvpConnecting');
+      return undefined;
+    }
+    pvpResultSubmittedRef.current = false;
+    pvpForfeitRef.current = false;
+    pvpTerminalMatchRef.current = null;
+    pvpRemoteInputRef.current = null;
+    pvpSnapshotRef.current = null;
+    setPvpResult(null);
+    setPvpResultError('');
+    setPvpConfirmationStatus('submitting');
+    setPvpError('');
+    setPvpConnectionStatus('connecting');
+    setPvpMatch(null);
+    setScreen('pvpConnecting');
+
+    const connection = createPvpConnection({
+      api: pvpApiRef.current,
+      onInput: (packet) => { pvpRemoteInputRef.current = packet; },
+      onSnapshot: (packet) => { pvpSnapshotRef.current = packet; },
+      onForfeit: ({ loser }) => {
+        const forfeitResult = createForfeitPvpResult(loser, localTeam);
+        if (!active || !forfeitResult || pvpForfeitRef.current) return;
+        pvpForfeitRef.current = true;
+        pvpConnectionRef.current?.stop();
+        setPvpResult({ ...forfeitResult, localTeam, roomCode: room.code });
+        setPvpConfirmationStatus('recorded');
+        setPvpResultError('');
+        setScreen('pvpResults');
+      },
+      onStatus: setPvpConnectionStatus,
+    });
+    pvpConnectionRef.current = connection;
+    connection.start(room.code).then(({ role }) => {
+      if (!active) return;
+      const expectedRole = room.isHost ? 'host' : 'guest';
+      if (role !== expectedRole) throw new Error('서버에서 받은 경기 역할이 방 정보와 일치하지 않습니다.');
+      setPvpMatch({ gameState: initialState, localTeam, simulationMode: room.isHost ? 'host' : 'remote' });
+      setPvpConnectionStatus('connected');
+      setScreen('pvpMatch');
+      prepareMatchAudio();
+      void startCrowdAmbience();
+    }).catch((error) => {
+      if (!active) return;
+      connection.stop();
+      setPvpError(error.message || '실시간 경기에 연결하지 못했습니다. 다시 시도해 주세요.');
+      setPvpConnectionStatus('failed');
+      setScreen('pvpConnecting');
+    });
+
+    return () => {
+      active = false;
+      connection.stop();
+      if (pvpConnectionRef.current === connection) pvpConnectionRef.current = null;
+    };
+  }, [pvpRoom?.code, pvpRoom?.status, pvpConnectionRetry]);
+
+  useEffect(() => {
+    if (!pvpResult || pvpResult.kind !== 'normal' || !pvpRoom?.code
+        || ['submitting', 'recorded', 'disputed', 'notRecorded'].includes(pvpConfirmationStatus)) return undefined;
+    let active = true;
+    const pollResult = async () => {
+      try {
+        const response = await pvpApiRef.current.getResult(pvpRoom.code);
+        if (!active) return;
+        const nextStatus = getConfirmationStatus(response.status);
+        setPvpConfirmationStatus(nextStatus);
+        setPvpResultError('');
+        if (response.status === 'forfeit' && response.match?.source === 'forfeit') {
+          pvpForfeitRef.current = true;
+          const forfeit = createForfeitPvpResult(response.match.outcome === 'homeWin' ? 'away' : 'home', pvpMatch?.localTeam ?? 'home');
+          if (forfeit) {
+            setPvpResult({ ...forfeit, localTeam: pvpMatch?.localTeam ?? 'home', roomCode: pvpRoom.code });
+            setScreen('pvpResults');
+          }
+          setPvpConnectionStatus('disconnected');
+        }
+        if (response.status === 'completed' || response.status === 'disputed' || response.status === 'forfeit') {
+          pvpConnectionRef.current?.stop();
+        }
+      } catch (error) {
+        if (active) setPvpResultError(error.message || '결과 확인 요청에 실패했습니다.');
+      }
+    };
+    void pollResult();
+    const timer = window.setInterval(pollResult, 2000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [pvpResult?.kind, pvpRoom?.code, pvpConfirmationStatus]);
+
+  useEffect(() => {
+    if (screen !== 'pvpLeaderboard') return undefined;
+    let active = true;
+    const load = async () => {
+      setPvpLeaderboardLoading(true);
+      setPvpLeaderboardError('');
+      try {
+        const response = await pvpApiRef.current.getLeaderboard();
+        if (active) setPvpLeaderboardRecords(response.records);
+      } catch (error) {
+        if (active) setPvpLeaderboardError(error.message || '회사 순위를 불러오지 못했습니다.');
+      } finally {
+        if (active) setPvpLeaderboardLoading(false);
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, [screen, pvpLeaderboardRetry]);
   useEffect(() => {
     if (!accountIsAuthenticated) {
       stopMenuMusic();
@@ -358,6 +496,71 @@ export default function App({ authBootstrap = {} }) {
     setScreen('results');
   };
 
+  const handlePvpGameEvents = (events) => {
+    const endEvent = events.find((event) => ['matchWon', 'matchLost', 'matchDraw'].includes(event.type));
+    if (!endEvent || !pvpMatch || !pvpRoom?.code) return;
+    const matchKey = `${pvpRoom.code}:${endEvent.score?.home ?? 0}:${endEvent.score?.away ?? 0}`;
+    if (pvpTerminalMatchRef.current === matchKey) return;
+    pvpTerminalMatchRef.current = matchKey;
+    const nextResult = createNormalPvpResult(endEvent.score, pvpMatch.localTeam);
+    if (!nextResult) return;
+    setPvpResult({ ...nextResult, localTeam: pvpMatch.localTeam, roomCode: pvpRoom.code });
+    setPvpConfirmationStatus('submitting');
+    setPvpResultError('');
+    setScreen('pvpResults');
+    if (pvpResultSubmittedRef.current) return;
+    pvpResultSubmittedRef.current = true;
+    pvpApiRef.current.submitResult(pvpRoom.code, {
+      homeGoals: nextResult.homeGoals,
+      awayGoals: nextResult.awayGoals,
+    }).then((response) => {
+      if (pvpForfeitRef.current) return;
+      setPvpConfirmationStatus(getConfirmationStatus(response.status));
+      if (response.status === 'completed' || response.status === 'disputed') pvpConnectionRef.current?.stop();
+    }).catch((error) => {
+      if (pvpForfeitRef.current) return;
+      setPvpConfirmationStatus('notRecorded');
+      setPvpResultError(error.message || '경기 결과를 제출하지 못했습니다.');
+    });
+  };
+
+  const retryPvpResult = () => {
+    if (!pvpResult || pvpResult.kind !== 'normal' || !pvpRoom?.code) return;
+    setPvpConfirmationStatus('submitting');
+    setPvpResultError('');
+    pvpApiRef.current.submitResult(pvpRoom.code, {
+      homeGoals: pvpResult.homeGoals,
+      awayGoals: pvpResult.awayGoals,
+    }).then((response) => {
+      if (pvpForfeitRef.current) return;
+      setPvpConfirmationStatus(getConfirmationStatus(response.status));
+      if (response.status === 'completed' || response.status === 'disputed') pvpConnectionRef.current?.stop();
+    }).catch((error) => {
+      if (pvpForfeitRef.current) return;
+      setPvpConfirmationStatus('notRecorded');
+      setPvpResultError(error.message || '경기 결과를 제출하지 못했습니다.');
+    });
+  };
+
+  const leavePvp = () => {
+    pvpConnectionRef.current?.stop();
+    pvpConnectionRef.current = null;
+    setPvpRoom(null);
+    setPvpMatch(null);
+    setPvpResult(null);
+    setPvpResultError('');
+    setScreen('start');
+  };
+
+  const openPvpLeaderboard = (returnTo = 'start') => {
+    pvpLeaderboardReturnRef.current = returnTo;
+    setPvpLeaderboardRecords([]);
+    setPvpLeaderboardError('');
+    setScreen('pvpLeaderboard');
+  };
+
+  const backFromPvpLeaderboard = () => setScreen(pvpLeaderboardReturnRef.current);
+
   const chooseSkill = (skillId) => {
     const awarded = awardSkillCard(campaign, skillId);
     if (!awarded.ok) return null;
@@ -477,7 +680,7 @@ export default function App({ authBootstrap = {} }) {
   return (
     <main className="page-shell app-shell">
       <header className="topbar">
-        <a className="brand" href="#home" onClick={(event) => { event.preventDefault(); home(); }}>
+        <a className="brand" href="#home" onClick={(event) => { event.preventDefault(); if (screen.startsWith('pvp')) leavePvp(); else home(); }}>
           <span className="brand-mark" aria-hidden="true">D</span><span>DEX ARCADE</span>
         </a>
         <div className="account-control">
@@ -494,7 +697,7 @@ export default function App({ authBootstrap = {} }) {
         }}>{profileErrorStatus === 401 ? '다시 로그인' : '저장 다시 시도'}</button>
       </div>}
 
-      {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} onOpenTeamCustomization={openTeamCustomization} onOpenPvp={openPvpLobby} />}
+      {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} onOpenTeamCustomization={openTeamCustomization} onOpenPvp={openPvpLobby} onOpenPvpLeaderboard={() => openPvpLeaderboard('start')} />}
       {screen === 'pvpLobby' && <PvpLobbyScreen
         room={pvpRoom}
         loading={pvpLoading}
@@ -538,6 +741,48 @@ export default function App({ authBootstrap = {} }) {
           onGameEvents={handleGameEvents}
         />
       </Suspense>}
+      {screen === 'pvpConnecting' && <section className="screen-panel pvp-connecting-panel" aria-labelledby="pvp-connecting-title">
+        <p className="eyebrow">COMPANY PVP · ROOM {pvpRoom?.code}</p>
+        <h1 id="pvp-connecting-title">{pvpConnectionStatus === 'failed' ? '경기에 연결하지 못했습니다.' : '상대와 경기장을 연결하고 있습니다…'}</h1>
+        <p className="intro">초대 방의 경기 설정을 확인하고 실시간 연결을 준비합니다.</p>
+        {pvpError && <p className="profile-error" role="alert">{pvpError}</p>}
+        <div className="actions">
+          {pvpConnectionStatus === 'failed' && <button className="primary-button" type="button" onClick={() => setPvpConnectionRetry((value) => value + 1)}>다시 연결</button>}
+          <button className="secondary-button" type="button" onClick={leavePvp}>나가기</button>
+        </div>
+      </section>}
+      {screen === 'pvpMatch' && pvpMatch && <Suspense fallback={<div className="game-screen-loading" role="status">실시간 대전을 준비하고 있습니다…</div>}>
+        <GameScreen
+          key={`pvp-${pvpRoom?.code}`}
+          gameState={pvpMatch.gameState}
+          paused={false}
+          errorMessage={pvpError}
+          audioEnabled={audioEnabled}
+          onToggleAudio={toggleGameAudio}
+          onGameEvents={handlePvpGameEvents}
+          simulationMode={pvpMatch.simulationMode}
+          localTeam={pvpMatch.localTeam}
+          remoteInputRef={pvpRemoteInputRef}
+          snapshotRef={pvpSnapshotRef}
+          onLocalInput={(packet) => pvpConnectionRef.current?.sendInput(packet).catch((error) => setPvpError(error.message || '조작 입력을 보내지 못했습니다.'))}
+          onSnapshot={(snapshot) => pvpConnectionRef.current?.sendSnapshot(snapshot.state, snapshot.sequence).catch((error) => setPvpError(error.message || '경기 화면을 전송하지 못했습니다.'))}
+        />
+      </Suspense>}
+      {screen === 'pvpResults' && pvpResult && <PvpResultsScreen
+        result={pvpResult}
+        confirmationStatus={pvpConfirmationStatus}
+        errorMessage={pvpResultError}
+        onRetry={retryPvpResult}
+        onLeaderboard={() => openPvpLeaderboard('pvpResults')}
+        onHome={leavePvp}
+      />}
+      {screen === 'pvpLeaderboard' && <PvpLeaderboardScreen
+        records={pvpLeaderboardRecords}
+        loading={pvpLeaderboardLoading}
+        errorMessage={pvpLeaderboardError}
+        onRefresh={() => setPvpLeaderboardRetry((value) => value + 1)}
+        onBack={backFromPvpLeaderboard}
+      />}
       {screen === 'results' && result && <ResultsScreen
         result={result}
         leaderboardPlace={records.length ? 1 : null}

@@ -981,6 +981,21 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
 .pvp-room-actions .primary-button, .pvp-room-actions .secondary-button { min-width: 0; padding: 11px 14px; border: 2px solid var(--ink); }
 .pvp-room-actions .pvp-cancel-button { margin-left: auto; border: 0; background: transparent; color: #775e58; }
 .pvp-error { margin: 20px 0 0; padding: 12px 14px; border: 1px solid #cb514f; border-radius: 10px; background: #fff0eb; color: #8b302c; font-size: 12px; }
+.pvp-results-panel, .pvp-connecting-panel, .pvp-leaderboard-panel { align-items: stretch; }
+.pvp-results-panel .result-score { margin-inline: auto; }
+.pvp-confirmation { padding: 13px 16px; border-left: 4px solid #86c967; background: #eff9e9; color: #3f6350; text-align: center; }
+.pvp-leaderboard-entry { border: 2px solid var(--ink); }
+.pvp-record-list { display: grid; gap: 8px; margin: 20px 0; padding: 0; list-style: none; }
+.pvp-record-list li { display: grid; grid-template-columns: 52px minmax(100px, 1fr) repeat(4, minmax(45px, auto)); align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid #c5d5bf; border-radius: 10px; background: #f7fbf4; }
+.pvp-record-rank { color: #327848; font: 900 14px 'Cascadia Mono', Consolas, monospace; }
+.pvp-record-list li strong { overflow-wrap: anywhere; }
+.pvp-record-list li > span { text-align: right; white-space: nowrap; }
+.pvp-record-list li > span:first-of-type b { color: #206d3b; font-size: 18px; }
+.pvp-leaderboard-panel .actions { justify-content: flex-end; }
+.pvp-leaderboard-panel .empty-records { display: grid; gap: 8px; margin: 20px 0; padding: 28px; border: 1px dashed #9caf9a; border-radius: 12px; background: #f7fbf4; text-align: center; }
+.pvp-leaderboard-panel .empty-records small { color: #61746a; }
+.pvp-connecting-panel { min-height: 320px; justify-content: center; }
+.pvp-connecting-panel .actions { margin-top: 14px; }
 
 @media (max-width: 760px) {
   .pvp-entry-grid, .pvp-room-layout { grid-template-columns: minmax(0, 1fr); }
@@ -999,4 +1014,6 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
   .pvp-picker { padding: 14px; }
   .pvp-room-actions > button { width: 100%; justify-content: center; }
   .pvp-room-actions .pvp-cancel-button { margin-left: 0; }
+  .pvp-record-list li { grid-template-columns: 34px minmax(80px, 1fr) repeat(2, minmax(36px, auto)); gap: 6px; padding: 10px; font-size: 11px; }
+  .pvp-record-list li > span:nth-of-type(n + 3) { display: none; }
 }

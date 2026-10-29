@@ -16,7 +16,8 @@ export function formatMatchTime(seconds) {
   return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
 }
 
-export default function GameScreen({ gameState, paused, errorMessage, onPause, onResume, onSaveAndExit, onGameEvents, audioEnabled, onToggleAudio }) {
+export default function GameScreen({ gameState, paused, errorMessage, onPause, onResume, onSaveAndExit, onGameEvents, audioEnabled, onToggleAudio,
+  simulationMode = 'local', localTeam = 'home', remoteInputRef, snapshotRef, onLocalInput, onSnapshot }) {
   const [viewState, setViewState] = useState(gameState);
   const [cutInCue, setCutInCue] = useState(null);
   const [scoreToast, setScoreToast] = useState(null);
@@ -49,7 +50,8 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
           : '방향키로 방향 선택 · A 장거리 킥 · S 짧은 패스 (준비 중 미리 입력 가능)';
   const activeHome = viewState.players.filter((player) => player.team === 'home' && !player.dismissed).length;
   const activeAway = viewState.players.filter((player) => player.team === 'away' && !player.dismissed).length;
-  const controlledPlayer = viewState.players.find((player) => player.id === viewState.controlledPlayerId);
+  const controlledPlayerId = viewState.controlledPlayerIds?.[localTeam] ?? viewState.controlledPlayerId;
+  const controlledPlayer = viewState.players.find((player) => player.id === controlledPlayerId);
   const cooldownFor = (team, skillId) => Math.max(0, viewState.skillCooldownRemaining?.[team]?.[skillId] ?? 0);
   const teamGlobalCooldownFor = (team) => {
     const remaining = viewState.teamSkillGlobalCooldownRemaining?.[team];
@@ -149,7 +151,7 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
 
   return (
     <section className="game-panel" aria-label="축구 경기">
-      <div className="game-topline"><div><p className="eyebrow">STAGE 0{stage}{stage === 5 ? ' · BOSS MATCH' : ''}</p><h1>경기 진행 중</h1></div><button className="secondary-button pause-button" onClick={onPause}>Ⅱ 일시정지</button></div>
+      <div className="game-topline"><div><p className="eyebrow">{simulationMode === 'local' ? `STAGE 0${stage}${stage === 5 ? ' · BOSS MATCH' : ''}` : `COMPANY PVP · ${localTeam === 'home' ? 'HOME' : 'AWAY'}`}</p><h1>경기 진행 중</h1></div>{simulationMode === 'local' && <button className="secondary-button pause-button" onClick={onPause}>Ⅱ 일시정지</button>}</div>
       <div className="match-card-status" aria-live="polite">
         <span>ACTIVE PLAYERS <b>{activeHome}</b> : <b>{activeAway}</b> · {possession}</span>
         {isGoalKick && <strong className="goal-kick-status">GOAL KICK · {goalKickTeam === 'home' ? '우리 팀' : '상대 팀'}</strong>}
@@ -170,14 +172,18 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
         >
           <span aria-hidden="true">{audioEnabled ? '🔊' : '🔇'}</span>
         </button>
-        <Match3DGame initialState={gameState} paused={paused} onGameEvents={handleGameEvents} onStateChange={(next) => {
+        <Match3DGame initialState={gameState} paused={paused} simulationMode={simulationMode} localTeam={localTeam}
+          remoteInputRef={remoteInputRef} snapshotRef={snapshotRef} onLocalInput={onLocalInput} onSnapshot={onSnapshot}
+          onGameEvents={handleGameEvents} onStateChange={(next) => {
         const now = performance.now();
         if (now - lastUpdate.current > 100) {
           lastUpdate.current = now;
           setViewState(next);
         }
         }} />
-        <MatchMiniMap players={viewState.players} ball={viewState.ball} controlledPlayerId={viewState.controlledPlayerId} homeAccent={homeAccent} awayAccent={awayBranding.kit?.jersey || '#E94B55'} />
+        <MatchMiniMap players={viewState.players} ball={viewState.ball} controlledPlayerId={viewState.controlledPlayerId}
+          controlledPlayerIds={viewState.controlledPlayerIds} localTeam={localTeam}
+          homeAccent={homeAccent} awayAccent={awayBranding.kit?.jersey || '#E94B55'} />
         {scoreToast && <div key={scoreToast.id} className="goal-score-toast" aria-live="polite">{scoreToast.label}</div>}
         <SkillCutInOverlay cue={cutInCue} player={cutInPlayer} teamBranding={viewState.teamBranding} />
       </div>

@@ -55,3 +55,40 @@ test('API gives a safe fallback for non-JSON errors and failed network requests'
   await assert.rejects(networkApi.getRoom('ABC234'), (error) => error instanceof PvpApiError
     && error.status === 0 && !error.message.includes('private'));
 });
+
+test('real-time negotiation, result confirmation, and leaderboard use authenticated API requests', async () => {
+  const calls = [];
+  const api = createPvpApi({
+    acquireToken: async () => 'company-token',
+    fetchImpl: async (path, options) => {
+      calls.push({ path, options });
+      if (path.endsWith('/negotiate')) return response(200, { url: 'wss://service/client', role: 'host', group: 'pvp-ABC234' });
+      if (path.endsWith('/leaderboard')) return response(200, { records: [
+        { rank: 1, displayName: 'Alex', wins: 3, losses: 1, draws: 0, matchesPlayed: 4, objectId: 'must-not-leak' },
+        { rank: 1, displayName: 'Sam', wins: 3, losses: 0, draws: 1, matchesPlayed: 4 },
+      ] });
+      if (options.method === 'POST') return response(200, { status: 'awaitingResults' });
+      return response(200, { status: 'completed', match: { source: 'normal', homeGoals: 2, awayGoals: 1 } });
+    },
+  });
+  assert.deepEqual(await api.negotiate(' abc234 '), { url: 'wss://service/client', role: 'host', group: 'pvp-ABC234' });
+  assert.deepEqual(await api.submitResult('ABC234', { homeGoals: 2, awayGoals: 1 }), { status: 'awaitingResults' });
+  assert.equal((await api.getResult('ABC234')).status, 'completed');
+  const leaderboard = await api.getLeaderboard();
+  assert.deepEqual(leaderboard.records, [
+    { rank: 1, displayName: 'Alex', wins: 3, losses: 1, draws: 0, matchesPlayed: 4 },
+    { rank: 1, displayName: 'Sam', wins: 3, losses: 0, draws: 1, matchesPlayed: 4 },
+  ]);
+  assert.deepEqual(JSON.parse(calls[0].options.body), { code: 'ABC234' });
+  assert.deepEqual(JSON.parse(calls[1].options.body), { homeGoals: 2, awayGoals: 1 });
+  assert.ok(calls.every(({ options }) => options.headers['X-Profile-Access-Token'] === 'Bearer company-token'));
+});
+
+test('real-time API rejects mismatched negotiated groups and invalid submitted scores', async () => {
+  const api = createPvpApi({
+    acquireToken: async () => 'token',
+    fetchImpl: async () => response(200, { url: 'wss://service/client', role: 'guest', group: 'pvp-OTHER1' }),
+  });
+  await assert.rejects(api.negotiate('ABC234'), (error) => error.code === 'INVALID_SERVER_RESPONSE');
+  await assert.rejects(api.submitResult('ABC234', { homeGoals: 100, awayGoals: 0 }), (error) => error.code === 'INVALID_SCORE');
+});

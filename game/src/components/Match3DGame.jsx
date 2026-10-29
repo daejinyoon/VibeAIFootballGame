@@ -3,7 +3,7 @@ import Match3DCanvas from './Match3DCanvas.jsx';
 import { GameLoop3D } from './GameLoop3D.jsx';
 
 export default function Match3DGame({ initialState, paused, onGameEvents, onStateChange,
-  simulationMode = 'local', localTeam = 'home', remoteInputRef, snapshotRef, onLocalInput }) {
+  simulationMode = 'local', localTeam = 'home', remoteInputRef, snapshotRef, onLocalInput, onSnapshot }) {
   const gameStateRef = useRef(structuredClone(initialState));
   const initialStateRef = useRef(initialState);
   const actorsRef = useRef({ players: new Map(), selectedMarkers: new Map(), ball: null, ballBody: null });
@@ -60,6 +60,7 @@ export default function Match3DGame({ initialState, paused, onGameEvents, onStat
         remoteInputRef={remoteInputRef}
         snapshotRef={snapshotRef}
         onLocalInput={onLocalInput}
+        onSnapshot={onSnapshot}
       />
     </Match3DCanvas>
   );
