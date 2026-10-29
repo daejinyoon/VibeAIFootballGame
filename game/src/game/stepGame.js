@@ -726,7 +726,7 @@ function launchAutomaticRestart(state, player) {
   return receiver;
 }
 
-function beginManualRestart(state, type, restartTeam, spot) {
+function beginManualRestart(state, type, restartTeam, spot, { pvpMode = false } = {}) {
   stopBallAtFieldEdge(state);
   const previousControlledPlayerId = type === 'goalKick' && restartTeam === 'home'
     ? state.controlledPlayerId
@@ -750,7 +750,8 @@ function beginManualRestart(state, type, restartTeam, spot) {
     taker.x = restartTeam === 'home' ? 70 : FIELD.width - 70;
     taker.y = FIELD.height / 2;
     spot = { x: taker.x, y: taker.y };
-    positionGoalKickTriangle(state, restartTeam);
+    positionGoalKickTriangle(state, restartTeam, { pvpMode });
+    repositionGoalKickOpponents(state, restartTeam, { pvpMode });
     setGoalKickPrepare(taker);
   } else {
     taker.x = spot.x;
@@ -776,26 +777,67 @@ function beginManualRestart(state, type, restartTeam, spot) {
   return [{ type, team: restartTeam, playerId: taker.id }];
 }
 
-function positionGoalKickTriangle(state, team) {
+function positionGoalKickTriangle(state, team, { pvpMode = false } = {}) {
+  if (!['home', 'away'].includes(team)) return;
   const fieldPlayers = activePlayers(state, team)
     .filter((player) => player.role !== 'goalkeeper')
     .sort((a, b) => a.role.localeCompare(b.role) || a.id.localeCompare(b.id));
-  const centerY = FIELD.height / 2;
-  const homeVertices = [
-    { x: FIELD.width * 0.70, y: centerY },
-    { x: FIELD.width * 0.60, y: centerY - FIELD.height * 0.19 },
-    { x: FIELD.width * 0.60, y: centerY + FIELD.height * 0.19 },
+  const keeper = activePlayers(state, team).find((player) => player.role === 'goalkeeper');
+  if (!keeper) return;
+  const direction = team === 'home' ? 1 : -1;
+  const legacyVertices = [
+    { x: FIELD.width * 0.70, y: FIELD.height / 2 },
+    { x: FIELD.width * 0.60, y: FIELD.height / 2 - FIELD.height * 0.19 },
+    { x: FIELD.width * 0.60, y: FIELD.height / 2 + FIELD.height * 0.19 },
+  ];
+  const lateralOffset = Math.sqrt(250 ** 2 - 230 ** 2);
+  const campaignVertices = [
+    { x: keeper.x + direction * 140, y: keeper.y },
+    { x: keeper.x + direction * 230, y: keeper.y - lateralOffset },
+    { x: keeper.x + direction * 230, y: keeper.y + lateralOffset },
   ];
   fieldPlayers.forEach((player, index) => {
-    const homeTarget = homeVertices[index];
-    if (!homeTarget) return;
-    const target = team === 'home' ? homeTarget : { x: FIELD.width - homeTarget.x, y: homeTarget.y };
+    const target = pvpMode
+      ? (team === 'home' ? legacyVertices[index] : { x: FIELD.width - legacyVertices[index].x, y: legacyVertices[index].y })
+      : campaignVertices[index];
+    if (!target) return;
     player.aiTarget = {
       x: clamp(target.x, 20, FIELD.width - 20),
       y: clamp(target.y, 12, FIELD.height - 12),
     };
     player.aiRetargetSeconds = 0;
   });
+}
+
+function repositionGoalKickOpponents(state, restartTeam, { pvpMode = false } = {}) {
+  if (pvpMode || !['home', 'away'].includes(restartTeam)) return;
+  const keeper = activePlayers(state, restartTeam).find((player) => player.role === 'goalkeeper');
+  if (!keeper || ![keeper.x, keeper.y].every(Number.isFinite)) return;
+
+  const opponents = activePlayers(state, restartTeam === 'home' ? 'away' : 'home');
+  for (const opponent of opponents) {
+    if (![opponent.x, opponent.y].every(Number.isFinite) || distance(opponent, keeper) >= 120) continue;
+    const dx = opponent.x - keeper.x;
+    const dy = opponent.y - keeper.y;
+    const currentDistance = Math.hypot(dx, dy);
+    let target = currentDistance > 0
+      ? {
+        x: clamp(keeper.x + (dx / currentDistance) * 120, 0, FIELD.width),
+        y: clamp(keeper.y + (dy / currentDistance) * 120, 0, FIELD.height),
+      }
+      : null;
+    if (!target || distance(target, keeper) < 120) {
+      const inwardDirection = keeper.x <= FIELD.width / 2 ? 1 : -1;
+      target = {
+        x: clamp(keeper.x + inwardDirection * 120, 0, FIELD.width),
+        y: clamp(opponent.y, 12, FIELD.height - 12),
+      };
+    }
+    opponent.x = target.x;
+    opponent.y = target.y;
+    opponent.vx = 0;
+    opponent.vy = 0;
+  }
 }
 
 function moveGoalKickReceivers(state, team, deltaSeconds) {
@@ -835,15 +877,15 @@ function restartCorner(state, restartTeam, exitX, exitY) {
   return beginManualRestart(state, 'cornerKick', restartTeam, spot);
 }
 
-function restartGoalKick(state, restartTeam) {
+function restartGoalKick(state, restartTeam, { pvpMode = false } = {}) {
   const spot = {
     x: restartTeam === 'home' ? 70 : FIELD.width - 70,
     y: FIELD.height / 2,
   };
-  return beginManualRestart(state, 'goalKick', restartTeam, spot);
+  return beginManualRestart(state, 'goalKick', restartTeam, spot, { pvpMode });
 }
 
-function checkBallBoundary(state) {
+function checkBallBoundary(state, { pvpMode = false } = {}) {
   const { ball } = state;
   if (ball.x - BALL_RADIUS > FIELD.width
       && ball.y - BALL_RADIUS >= FIELD.goalTop
@@ -872,16 +914,16 @@ function checkBallBoundary(state) {
     if (!lastTouchTeam) {
       return attackingTeam === 'home'
         ? restartCorner(state, 'home', ball.x, ball.y)
-        : restartGoalKick(state, 'home');
+        : restartGoalKick(state, 'home', { pvpMode });
     }
     const lastTouch = lastTouchTeam;
-    if (lastTouch === attackingTeam) return restartGoalKick(state, defendingTeam);
+    if (lastTouch === attackingTeam) return restartGoalKick(state, defendingTeam, { pvpMode });
     return restartCorner(state, attackingTeam, ball.x, ball.y);
   }
   return [];
 }
 
-function finishEagleVolley(state, volley) {
+function finishEagleVolley(state, volley, { pvpMode = false } = {}) {
   const ball = state.ball;
   const finalProjectile = state.skillProjectiles.at(-1);
   const lastPosition = volley.lastPosition ?? finalProjectile ?? { x: ball.x, y: ball.y };
@@ -917,11 +959,11 @@ function finishEagleVolley(state, volley) {
   ball.y = clamp(lastPosition.y, -BALL_RADIUS - 1, FIELD.height + BALL_RADIUS + 1);
   ball.lastTouchTeam = volley.team;
   state.possessionTeam = volley.team;
-  if (lastOutcome === 'missed') return checkBallBoundary(state);
+  if (lastOutcome === 'missed') return checkBallBoundary(state, { pvpMode });
   return [];
 }
 
-function advanceEagleVolley(state, deltaSeconds) {
+function advanceEagleVolley(state, deltaSeconds, { pvpMode = false } = {}) {
   const volley = state.eagleVolley;
   if (!volley) return [];
   const events = [];
@@ -1016,12 +1058,12 @@ function advanceEagleVolley(state, deltaSeconds) {
   }
 
   if (volley.spawned >= volley.level && volley.resolved >= volley.level) {
-    events.push(...finishEagleVolley(state, volley));
+    events.push(...finishEagleVolley(state, volley, { pvpMode }));
   }
   return events;
 }
 
-function handleKeeperContact(state, previousPosition) {
+function handleKeeperContact(state, previousPosition, { pvpMode = false } = {}) {
   const { ball } = state;
   if (ball.ownerId || !['shot', 'skill-shot'].includes(ball.flightKind) || ball.skillId === 'eagleShot') return [];
 
@@ -1048,7 +1090,8 @@ function handleKeeperContact(state, previousPosition) {
     setBallOwner(state, keeper);
     keeper.x = keeper.team === 'home' ? 70 : FIELD.width - 70;
     keeper.y = FIELD.height / 2;
-    positionGoalKickTriangle(state, keeper.team);
+    positionGoalKickTriangle(state, keeper.team, { pvpMode });
+    repositionGoalKickOpponents(state, keeper.team, { pvpMode });
     putBallAtPlayer(state, keeper);
     state.phase = 'goalKick';
     state.phaseSeconds = 1;
@@ -1747,7 +1790,7 @@ function maybeUseAiSkill(state, team, events) {
   if (attempt.ok) events.push(...attempt.events);
 }
 
-function advanceVacuum(state, deltaSeconds) {
+function advanceVacuum(state, deltaSeconds, { pvpMode = false } = {}) {
   const effect = state.vacuumEffect;
   const player = byId(state, effect?.playerId);
   if (!effect || !player) {
@@ -1780,6 +1823,10 @@ function advanceVacuum(state, deltaSeconds) {
     if (player.role === 'goalkeeper') {
       state.phase = 'goalKick';
       state.phaseSeconds = 1;
+      if (!pvpMode) {
+        positionGoalKickTriangle(state, player.team);
+        repositionGoalKickOpponents(state, player.team);
+      }
     }
     if (player.team === 'home') state.controlledPlayerId = player.id;
     delete state.vacuumEffect;
@@ -1795,8 +1842,9 @@ function updateOwnedBall(state) {
   putBallAtPlayer(state, player);
 }
 
-function beginGoalKick(state, deltaSeconds) {
+function beginGoalKick(state, deltaSeconds, { pvpMode = false } = {}) {
   const keeper = carrier(state);
+  if (keeper) repositionGoalKickOpponents(state, keeper.team, { pvpMode });
   if (keeper && state.phaseSeconds <= GOAL_KICK_PREPARE_SECONDS
       && keeper.keeperAction !== 'goalKickPrepare') {
     setGoalKickPrepare(keeper, Math.max(0, state.phaseSeconds));
@@ -1900,7 +1948,7 @@ function releaseRestart(state, restart, action) {
   ];
 }
 
-function advanceManualRestart(state, input, deltaSeconds) {
+function advanceManualRestart(state, input, deltaSeconds, { pvpMode = false } = {}) {
   const restart = state.restart;
   if (!restart) return [];
   if (restart.team === 'home') {
@@ -1920,7 +1968,10 @@ function advanceManualRestart(state, input, deltaSeconds) {
               : null;
     if (action) restart.queuedAction ??= action;
   }
-  if (restart.type === 'goalKick') moveGoalKickReceivers(state, restart.team, deltaSeconds);
+  if (restart.type === 'goalKick') {
+    repositionGoalKickOpponents(state, restart.team, { pvpMode });
+    moveGoalKickReceivers(state, restart.team, deltaSeconds);
+  }
   restart.readySeconds = Math.max(0, restart.readySeconds - deltaSeconds);
   const taker = byId(state, restart.takerId);
   if (!taker || taker.dismissed) return [];
@@ -2053,9 +2104,9 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
 
   if (state.phase === 'goalPause') return finishFrame([...events, ...beginKickoff(state, dt)]);
   if (state.restart && ['throwIn', 'cornerKick', 'goalKick'].includes(state.phase)) {
-    return finishFrame([...events, ...advanceManualRestart(state, input, dt)]);
+    return finishFrame([...events, ...advanceManualRestart(state, input, dt, { pvpMode })]);
   }
-  if (state.phase === 'goalKick') return finishFrame([...events, ...beginGoalKick(state, dt)]);
+  if (state.phase === 'goalKick') return finishFrame([...events, ...beginGoalKick(state, dt, { pvpMode })]);
   if (state.phase === 'throwIn' || state.phase === 'cornerKick') return finishFrame(events);
   if (state.phase === 'freeKick' || state.phase === 'penaltyKick') return finishFrame([...events, ...beginSetPiece(state, dt)]);
 
@@ -2094,9 +2145,9 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
   enforceKickoffCircle(state);
 
   if (state.eagleVolley) {
-    events.push(...advanceEagleVolley(state, dt));
+    events.push(...advanceEagleVolley(state, dt, { pvpMode }));
   } else if (state.vacuumEffect) {
-    events.push(...advanceVacuum(state, dt));
+    events.push(...advanceVacuum(state, dt, { pvpMode }));
   } else {
     const owner = carrier(state);
     if (owner && controlled && owner.id === controlled.id && state.possessionTeam === 'home') {
@@ -2108,9 +2159,9 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0) {
     } else {
       const previousBallPosition = { x: state.ball.x, y: state.ball.y };
       events.push(...integrateLooseBall(state, dt));
-      events.push(...handleKeeperContact(state, previousBallPosition));
+      events.push(...handleKeeperContact(state, previousBallPosition, { pvpMode }));
       events.push(...resolveAerialHeader(state));
-      events.push(...checkBallBoundary(state));
+      events.push(...checkBallBoundary(state, { pvpMode }));
       if (!['goalPause', 'goalKick', 'finished'].includes(state.phase)) {
         events.push(...collectLooseBall(state));
       }

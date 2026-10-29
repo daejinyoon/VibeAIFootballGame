@@ -1048,6 +1048,40 @@ test('a keeper catches an ordinary shot and starts a timed goal kick', () => {
   assert.equal(state.players.find((player) => player.id === 'home-gk').motionAction, 'goalKick');
 });
 
+test('PvP keeper catches keep legacy goal-kick lanes and close opponent positions', () => {
+  const state = createInitialGameState();
+  state.possessionTeam = 'away';
+  const keeper = state.players.find((player) => player.id === 'home-gk');
+  const closeOpponent = state.players.find((player) => player.id === 'away-def-1');
+  Object.assign(keeper, { x: 55, y: 270 });
+  Object.assign(closeOpponent, { x: 70, y: 270, knockdownSeconds: 5 });
+  Object.assign(state.ball, {
+    ownerId: null,
+    x: 55,
+    y: 270,
+    vx: -30,
+    vy: 0,
+    height: 10,
+    verticalVelocity: 80,
+    flightKind: 'shot',
+    lastTouchTeam: 'away',
+  });
+
+  const events = stepGame(state, { home: frame(), away: frame() }, 0.01, { controlledTeams: ['home', 'away'] });
+
+  assert.equal(state.phase, 'goalKick');
+  assert.ok(events.some((event) => event.type === 'keeperCatch'));
+  assert.ok(Math.hypot(closeOpponent.x - keeper.x, closeOpponent.y - keeper.y) < 120);
+  const receivers = state.players.filter((player) => player.team === 'home' && player.role !== 'goalkeeper')
+    .sort((a, b) => a.role.localeCompare(b.role) || a.id.localeCompare(b.id));
+  const laneX = [0.70, 0.60, 0.60];
+  const laneY = [FIELD.height / 2, FIELD.height / 2 - FIELD.height * 0.19, FIELD.height / 2 + FIELD.height * 0.19];
+  for (const [index, receiver] of receivers.entries()) {
+    assert.equal(receiver.aiTarget.x, FIELD.width * laneX[index]);
+    assert.equal(receiver.aiTarget.y, laneY[index]);
+  }
+});
+
 test('goal-line goal kicks move receiving teammates toward mirrored lanes without teleporting players', () => {
   const basePositions = getBaseFormationPositions();
   for (const scenario of [
@@ -1058,6 +1092,25 @@ test('goal-line goal kicks move receiving teammates toward mirrored lanes withou
     for (const [index, player] of state.players.entries()) {
       Object.assign(player, { x: 320 + index * 13, y: 80 + index * 21, vx: -8, vy: 6, aiTarget: 'old', aiRetargetSeconds: 3 });
     }
+    const keeperX = scenario.team === 'home' ? 70 : FIELD.width - 70;
+    const opposingTeam = scenario.team === 'home' ? 'away' : 'home';
+    const closeOpponent = state.players.find((player) => player.team === opposingTeam && player.role !== 'goalkeeper');
+    const distantOpponent = state.players.find((player) => player.team === opposingTeam
+      && player.role === 'midfielder');
+    Object.assign(closeOpponent, { x: keeperX, y: FIELD.height / 2, vx: -8, vy: 6 });
+    Object.assign(distantOpponent, {
+      x: keeperX + (scenario.team === 'home' ? 160 : -160),
+      y: FIELD.height / 2,
+      vx: 7,
+      vy: 8,
+      knockdownSeconds: 5,
+    });
+    const distantOpponentBefore = {
+      x: distantOpponent.x,
+      y: distantOpponent.y,
+      vx: distantOpponent.vx,
+      vy: distantOpponent.vy,
+    };
     Object.assign(state.ball, {
       ownerId: null,
       x: scenario.x,
@@ -1091,11 +1144,32 @@ test('goal-line goal kicks move receiving teammates toward mirrored lanes withou
     const receivingPlayers = state.players.filter((player) => player.team === scenario.team
       && player.role !== 'goalkeeper' && !player.dismissed)
       .sort((a, b) => a.role.localeCompare(b.role) || a.id.localeCompare(b.id));
-    const laneX = scenario.team === 'home' ? [0.70, 0.60, 0.60] : [0.30, 0.40, 0.40];
+    const goalkeeperForTarget = state.players.find((player) => player.id === scenario.keeperId);
+    const targetDistances = [140, 250, 250];
+    const lateralOffset = Math.sqrt(250 ** 2 - 230 ** 2);
+    const direction = scenario.team === 'home' ? 1 : -1;
     for (const [index, player] of receivingPlayers.entries()) {
-      assert.ok(Math.abs(player.aiTarget.x - FIELD.width * laneX[index]) < 0.01);
+      assert.ok(Math.abs(Math.hypot(player.aiTarget.x - goalkeeperForTarget.x, player.aiTarget.y - goalkeeperForTarget.y)
+        - targetDistances[index]) < 0.01);
+      const expectedTarget = index === 0
+        ? { x: goalkeeperForTarget.x + direction * 140, y: goalkeeperForTarget.y }
+        : {
+          x: goalkeeperForTarget.x + direction * 230,
+          y: goalkeeperForTarget.y + (index === 1 ? -lateralOffset : lateralOffset),
+        };
+      assert.ok(Math.abs(player.aiTarget.x - expectedTarget.x) < 0.01);
+      assert.ok(Math.abs(player.aiTarget.y - expectedTarget.y) < 0.01);
       assert.equal(player.aiRetargetSeconds, 0);
     }
+    assert.ok(Math.hypot(closeOpponent.x - goalkeeperForTarget.x, closeOpponent.y - goalkeeperForTarget.y) >= 120);
+    assert.equal(closeOpponent.vx, 0);
+    assert.equal(closeOpponent.vy, 0);
+    assert.deepEqual({
+      x: distantOpponent.x,
+      y: distantOpponent.y,
+      vx: distantOpponent.vx,
+      vy: distantOpponent.vy,
+    }, distantOpponentBefore);
 
     const firstReceiver = receivingPlayers[0];
     const initialDistance = Math.hypot(firstReceiver.aiTarget.x - firstReceiver.x, firstReceiver.aiTarget.y - firstReceiver.y);
@@ -1121,6 +1195,64 @@ test('goal-line goal kicks move receiving teammates toward mirrored lanes withou
     assert.equal(keeper.keeperAction, 'goalKick');
     assert.equal(keeper.motionAction, 'goalKick');
   }
+});
+
+test('PvP goal kicks keep the legacy lanes and do not reposition close opponents', () => {
+  const state = createInitialGameState();
+  const closeOpponent = state.players.find((player) => player.id === 'home-def-1');
+  closeOpponent.x = FIELD.width - 70;
+  closeOpponent.y = FIELD.height / 2;
+  closeOpponent.knockdownSeconds = 5;
+  Object.assign(state.ball, {
+    ownerId: null,
+    x: FIELD.width + BALL_RADIUS + 1,
+    y: 400,
+    vx: 0,
+    vy: 0,
+    lastTouchTeam: 'home',
+  });
+
+  stepGame(state, { home: frame(), away: frame() }, 0.01, { controlledTeams: ['home', 'away'] });
+
+  const keeper = state.players.find((player) => player.id === 'away-gk');
+  const closeDistance = Math.hypot(closeOpponent.x - keeper.x, closeOpponent.y - keeper.y);
+  assert.ok(closeDistance < 120);
+  const receivers = state.players.filter((player) => player.team === 'away' && player.role !== 'goalkeeper')
+    .sort((a, b) => a.role.localeCompare(b.role) || a.id.localeCompare(b.id));
+  const laneX = [0.30, 0.40, 0.40];
+  const laneY = [FIELD.height / 2, FIELD.height / 2 - FIELD.height * 0.19, FIELD.height / 2 + FIELD.height * 0.19];
+  for (const [index, receiver] of receivers.entries()) {
+    assert.equal(receiver.aiTarget.x, FIELD.width * laneX[index]);
+    assert.equal(receiver.aiTarget.y, laneY[index]);
+  }
+});
+
+test('a campaign keeper recovering the ball with Vacuum Cleaner prepares the new goal-kick lanes', () => {
+  const state = createInitialGameState();
+  const keeper = state.players.find((player) => player.id === 'home-gk');
+  const closeOpponent = state.players.find((player) => player.id === 'away-def-1');
+  Object.assign(closeOpponent, { x: keeper.x, y: keeper.y, vx: 4, vy: -3 });
+  state.ball.ownerId = null;
+  state.ball.x = keeper.x;
+  state.ball.y = keeper.y;
+  state.vacuumEffect = {
+    playerId: keeper.id,
+    startPosition: { x: keeper.x, y: keeper.y },
+    durationSeconds: 0.7,
+    elapsedSeconds: 0.69,
+    remainingSeconds: 0.01,
+  };
+
+  stepGame(state, frame(), 0.02);
+
+  assert.equal(state.phase, 'goalKick');
+  assert.equal(state.ball.ownerId, keeper.id);
+  const receivers = state.players.filter((player) => player.team === 'home' && player.role !== 'goalkeeper')
+    .sort((a, b) => a.role.localeCompare(b.role) || a.id.localeCompare(b.id));
+  assert.equal(Math.hypot(receivers[0].aiTarget.x - keeper.x, receivers[0].aiTarget.y - keeper.y), 140);
+  assert.ok(Math.abs(Math.hypot(receivers[1].aiTarget.x - keeper.x, receivers[1].aiTarget.y - keeper.y) - 250) < 0.01);
+  assert.ok(Math.abs(Math.hypot(receivers[2].aiTarget.x - keeper.x, receivers[2].aiTarget.y - keeper.y) - 250) < 0.01);
+  assert.ok(Math.hypot(closeOpponent.x - keeper.x, closeOpponent.y - keeper.y) >= 120);
 });
 
 test('a goal restarts from the center for the conceding team', () => {
