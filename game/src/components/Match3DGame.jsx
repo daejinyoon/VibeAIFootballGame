@@ -6,7 +6,7 @@ export default function Match3DGame({ initialState, paused, onGameEvents, onStat
   simulationMode = 'local', localTeam = 'home', remoteInputRef, snapshotRef, onLocalInput, onSnapshot }) {
   const gameStateRef = useRef(structuredClone(initialState));
   const initialStateRef = useRef(initialState);
-  const actorsRef = useRef({ players: new Map(), selectedMarkers: new Map(), ball: null, ballBody: null });
+  const actorsRef = useRef({ players: new Map(), selectedMarkers: new Map(), ball: null, ballBody: null, camera: null, selectedPlayerId: null });
   const crowdReactionRef = useRef(null);
   const previousPausedRef = useRef(paused);
   const canvasContainerRef = useRef(null);

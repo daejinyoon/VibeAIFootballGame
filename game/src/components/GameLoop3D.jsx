@@ -138,6 +138,7 @@ export function GameLoop3D({
     }
     if (campaignSelectionCue) {
       const selectedPlayerId = state.controlledPlayerId ?? null;
+      actorsRef.current.selectedPlayerId = selectedPlayerId;
       if (didControlledPlayerChange(previousControlledPlayerIdRef.current, selectedPlayerId)) {
         selectionPulseElapsedSecondsRef.current = 0;
       }
@@ -147,6 +148,8 @@ export function GameLoop3D({
           selectionPulseElapsedSecondsRef.current + Math.max(0, Number.isFinite(delta) ? delta : 0));
         if (selectionPulseElapsedSecondsRef.current >= 0.8) selectionPulseElapsedSecondsRef.current = null;
       }
+    } else {
+      actorsRef.current.selectedPlayerId = null;
     }
     const crowdReaction = crowdReactionRef?.current;
     if (crowdReaction) {
