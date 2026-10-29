@@ -120,7 +120,7 @@ export function buildForfeitMatch(room, disconnectedObjectId, recordedAt) {
   if (!disconnectedHost && !disconnectedGuest) {
     throw new PvpError(403, 'ROOM_MEMBERSHIP_REQUIRED', 'The disconnected account is not a room member.');
   }
-  if (!room.guestObjectId || room.status !== 'playing') {
+  if (!room.guestObjectId || !['playing', 'forfeit'].includes(room.status)) {
     throw new PvpError(409, 'ROOM_NOT_PLAYING', 'Only an active PvP room can end by forfeit.');
   }
 

@@ -2,5 +2,6 @@
 import { app } from '@azure/functions';
 import './functions/profile.js';
 import './functions/pvp.js';
+import './functions/pvpRealtime.js';
 
 export { app };

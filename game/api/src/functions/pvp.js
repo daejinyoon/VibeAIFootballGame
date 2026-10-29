@@ -147,6 +147,7 @@ export function createPvpHandler({
           guestReady: false,
           hostResultVote: null,
           guestResultVote: null,
+          forfeitLoser: null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -257,7 +258,12 @@ export function createPvpHandler({
         const current = await loadRoom(normalizedCode, account);
         const room = current.document;
         if (room.status === 'completed') {
-          const match = (await repository.getMatch(account.tenantId, normalizedCode)).document;
+          let match = (await repository.getMatch(account.tenantId, normalizedCode)).document;
+          if (!match && room.hostResultVote && room.guestResultVote
+            && sameScore(room.hostResultVote, room.guestResultVote)) {
+            const confirmed = buildConfirmedMatch(room, room.hostResultVote.homeGoals, room.hostResultVote.awayGoals, now());
+            match = (await repository.createMatchOnce(confirmed)).document;
+          }
           return jsonResponse(200, { status: 'completed', ...(match ? { match: publicMatch(match) } : {}) });
         }
         if (room.status !== 'playing' && room.status !== 'awaitingResults' && room.status !== 'disputed') {
@@ -269,8 +275,6 @@ export function createPvpHandler({
         if (room.status === 'disputed' && priorVote) return jsonResponse(200, { status: 'disputed' });
         const otherVote = currentVote(room, !isHost);
         if (otherVote && sameScore(otherVote, vote)) {
-          const match = buildConfirmedMatch(room, vote.homeGoals, vote.awayGoals, now());
-          await repository.createMatchOnce(match);
           room.status = 'completed';
           if (isHost) room.hostResultVote = vote;
           else room.guestResultVote = vote;
@@ -286,6 +290,9 @@ export function createPvpHandler({
         room.updatedAt = now();
         try {
           await repository.replaceRoom(room, current.etag);
+          if (room.status === 'completed') {
+            await repository.createMatchOnce(buildConfirmedMatch(room, vote.homeGoals, vote.awayGoals, now()));
+          }
           const savedMatch = room.status === 'completed' ? (await repository.getMatch(account.tenantId, normalizedCode)).document : null;
           return jsonResponse(200, { status: room.status, ...(savedMatch ? { match: publicMatch(savedMatch) } : {}) });
         } catch (error) {

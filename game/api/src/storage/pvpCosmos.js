@@ -109,10 +109,11 @@ export function createPvpRepository({ container: injectedContainer, env = proces
       const resolved = await resolveContainer();
       try {
         const response = await resolved.items.query({
-          query: 'SELECT * FROM c WHERE c.kind = @kind AND c.status = @status AND (c.hostObjectId = @objectId OR c.guestObjectId = @objectId)',
+          query: 'SELECT * FROM c WHERE c.kind = @kind AND (c.status = @playing OR c.status = @forfeit) AND (c.hostObjectId = @objectId OR c.guestObjectId = @objectId)',
           parameters: [
             { name: '@kind', value: 'room' },
-            { name: '@status', value: 'playing' },
+            { name: '@playing', value: 'playing' },
+            { name: '@forfeit', value: 'forfeit' },
             { name: '@objectId', value: objectId },
           ],
         }, { partitionKey: tenantId }).fetchAll();
