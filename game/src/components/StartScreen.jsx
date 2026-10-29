@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function StartScreen({ hasSave, nickname, profileError, onNicknameSave, onStart, onContinue, onOpenLeaderboard, onOpenTeamCustomization, onOpenPvp, onOpenPvpLeaderboard }) {
+export default function StartScreen({ hasSave, nickname, profileError, onNicknameSave, onStart, onContinue, onOpenLeaderboard, onOpenTeamCustomization, onOpenPvp, onOpenPvpLeaderboard, showCompanyPvpActions = true }) {
   const [draftNickname, setDraftNickname] = useState(nickname);
 
   return (
@@ -20,8 +20,10 @@ export default function StartScreen({ hasSave, nickname, profileError, onNicknam
         </form>
         {profileError && <p className="profile-error" role="alert">{profileError}</p>}
         <div className="actions">
-          <button className="secondary-button pvp-entry-button" type="button" onClick={onOpenPvp}>회사 사용자 대전 <span aria-hidden="true">↗</span></button>
-          <button className="secondary-button pvp-leaderboard-entry" type="button" onClick={onOpenPvpLeaderboard}>회사 PvP 순위 보기</button>
+          {showCompanyPvpActions && <>
+            <button className="secondary-button pvp-entry-button" type="button" onClick={onOpenPvp}>회사 사용자 대전 <span aria-hidden="true">↗</span></button>
+            <button className="secondary-button pvp-leaderboard-entry" type="button" onClick={onOpenPvpLeaderboard}>회사 PvP 순위 보기</button>
+          </>}
           <button className="secondary-button team-customization-entry" type="button" onClick={onOpenTeamCustomization}>팀 꾸미기 <span aria-hidden="true">→</span></button>
           <button className="primary-button" disabled={!nickname} onClick={onStart}>새 캠페인 시작 <span aria-hidden="true">→</span></button>
           {hasSave && <button className="secondary-button" disabled={!nickname} onClick={onContinue}>이어 하기 <span aria-hidden="true">↗</span></button>}
