@@ -5,6 +5,8 @@
     "FUNCTIONS_WORKER_RUNTIME": "node",
     "ENTRA_TENANT_ID": "",
     "ENTRA_CLIENT_ID": "",
-    "COSMOS_CONNECTION_STRING": ""
+    "COSMOS_CONNECTION_STRING": "",
+    "WEBPUBSUB_CONNECTION_STRING": "",
+    "WEBPUBSUB_HUB_NAME": "football-pvp"
   }
 }
