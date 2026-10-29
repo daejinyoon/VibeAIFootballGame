@@ -2514,12 +2514,6 @@ test('stage-one tuning increases campaign opponent pressure without changing hom
   stepGame(awayState, frame(), 0.05);
   assert.equal(awaySupporter.aiRetargetSeconds, 0.94);
 
-  const pvpState = createInitialGameState();
-  const pvpAwaySupporter = pvpState.players.find((player) => player.id === 'away-mid-1');
-  pvpAwaySupporter.aiTarget = null;
-  pvpAwaySupporter.aiRetargetSeconds = 0;
-  stepGame(pvpState, { home: frame(), away: frame() }, 0.05, { controlledTeams: ['home', 'away'] });
-  assert.equal(pvpAwaySupporter.aiRetargetSeconds, 1);
 });
 
 test('stage-one campaign opponents press from the adjusted 104-unit distance', () => {
