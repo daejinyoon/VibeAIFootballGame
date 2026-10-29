@@ -14,10 +14,13 @@ import LeaderboardScreen from './components/LeaderboardScreen.jsx';
 import ResultsScreen from './components/ResultsScreen.jsx';
 import LoadoutScreen from './components/LoadoutScreen.jsx';
 import SignInScreen from './components/SignInScreen.jsx';
+import PvpLobbyScreen from './components/PvpLobbyScreen.jsx';
 import SkillRewardScreen from './components/SkillRewardScreen.jsx';
 import StartScreen from './components/StartScreen.jsx';
 import StageSelectScreen from './components/StageSelectScreen.jsx';
 import TeamCustomizationScreen from './components/TeamCustomizationScreen.jsx';
+import { createPvpApi } from './pvp/pvpApi.js';
+import { shouldPollPvpRoom } from './pvp/pvpLobbyState.js';
 
 const GameScreen = lazy(() => import('./components/GameScreen.jsx'));
 
@@ -84,6 +87,9 @@ export default function App({ authBootstrap = {} }) {
   const [profileRetry, setProfileRetry] = useState(0);
   const [authActionError, setAuthActionError] = useState('');
   const [screen, setScreen] = useState('start');
+  const [pvpRoom, setPvpRoom] = useState(null);
+  const [pvpLoading, setPvpLoading] = useState(false);
+  const [pvpError, setPvpError] = useState('');
   const [campaign, setCampaign] = useState(null);
   const [selectedStage, setSelectedStage] = useState(1);
   const [matchState, setMatchState] = useState(null);
@@ -95,6 +101,28 @@ export default function App({ authBootstrap = {} }) {
   const handledTerminalMatchRef = useRef(null);
   const pendingProfileRef = useRef(null);
   const saveQueueRef = useRef(Promise.resolve());
+  const pvpApiRef = useRef(null);
+  if (!pvpApiRef.current) pvpApiRef.current = createPvpApi({ acquireToken: getProfileApiToken });
+
+  useEffect(() => {
+    if (!shouldPollPvpRoom(screen, pvpRoom)) return undefined;
+    let active = true;
+    const pollRoom = async () => {
+      try {
+        const updatedRoom = await pvpApiRef.current.getRoom(pvpRoom.code);
+        if (!active) return;
+        setPvpRoom(updatedRoom);
+        setPvpError('');
+      } catch (error) {
+        if (active) setPvpError(error.message || '방 정보를 새로 고치지 못했습니다. 다시 시도해 주세요.');
+      }
+    };
+    const timer = window.setInterval(pollRoom, 2000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [screen, pvpRoom?.code, pvpRoom?.status]);
   useEffect(() => {
     if (!accountIsAuthenticated) {
       stopMenuMusic();
@@ -233,6 +261,31 @@ export default function App({ authBootstrap = {} }) {
     } catch (error) {
       setProfileError(error.message || '별명을 저장하지 못했습니다.');
     }
+  };
+
+  const runPvpAction = async (action) => {
+    setPvpError('');
+    setPvpLoading(true);
+    try {
+      const result = await action();
+      if (result?.code && result?.status) setPvpRoom(result);
+      return result;
+    } catch (error) {
+      setPvpError(error.message || '대전 요청을 처리하지 못했습니다. 다시 시도해 주세요.');
+      return null;
+    } finally {
+      setPvpLoading(false);
+    }
+  };
+
+  const cancelPvpRoom = async (code) => {
+    const result = await runPvpAction(() => pvpApiRef.current.cancelRoom(code));
+    if (result?.cancelled) setPvpRoom(null);
+  };
+
+  const openPvpLobby = () => {
+    setPvpError('');
+    setScreen('pvpLobby');
   };
 
   const openTeamCustomization = () => {
@@ -441,7 +494,20 @@ export default function App({ authBootstrap = {} }) {
         }}>{profileErrorStatus === 401 ? '다시 로그인' : '저장 다시 시도'}</button>
       </div>}
 
-      {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} onOpenTeamCustomization={openTeamCustomization} />}
+      {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} onOpenTeamCustomization={openTeamCustomization} onOpenPvp={openPvpLobby} />}
+      {screen === 'pvpLobby' && <PvpLobbyScreen
+        room={pvpRoom}
+        loading={pvpLoading}
+        errorMessage={pvpError}
+        displayName={account.name || account.username}
+        onCreateRoom={(name) => runPvpAction(() => pvpApiRef.current.createRoom(name))}
+        onJoinRoom={(code, name) => runPvpAction(() => pvpApiRef.current.joinRoom(code, name))}
+        onSaveLoadout={(code, skillIds) => runPvpAction(() => pvpApiRef.current.saveLoadout(code, skillIds))}
+        onSetReady={(code, ready) => runPvpAction(() => pvpApiRef.current.setReady(code, ready))}
+        onStart={(code) => runPvpAction(() => pvpApiRef.current.startRoom(code))}
+        onCancel={cancelPvpRoom}
+        onBack={() => setScreen('start')}
+      />}
       {screen === 'teamCustomization' && <TeamCustomizationScreen
         customization={profile.teamCustomization}
         onSave={handleTeamCustomizationSave}

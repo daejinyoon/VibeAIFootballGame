@@ -1,7 +1,8 @@
 import { PublicClientApplication } from '@azure/msal-browser';
 
-const tenantId = import.meta.env.VITE_ENTRA_TENANT_ID?.trim() ?? '';
-const clientId = import.meta.env.VITE_ENTRA_CLIENT_ID?.trim() ?? '';
+const authEnvironment = import.meta.env ?? {};
+const tenantId = authEnvironment.VITE_ENTRA_TENANT_ID?.trim() ?? '';
+const clientId = authEnvironment.VITE_ENTRA_CLIENT_ID?.trim() ?? '';
 const apiScope = clientId ? `api://${clientId}/access_as_user` : '';
 const loginScopes = ['openid', 'profile', ...(apiScope ? [apiScope] : [])];
 

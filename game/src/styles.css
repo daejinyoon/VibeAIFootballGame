@@ -918,3 +918,85 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
 @media (min-width: 721px) and (max-width: 1100px) {
   .app-shell .game-bottomline { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
 }
+
+/* Company PvP lobby and private three-skill loadout. */
+.pvp-lobby-panel { align-items: stretch; justify-content: flex-start; }
+.pvp-lobby-heading { margin-bottom: 28px; }
+.pvp-lobby-heading h1 { font-size: clamp(32px, 4vw, 52px); }
+.pvp-entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.pvp-entry-card { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 12px; padding: clamp(20px, 3vw, 34px); border: 2px solid var(--ink); border-radius: 16px; background: #fff; box-shadow: 5px 6px 0 var(--ink); }
+.pvp-entry-card h2, .pvp-member-card strong { margin: 0; }
+.pvp-entry-card p { margin: 0 0 8px; color: #526b67; font-size: 14px; }
+.pvp-entry-number, .pvp-member-role, .pvp-invite-code-card span { color: #527a68; font: 800 10px 'Cascadia Mono', Consolas, monospace; letter-spacing: .12em; }
+.pvp-entry-card .primary-button { margin-top: auto; }
+.pvp-join-form label { margin-top: 2px; font-size: 12px; font-weight: 800; }
+.pvp-join-form input { width: 100%; min-height: 52px; padding: 10px 14px; border: 2px solid var(--ink); border-radius: 10px; background: #f7fbf4; color: var(--ink); font: 800 20px 'Cascadia Mono', Consolas, monospace; letter-spacing: .15em; text-transform: uppercase; }
+.pvp-join-form input:focus-visible { outline: 3px solid var(--coral); outline-offset: 3px; }
+.pvp-join-form > small { color: #62766b; font-size: 11px; }
+.pvp-join-button { padding: 12px 15px; border: 2px solid var(--ink); }
+.pvp-room-layout { display: grid; grid-template-columns: minmax(260px, .78fr) minmax(0, 1.22fr); align-items: start; gap: 28px; }
+.pvp-room-summary, .pvp-room-controls { min-width: 0; }
+.pvp-invite-code-card { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px; border: 2px solid var(--ink); border-radius: 14px; background: #eaf8dc; box-shadow: 4px 4px 0 var(--ink); }
+.pvp-invite-code-card > div { display: grid; gap: 5px; }
+.pvp-invite-code-card strong { font: 900 clamp(26px, 3.2vw, 38px) 'Cascadia Mono', Consolas, monospace; letter-spacing: .14em; }
+.pvp-invite-code-card .secondary-button { padding: 10px 12px; border: 2px solid var(--ink); white-space: nowrap; }
+.pvp-invite-code-card > small { position: absolute; right: 16px; bottom: -23px; color: #327848; font-size: 11px; }
+.pvp-members { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; margin-top: 26px; }
+.pvp-member-card { display: flex; min-width: 0; min-height: 190px; flex-direction: column; align-items: flex-start; gap: 11px; padding: 16px; border: 2px solid #b9c9b8; border-radius: 14px; background: #f6faf2; }
+.pvp-member-card.is-self { border-color: var(--ink); box-shadow: 3px 4px 0 var(--ink); }
+.pvp-member-role { font-size: 9px; letter-spacing: .06em; }
+.pvp-member-card strong { overflow-wrap: anywhere; font-size: clamp(15px, 1.5vw, 20px); }
+.pvp-member-card small { margin-top: auto; color: #61746a; font-size: 11px; line-height: 1.5; }
+.pvp-ready-state { padding: 5px 8px; border-radius: 999px; background: #e7e9e4; color: #66746b; font-size: 10px; font-weight: 800; }
+.pvp-ready-state.is-ready { background: #d9f6b7; color: #246b3a; }
+.pvp-versus { color: #718377; font: 900 12px 'Cascadia Mono', Consolas, monospace; }
+.pvp-room-status { margin: 18px 0 0; padding: 12px 14px; border-left: 4px solid #86c967; background: #eff9e9; color: #3f6350; font-size: 12px; }
+.pvp-picker { padding: 20px; border: 2px solid var(--ink); border-radius: 16px; background: #f8fcf3; }
+.pvp-picker-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+.pvp-picker-heading .eyebrow { margin: 0 0 5px; font-size: 10px; }
+.pvp-picker-heading h3 { margin: 0; font-size: 20px; }
+.pvp-picker-hint { margin: 7px 0 0; color: #5c7167; font-size: 11px; line-height: 1.5; }
+.pvp-selection-count { flex: 0 0 auto; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 9px; background: var(--lime); font: 900 13px 'Cascadia Mono', Consolas, monospace; }
+.pvp-skill-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.pvp-skill-card { position: relative; display: flex; min-width: 0; min-height: 108px; align-items: flex-start; gap: 10px; padding: 11px; border: 1px solid #b6c9b2; border-radius: 11px; background: #fff; color: var(--ink); text-align: left; cursor: pointer; }
+.pvp-skill-card:hover:not(:disabled), .pvp-skill-card.is-selected { border: 2px solid var(--ink); background: #e8f8d8; box-shadow: 2px 3px 0 var(--ink); }
+.pvp-skill-card:disabled { opacity: .55; cursor: not-allowed; }
+.pvp-skill-card img { width: 38px; height: 38px; flex: 0 0 auto; object-fit: contain; }
+.pvp-skill-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4px; }
+.pvp-skill-copy strong { font-size: 12px; }
+.pvp-skill-copy small { color: #347846; font-size: 10px; font-weight: 800; }
+.pvp-skill-copy > span { color: #5d7066; font-size: 10px; line-height: 1.45; }
+.pvp-skill-order { display: grid; width: 21px; height: 21px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #edf1e9; font: 800 11px 'Cascadia Mono', Consolas, monospace; }
+.pvp-skill-card.is-selected .pvp-skill-order { background: var(--lime); }
+.pvp-selected-skills { display: grid; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; }
+.pvp-selected-skills li, .pvp-selected-skills li > span, .pvp-selected-skills li > div { display: flex; align-items: center; }
+.pvp-selected-skills li { justify-content: space-between; gap: 12px; padding: 7px 9px; border-radius: 8px; background: #edf4e9; font-size: 11px; }
+.pvp-selected-skills li > span { gap: 8px; }
+.pvp-selected-skills li > span b { display: grid; width: 20px; height: 20px; place-items: center; border-radius: 50%; background: var(--ink); color: white; font-size: 10px; }
+.pvp-selected-skills li small { color: #567764; }
+.pvp-selected-skills li > div { gap: 5px; }
+.pvp-selected-skills button { width: 28px; height: 28px; border: 1px solid #a8b9a4; border-radius: 7px; background: white; color: var(--ink); cursor: pointer; }
+.pvp-selected-skills button:disabled { opacity: .4; cursor: not-allowed; }
+.pvp-room-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+.pvp-room-actions .primary-button, .pvp-room-actions .secondary-button { min-width: 0; padding: 11px 14px; border: 2px solid var(--ink); }
+.pvp-room-actions .pvp-cancel-button { margin-left: auto; border: 0; background: transparent; color: #775e58; }
+.pvp-error { margin: 20px 0 0; padding: 12px 14px; border: 1px solid #cb514f; border-radius: 10px; background: #fff0eb; color: #8b302c; font-size: 12px; }
+
+@media (max-width: 760px) {
+  .pvp-entry-grid, .pvp-room-layout { grid-template-columns: minmax(0, 1fr); }
+  .pvp-entry-card { min-height: 0; }
+  .pvp-room-summary { order: 0; }
+  .pvp-room-controls { order: 1; }
+  .pvp-members { grid-template-columns: minmax(0, 1fr); }
+  .pvp-member-card { min-height: 145px; }
+  .pvp-versus { justify-self: center; }
+  .pvp-skill-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 420px) {
+  .pvp-invite-code-card { align-items: flex-start; flex-direction: column; }
+  .pvp-invite-code-card > small { position: static; }
+  .pvp-picker { padding: 14px; }
+  .pvp-room-actions > button { width: 100%; justify-content: center; }
+  .pvp-room-actions .pvp-cancel-button { margin-left: 0; }
+}
