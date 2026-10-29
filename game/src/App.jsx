@@ -6,8 +6,9 @@ import { playCrowdCheer, prepareMatchAudio, startCrowdAmbience } from './game/ma
 import { startMenuMusic, stopMenuMusic } from './game/menuMusic.js';
 import { prepareAudioContext } from './game/audioContext.js';
 import { setGameAudioEnabled } from './game/audioSettings.js';
-import { createEmptyProfile, createCampaignSave, setNickname, sortLeaderboard, updateBestRecord } from './storage/localProfile.js';
+import { createEmptyProfile, createCampaignSave, readProfile, setNickname, sortLeaderboard, updateBestRecord, writeProfile } from './storage/localProfile.js';
 import { beginEntraLogin, beginEntraLogout, getProfileApiToken } from './auth/entraAuth.js';
+import { isLocalDevelopmentMode } from './auth/localDevelopment.js';
 import { loadCloudProfile, saveCloudProfile } from './storage/profileRepository.js';
 import LeaderboardScreen from './components/LeaderboardScreen.jsx';
 import ResultsScreen from './components/ResultsScreen.jsx';
@@ -19,6 +20,7 @@ import StageSelectScreen from './components/StageSelectScreen.jsx';
 import TeamCustomizationScreen from './components/TeamCustomizationScreen.jsx';
 
 const GameScreen = lazy(() => import('./components/GameScreen.jsx'));
+const LOCAL_DEVELOPMENT_ACCOUNT = Object.freeze({ name: '로컬 테스트', username: 'local-test' });
 
 function createSkillPreviewCampaign(skillId) {
   if (!SKILL_IDS.includes(skillId)) return null;
@@ -33,15 +35,18 @@ function createSkillPreviewCampaign(skillId) {
 }
 
 export default function App({ authBootstrap = {} }) {
-  const account = authBootstrap.account ?? null;
+  const localDevelopmentMode = isLocalDevelopmentMode(import.meta.env);
+  const account = localDevelopmentMode
+    ? LOCAL_DEVELOPMENT_ACCOUNT
+    : authBootstrap.account ?? null;
   const tenantId = import.meta.env.VITE_ENTRA_TENANT_ID?.trim();
-  const accountIsAuthenticated = Boolean(account
+  const accountIsAuthenticated = localDevelopmentMode || Boolean(account
     && tenantId
     && account.idTokenClaims?.tid === tenantId
     && typeof account.idTokenClaims?.oid === 'string'
     && account.idTokenClaims.oid.length > 0);
-  const [profile, setProfile] = useState(createEmptyProfile);
-  const [profileLoading, setProfileLoading] = useState(accountIsAuthenticated);
+  const [profile, setProfile] = useState(() => localDevelopmentMode ? readProfile() : createEmptyProfile());
+  const [profileLoading, setProfileLoading] = useState(accountIsAuthenticated && !localDevelopmentMode);
   const [profileLoadError, setProfileLoadError] = useState('');
   const [profileLoginRequired, setProfileLoginRequired] = useState(false);
   const [profileRetry, setProfileRetry] = useState(0);
@@ -92,7 +97,7 @@ export default function App({ authBootstrap = {} }) {
   });
 
   useEffect(() => {
-    if (!accountIsAuthenticated) return undefined;
+    if (!accountIsAuthenticated || localDevelopmentMode) return undefined;
     let cancelled = false;
     setProfileLoading(true);
     setProfileLoadError('');
@@ -117,13 +122,25 @@ export default function App({ authBootstrap = {} }) {
         setProfileLoading(false);
       });
     return () => { cancelled = true; };
-  }, [accountIsAuthenticated, account, profileRetry]);
+  }, [accountIsAuthenticated, account, localDevelopmentMode, profileRetry]);
 
   const saveProfile = (nextProfile) => {
     setProfile(nextProfile);
     pendingProfileRef.current = nextProfile;
     setProfileError('');
     setProfileErrorStatus(0);
+    if (localDevelopmentMode) {
+      try {
+        const saved = writeProfile(nextProfile);
+        pendingProfileRef.current = null;
+        setProfile(saved);
+        return Promise.resolve(saved);
+      } catch (error) {
+        setProfileError(error.message || '로컬 프로필을 저장하지 못했습니다.');
+        setProfileErrorStatus(0);
+        return Promise.reject(error);
+      }
+    }
     const save = saveQueueRef.current.catch(() => undefined).then(() => saveCloudProfile({
       account,
       profile: nextProfile,
@@ -357,6 +374,7 @@ export default function App({ authBootstrap = {} }) {
   };
 
   const records = sortLeaderboard(profile.bestRecord ? [profile.bestRecord] : []);
+  const accountDisplayName = localDevelopmentMode ? '로컬 테스트' : account?.name || account?.username || '';
 
   if (!accountIsAuthenticated) {
     return (
@@ -391,8 +409,8 @@ export default function App({ authBootstrap = {} }) {
           <span className="brand-mark" aria-hidden="true">D</span><span>DEX ARCADE</span>
         </a>
         <div className="account-control">
-          <span className="account-name" title={account.username}>{account.name || account.username}</span>
-          <button className="account-signout" type="button" onClick={signOut}>로그아웃</button>
+          <span className="account-name" title={accountDisplayName}>{accountDisplayName}</span>
+          {!localDevelopmentMode && <button className="account-signout" type="button" onClick={signOut}>로그아웃</button>}
         </div>
       </header>
 
