@@ -10,6 +10,7 @@ export default function Match3DGame({ initialState, paused, onGameEvents, onStat
   const previousPausedRef = useRef(paused);
   const canvasContainerRef = useRef(null);
   const [focused, setFocused] = useState(false);
+  const campaignSelectionCue = true;
 
   if (initialStateRef.current !== initialState) {
     initialStateRef.current = initialState;
@@ -36,6 +37,7 @@ export default function Match3DGame({ initialState, paused, onGameEvents, onStat
       containerRef={canvasContainerRef}
       ball={initialState.ball}
       selectedPlayerId={initialState.controlledPlayerId}
+      campaignSelectionCue={campaignSelectionCue}
       actorsRef={actorsRef}
       gameStateRef={gameStateRef}
       crowdReactionRef={crowdReactionRef}
@@ -54,6 +56,7 @@ export default function Match3DGame({ initialState, paused, onGameEvents, onStat
         actorsRef={actorsRef}
         gameStateRef={gameStateRef}
         crowdReactionRef={crowdReactionRef}
+        campaignSelectionCue={campaignSelectionCue}
       />
     </Match3DCanvas>
   );
