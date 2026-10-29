@@ -6,6 +6,7 @@ import { getPlayerFacingYaw } from '../game/playerOrientation.js';
 import { playCrowdCheer } from '../game/matchAudio.js';
 import { playSkillAudio, prepareSkillAudio } from '../game/skillAudio.js';
 import { stepGame } from '../game/stepGame.js';
+import { didControlledPlayerChange, getSelectionPulseScale } from '../game/playerSelectionPresentation.js';
 import { createPvpInputBuffer, serializeInputFrame } from '../pvp/pvpInput.js';
 
 function worldX(x) {
@@ -26,6 +27,7 @@ export function GameLoop3D({
   gameStateRef: sharedGameStateRef,
   crowdReactionRef,
   simulationMode = 'local',
+  campaignSelectionCue = false,
   localTeam = 'home',
   remoteInputRef,
   snapshotRef,
@@ -33,6 +35,8 @@ export function GameLoop3D({
   onLocalInput,
 }) {
   const localGameStateRef = useRef(structuredClone(initialState));
+  const previousControlledPlayerIdRef = useRef(initialState.controlledPlayerId ?? null);
+  const selectionPulseElapsedSecondsRef = useRef(null);
   const gameStateRef = sharedGameStateRef ?? localGameStateRef;
   const initialStateRef = useRef(initialState);
   const inputRef = useRef(null);
@@ -47,6 +51,8 @@ export function GameLoop3D({
   if (initialStateRef.current !== initialState) {
     initialStateRef.current = initialState;
     gameStateRef.current = structuredClone(initialState);
+    previousControlledPlayerIdRef.current = initialState.controlledPlayerId ?? null;
+    selectionPulseElapsedSecondsRef.current = null;
     framesSinceSnapshotRef.current = 0;
     remoteTerminalSentRef.current = false;
   }
@@ -130,6 +136,18 @@ export function GameLoop3D({
     } else if (simulationMode !== 'remote') {
       events = stepGame(state, inputRef.current?.readFrame(), simulationDelta);
     }
+    if (campaignSelectionCue) {
+      const selectedPlayerId = state.controlledPlayerId ?? null;
+      if (didControlledPlayerChange(previousControlledPlayerIdRef.current, selectedPlayerId)) {
+        selectionPulseElapsedSecondsRef.current = 0;
+      }
+      previousControlledPlayerIdRef.current = selectedPlayerId;
+      if (selectionPulseElapsedSecondsRef.current !== null) {
+        selectionPulseElapsedSecondsRef.current = Math.min(0.8,
+          selectionPulseElapsedSecondsRef.current + Math.max(0, Number.isFinite(delta) ? delta : 0));
+        if (selectionPulseElapsedSecondsRef.current >= 0.8) selectionPulseElapsedSecondsRef.current = null;
+      }
+    }
     const crowdReaction = crowdReactionRef?.current;
     if (crowdReaction) {
       crowdReaction.elapsedSeconds += simulationDelta;
@@ -172,8 +190,10 @@ export function GameLoop3D({
       if (marker) {
         const selectedId = simulationMode === 'local' ? state.controlledPlayerId
           : state.controlledPlayerIds?.[localTeam] ?? (localTeam === 'home' ? state.controlledPlayerId : null);
-        marker.visible = !player.dismissed && player.id === selectedId;
-        marker.position.y = 0.035;
+        const isSelected = !player.dismissed && player.id === selectedId;
+        marker.visible = isSelected;
+        marker.scale.setScalar(isSelected && campaignSelectionCue && selectionPulseElapsedSecondsRef.current !== null
+          ? getSelectionPulseScale(selectionPulseElapsedSecondsRef.current) : 1);
       }
     }
 
