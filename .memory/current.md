@@ -1,13 +1,17 @@
-# Current Context
+﻿# Current Context
 
 ## Active Plan
-[Football PvP Invite Matches - implementation complete](./plans/2026-10-29-football-pvp-invite.md)
+[Campaign Goal-Kick and Loose-Ball AI](./plans/2026-10-29-campaign-goal-kick-and-loose-ball-ai.md)
 
 ## Active Phase
-[P03 Hosting Operations - complete](./phases/2026-10-29-football-pvp-invite/P03-hosting-operations/phase.md)
+[P01 Campaign Match AI](./phases/2026-10-29-campaign-goal-kick-and-loose-ball-ai/P01-campaign-match-ai/phase.md)
+
 ## Active Task
-[All planned implementation tasks complete](./phases/2026-10-29-football-pvp-invite/P03-hosting-operations/T02-azure-webpubsub-runbook.md)
+[T02 Goal-Kick Positioning](./phases/2026-10-29-campaign-goal-kick-and-loose-ball-ai/P01-campaign-match-ai/T02-goal-kick-positioning.md)
+
 ## Status
-- P01, P02, and P03 implementation tasks done; production provisioning and smoke check are operator-run per the runbook
+- T01 Stage 1 Opponent Tuning is complete and committed; T02 is ready to start.
+- Full stepGame test command has three failures reproduced on baseline commit e6312ed; see T01 validation notes.
+
 ## Next Step (IMPORTANT)
-Operator reviews the documented what-if output, deploys approved Azure resources, configures Static Web App API settings, and runs the two-browser production smoke check.
+Read T02's blueprint and implement campaign goal-kick receiver lanes and opposing-player spacing in `game/src/game/stepGame.js` and `game/src/game/stepGame.test.js`.

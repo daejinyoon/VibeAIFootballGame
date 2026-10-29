@@ -1300,7 +1300,7 @@ function controlBallAction(state, controlled, input) {
   return handleHomeAttack(state, controlled, input);
 }
 
-function updateSupportPlayer(state, player, deltaSeconds) {
+function updateSupportPlayer(state, player, deltaSeconds, { pvpMode = false } = {}) {
   player.aiRetargetSeconds = Math.max(0, (player.aiRetargetSeconds ?? 0) - deltaSeconds);
   const targetIsValid = player.aiTarget
     && Number.isFinite(player.aiTarget.x)
@@ -1308,8 +1308,8 @@ function updateSupportPlayer(state, player, deltaSeconds) {
 
   if (!targetIsValid || player.aiRetargetSeconds <= 0) {
     const ballCarrier = carrier(state);
-    player.aiTarget = targetForRole(state, player, state.possessionTeam, state.ball, ballCarrier);
-    player.aiRetargetSeconds = getAiTuning(state.stage).thinkIntervalSeconds;
+    player.aiTarget = targetForRole(state, player, state.possessionTeam, state.ball, ballCarrier, { pvpMode });
+    player.aiRetargetSeconds = getAiTuning(state.stage, { team: player.team, pvpMode }).thinkIntervalSeconds;
   }
 
   moveToward(player, player.aiTarget, AI_SPEED, deltaSeconds);
@@ -1334,7 +1334,7 @@ function updateHomeSupportAi(state, controlled, deltaSeconds) {
       player.aiRetargetSeconds = Math.max(0, (player.aiRetargetSeconds ?? 0) - deltaSeconds);
       if (!player.aiTarget || player.aiRetargetSeconds <= 0) {
         player.aiTarget = homeSupportTarget(state, player, ballCarrier, player.id === shortOutletId);
-        player.aiRetargetSeconds = getAiTuning(state.stage).thinkIntervalSeconds;
+        player.aiRetargetSeconds = getAiTuning(state.stage, { team: 'home' }).thinkIntervalSeconds;
       }
       moveToward(player, player.aiTarget, AI_SPEED, deltaSeconds);
     } else {
@@ -1346,7 +1346,7 @@ function updateHomeSupportAi(state, controlled, deltaSeconds) {
 function homeSupportTarget(state, player, ballCarrier, isShortOutlet) {
   const carrierIsAboveCenter = ballCarrier.y < FIELD.height / 2;
   const shortLane = carrierIsAboveCenter ? 1 : -1;
-  const supportRadius = getAiTuning(state.stage).teammateSupportRadius;
+  const supportRadius = getAiTuning(state.stage, { team: 'home' }).teammateSupportRadius;
   const defensiveLine = Math.max(...activePlayers(state, 'away')
     .filter((candidate) => candidate.role !== 'goalkeeper')
     .map((candidate) => candidate.x), ballCarrier.x + 90);
@@ -1406,7 +1406,7 @@ function updateAwayDefense(state, deltaSeconds, events, defendingTeam = 'away', 
       }
     }
   }
-  const tuning = getAiTuning(state.stage);
+  const tuning = getAiTuning(state.stage, { team: defendingTeam });
   const pressingDistance = tuning.pressingDistance;
   let presser = eligible.find((player) => player.id === state.aiPressingPlayerId) ?? null;
   if (carrierChanged || !presser) {
@@ -1579,7 +1579,7 @@ function assignMarks(defenders, attackers) {
   return assignments;
 }
 
-function targetForRole(state, player, possessionTeam, ball, ballCarrier) {
+function targetForRole(state, player, possessionTeam, ball, ballCarrier, { pvpMode = false } = {}) {
   if (player.role === 'goalkeeper') {
     const x = player.team === 'home' ? 48 : FIELD.width - 48;
     return { x, y: clamp(ball.y, FIELD.height / 2 - 72, FIELD.height / 2 + 72) };
@@ -1592,7 +1592,7 @@ function targetForRole(state, player, possessionTeam, ball, ballCarrier) {
     y: FIELD.height / 2,
   };
   if (possessionTeam === player.team && ballCarrier) {
-    const supportRadius = getAiTuning(state.stage).teammateSupportRadius;
+    const supportRadius = getAiTuning(state.stage, { team: player.team, pvpMode }).teammateSupportRadius;
     const laneSide = player.y < FIELD.height / 2 ? -1 : 1;
     const roleAdvance = player.role === 'defender' ? -70 : player.role === 'midfielder' ? 70 : supportRadius * 0.72;
     const laneOffset = player.role === 'defender' ? 72 : player.role === 'midfielder' ? supportRadius * 0.45 : 58;
@@ -1695,13 +1695,13 @@ function updateAi(state, controlled, input, deltaSeconds, events) {
       const range = distance(player, goal);
       if (range <= 180 && shotCanReachGoal(player) && (state.aiShotCooldownSeconds ?? 0) <= 0) {
         events.push(...releaseShot(state, player));
-        state.aiShotCooldownSeconds = getAiTuning(state.stage).thinkIntervalSeconds;
+        state.aiShotCooldownSeconds = getAiTuning(state.stage, { team: 'away' }).thinkIntervalSeconds;
       } else {
         const pass = (state.aiShotCooldownSeconds ?? 0) <= 0 ? chooseAiPass(state, player) : null;
         if (pass) {
           const action = pass.kind === 'groundPass' ? 'groundPass' : 'lobPass';
           events.push(...releasePass(state, player, action, pass.receiver));
-          state.aiShotCooldownSeconds = getAiTuning(state.stage).thinkIntervalSeconds;
+          state.aiShotCooldownSeconds = getAiTuning(state.stage, { team: 'away' }).thinkIntervalSeconds;
         } else {
           const hasNearbyDefender = activePlayers(state, 'home')
             .some((candidate) => candidate.role !== 'goalkeeper' && distance(candidate, player) <= 26);
@@ -2127,7 +2127,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
     for (const player of state.players) {
       if (player.dismissed || player.role === 'goalkeeper' || player.id === state.ball.ownerId
           || Object.values(state.controlledPlayerIds).includes(player.id)) continue;
-      updateSupportPlayer(state, player, dt);
+      updateSupportPlayer(state, player, dt, { pvpMode: true });
     }
     for (const team of ['home', 'away']) {
       const keeper = activePlayers(state, team).find((player) => player.role === 'goalkeeper');

@@ -52,7 +52,14 @@ const AI_TUNING = Object.freeze([
   Object.freeze({ thinkIntervalSeconds: 0.45, teammateSupportRadius: 210, pressingDistance: 170 }),
 ]);
 
-export function getAiTuning(stage) {
+const STAGE_ONE_OPPONENT_TUNING = Object.freeze({
+  thinkIntervalSeconds: 0.94,
+  teammateSupportRadius: 125,
+  pressingDistance: 104,
+});
+
+export function getAiTuning(stage, { team = 'home', pvpMode = false } = {}) {
   const safeStage = Number.isInteger(stage) ? Math.min(5, Math.max(1, stage)) : 1;
+  if (safeStage === 1 && team === 'away' && !pvpMode) return STAGE_ONE_OPPONENT_TUNING;
   return AI_TUNING[safeStage - 1];
 }
