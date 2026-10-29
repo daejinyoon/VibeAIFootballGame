@@ -2087,6 +2087,73 @@ test('AI difficulty tuning rises steadily from stage one through the boss', () =
       && entry.thinkIntervalSeconds < tuning[index - 1].thinkIntervalSeconds)));
 });
 
+test('stage-one tuning increases campaign opponent pressure without changing home or PvP tuning', () => {
+  assert.deepEqual(getAiTuning(1), {
+    thinkIntervalSeconds: 1,
+    teammateSupportRadius: 125,
+    pressingDistance: 95,
+  });
+  assert.deepEqual(getAiTuning(1, { team: 'away' }), {
+    thinkIntervalSeconds: 0.94,
+    teammateSupportRadius: 125,
+    pressingDistance: 104,
+  });
+  assert.deepEqual(getAiTuning(1, { team: 'home' }), getAiTuning(1));
+  assert.deepEqual(getAiTuning(1, { team: 'away', pvpMode: true }), getAiTuning(1));
+  for (const stage of [2, 3, 4, 5]) {
+    assert.deepEqual(getAiTuning(stage, { team: 'away' }), getAiTuning(stage));
+  }
+
+  const homeState = createInitialGameState();
+  const homeSupporter = homeState.players.find((player) => player.id === 'home-mid-1');
+  homeState.ball.ownerId = 'home-fw';
+  homeState.possessionTeam = 'home';
+  homeSupporter.aiTarget = null;
+  homeSupporter.aiRetargetSeconds = 0;
+  stepGame(homeState, frame(), 0.05);
+  assert.equal(homeSupporter.aiRetargetSeconds, 1);
+
+  const awayState = createInitialGameState();
+  const awaySupporter = awayState.players.find((player) => player.id === 'away-mid-1');
+  awayState.ball.ownerId = 'away-fw';
+  awayState.possessionTeam = 'away';
+  awayState.aiShotCooldownSeconds = 10;
+  awaySupporter.aiTarget = null;
+  awaySupporter.aiRetargetSeconds = 0;
+  stepGame(awayState, frame(), 0.05);
+  assert.equal(awaySupporter.aiRetargetSeconds, 0.94);
+
+  const pvpState = createInitialGameState();
+  const pvpAwaySupporter = pvpState.players.find((player) => player.id === 'away-mid-1');
+  pvpAwaySupporter.aiTarget = null;
+  pvpAwaySupporter.aiRetargetSeconds = 0;
+  stepGame(pvpState, { home: frame(), away: frame() }, 0.05, { controlledTeams: ['home', 'away'] });
+  assert.equal(pvpAwaySupporter.aiRetargetSeconds, 1);
+});
+
+test('stage-one campaign opponents press from the adjusted 104-unit distance', () => {
+  const state = createInitialGameState();
+  const carrier = state.players.find((player) => player.id === 'home-fw');
+  const presser = state.players.find((player) => player.id === 'away-def-1');
+  Object.assign(carrier, { x: 400, y: 270 });
+  Object.assign(presser, { x: 500, y: 270 });
+  for (const player of state.players.filter((candidate) => candidate.team === 'away'
+      && candidate.role !== 'goalkeeper' && candidate.id !== presser.id)) {
+    Object.assign(player, { x: 850, y: 40 });
+  }
+  state.ball.ownerId = carrier.id;
+  state.ball.x = carrier.x;
+  state.ball.y = carrier.y;
+  state.possessionTeam = 'home';
+  state.aiPressingPlayerId = null;
+  state.aiObservedCarrierId = null;
+
+  stepGame(state, frame(), 0.05);
+
+  assert.equal(state.aiPressingPlayerId, presser.id);
+  assert.ok(presser.x < 500);
+});
+
 test('the stage-five boss presses from farther away than a regular opponent', () => {
   const makeState = (stage) => {
     const state = createInitialGameState({ stage });

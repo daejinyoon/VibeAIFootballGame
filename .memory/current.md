@@ -1,20 +1,17 @@
-# Current Context
+﻿# Current Context
 
 ## Active Plan
-[Desktop Responsive Layout](./plans/2026-10-27-desktop-responsive-layout.md)
+[Campaign Goal-Kick and Loose-Ball AI](./plans/2026-10-29-campaign-goal-kick-and-loose-ball-ai.md)
 
 ## Active Phase
-[P01 Desktop Responsive UI](./phases/2026-10-27-desktop-responsive-layout/P01-desktop-responsive-ui/phase.md)
+[P01 Campaign Match AI](./phases/2026-10-29-campaign-goal-kick-and-loose-ball-ai/P01-campaign-match-ai/phase.md)
 
 ## Active Task
-None — all Tasks in this plan are complete.
+[T02 Goal-Kick Positioning](./phases/2026-10-29-campaign-goal-kick-and-loose-ball-ai/P01-campaign-match-ai/T02-goal-kick-positioning.md)
 
 ## Status
-- T01 desktop shell and menu layouts completed and committed as `d71054a`.
-- T02 match viewport and HUD layout completed and committed as `3d06d05`.
-- T03 unused legacy CSS cleanup completed and committed as `bc9a879`.
-- T04 camera framing correction completed and committed as `5e1ff8b`.
-- All four Tasks in P01 are implemented and the live React components pass desktop layout checks. Authenticated end-to-end checks remain outstanding.
+- T01 Stage 1 Opponent Tuning is complete and committed; T02 is ready to start.
+- Full stepGame test command has three failures reproduced on baseline commit e6312ed; see T01 validation notes.
 
 ## Next Step (IMPORTANT)
-With a signed-in Entra browser session, start a match in the complete app and repeat a resize, pause/resume, HUD, audio, and scrolling check before deployment.
+Read T02's blueprint and implement campaign goal-kick receiver lanes and opposing-player spacing in `game/src/game/stepGame.js` and `game/src/game/stepGame.test.js`.
