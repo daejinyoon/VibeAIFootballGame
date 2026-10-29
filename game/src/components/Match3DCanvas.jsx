@@ -4,6 +4,7 @@ import { FootballBall3D } from './FootballBall3D.jsx';
 import { FootballPitch3D } from './FootballPitch3D.jsx';
 import { FootballPlayer3D } from './FootballPlayer3D.jsx';
 import { PlayerMotionEffects3D } from './PlayerMotionEffects3D.jsx';
+import { PlayerSelectionEdgeIndicator } from './PlayerSelectionEdgeIndicator.jsx';
 import { SkillEffects3D } from './SkillEffects3D.jsx';
 import { StadiumBackdrop3D } from './StadiumBackdrop3D.jsx';
 import { TrackingCamera3D } from './TrackingCamera3D.jsx';
@@ -162,7 +163,7 @@ export default function Match3DCanvas({
             <directionalLight position={[-8, 16, 7]} color="#fff6d8" intensity={1.55} castShadow />
             <StadiumBackdrop3D crowdReactionRef={crowdReactionRef} />
             <FootballPitch3D />
-            <TrackingCamera3D ball={ball} gameStateRef={gameStateRef} />
+            <TrackingCamera3D ball={ball} gameStateRef={gameStateRef} actorsRef={actorsRef} />
             {players.map((player) => (
               <FootballPlayer3D key={player.id} player={player} selected={player.id === selectedPlayerId} actorsRef={actorsRef} gameStateRef={gameStateRef} teamBranding={teamBranding} paused={paused} campaignSelectionCue={campaignSelectionCue} />
             ))}
@@ -175,6 +176,7 @@ export default function Match3DCanvas({
           </Canvas>
         </RendererErrorBoundary>
       )}
+      <PlayerSelectionEdgeIndicator actorsRef={actorsRef} enabled={campaignSelectionCue} paused={paused} />
       {rendererStatus !== 'ready' && <RendererStatus status={rendererStatus} />}
     </div>
   );

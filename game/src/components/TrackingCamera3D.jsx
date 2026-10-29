@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { MathUtils, Vector3 } from 'three';
 import { FIELD } from '../game/constants.js';
@@ -10,12 +10,20 @@ const ELEVATION_RADIANS = MathUtils.degToRad(36);
 const WORLD_SCALE = 80;
 const worldX = (x) => x / WORLD_SCALE - FIELD.width / (2 * WORLD_SCALE);
 
-export function TrackingCamera3D({ ball, gameStateRef }) {
+export function TrackingCamera3D({ ball, gameStateRef, actorsRef }) {
   const { camera, size } = useThree();
   const zone = useRef('center');
   const lookTarget = useRef(new Vector3(0, 0.12, 0));
   const desiredPosition = useRef(new Vector3(0, 8, 11));
   const nextTarget = useRef(new Vector3());
+
+  useEffect(() => {
+    if (!actorsRef?.current) return undefined;
+    actorsRef.current.camera = camera;
+    return () => {
+      if (actorsRef.current?.camera === camera) actorsRef.current.camera = null;
+    };
+  }, [actorsRef, camera]);
 
   useFrame((_, delta) => {
     const gameState = gameStateRef?.current;
