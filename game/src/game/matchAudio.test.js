@@ -40,14 +40,22 @@ test('crowd cheers prepare safely and replay with kickoff/goal volumes', async (
 
     globalThis.window = { Audio: AudioMock, AudioContext: AudioContextMock };
     prepareMatchAudio();
-    assert.equal(calls.loads, 2);
+    assert.equal(calls.loads, 6);
     assert.equal(calls.resumes, 1);
     const crowdAudio = audioInstances.find((audio) => audio.src === '/audio/crowd-cheering.mp3');
     const ambienceAudio = audioInstances.find((audio) => audio.src === '/audio/crowd-ambience.mp3');
+    const ceremonyAudio = audioInstances.find((audio) => audio.src === '/audio/celebrations/siuuu.mp3');
+    const takeTheLAudio = audioInstances.find((audio) => audio.src === '/audio/celebrations/take-the-l.mp3');
+    const slickbackAudio = audioInstances.find((audio) => audio.src === '/audio/celebrations/slickback-a-pimp-named-slickback.mp3');
+    const rkoAudio = audioInstances.find((audio) => audio.src === '/audio/celebrations/rko.mp3');
     assert.equal(crowdAudio.preload, 'auto');
     assert.equal(ambienceAudio.preload, 'auto');
     assert.equal(ambienceAudio.loop, true);
     assert.equal(ambienceAudio.volume, 0.16);
+    assert.equal(ceremonyAudio.preload, 'auto');
+    assert.equal(takeTheLAudio.preload, 'auto');
+    assert.equal(slickbackAudio.preload, 'auto');
+    assert.equal(rkoAudio.preload, 'auto');
 
     assert.equal(await startCrowdAmbience(), true);
     assert.equal(calls.plays[0].volume, 0.16);

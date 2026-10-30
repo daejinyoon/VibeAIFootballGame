@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { FIELD } from '../game/constants.js';
 import { createInputController } from '../game/createInputController.js';
 import { getPlayerFacingYaw } from '../game/playerOrientation.js';
-import { playCrowdCheer } from '../game/matchAudio.js';
+import { playCrowdCheer, playGoalCelebrationAudio } from '../game/matchAudio.js';
 import { playSkillAudio, prepareSkillAudio } from '../game/skillAudio.js';
 import { stepGame } from '../game/stepGame.js';
 import { didControlledPlayerChange, getSelectionPulseScale } from '../game/playerSelectionPresentation.js';
@@ -189,6 +189,7 @@ export function GameLoop3D({
     for (const event of events) {
       if (event.type === 'skillUsed' && !event.automatic) playSkillAudio(event.skillId);
       if (event.type === 'kickoff' || event.type === 'goal') void playCrowdCheer(event.type);
+      if (event.type === 'goalCelebrationStarted') void playGoalCelebrationAudio(event.ceremonyId);
       if (event.type === 'goal' && crowdReactionRef) {
         crowdReactionRef.current = { elapsedSeconds: 0, durationSeconds: 1.8 };
       }
