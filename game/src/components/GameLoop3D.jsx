@@ -127,6 +127,9 @@ export function GameLoop3D({
     }
     const presentationScale = state.skillCutIn ? 0.4 : 1;
     const simulationDelta = Math.min(delta, 0.05) * presentationScale;
+    const previousPlayerPositions = simulationMode === 'remote' ? null : new Map(
+      state.players.map((player) => [player.id, { x: player.x, y: player.y }]),
+    );
     let events = [];
     if (simulationMode === 'host') {
       const localInput = inputRef.current?.readFrame() ?? { moveX: 0, moveY: 0, down: new Set(), pressed: new Set(), released: new Set() };
@@ -135,6 +138,17 @@ export function GameLoop3D({
       events = stepGame(state, frames, simulationDelta, { controlledTeams: ['home', 'away'] });
     } else if (simulationMode !== 'remote') {
       events = stepGame(state, inputRef.current?.readFrame(), simulationDelta);
+    }
+    if (previousPlayerPositions) {
+      for (const player of state.players) {
+        const previous = previousPlayerPositions.get(player.id);
+        const validPositions = previous
+          && [previous.x, previous.y, player.x, player.y].every(Number.isFinite);
+        const movementSpeed = validPositions && simulationDelta > 0
+          ? Math.hypot(player.x - previous.x, player.y - previous.y) / simulationDelta
+          : 0;
+        player.renderMovementSpeed = Number.isFinite(movementSpeed) ? movementSpeed : 0;
+      }
     }
     if (campaignSelectionCue) {
       const selectedPlayerId = state.controlledPlayerId ?? null;
