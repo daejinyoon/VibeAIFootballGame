@@ -11,6 +11,7 @@ import {
 test('lists the five ceremony IDs and labels in picker order', () => {
   assert.deepEqual(GOAL_CELEBRATION_IDS, ['siuuu', 'moonwalk', 'takeTheL', 'slickback', 'rko']);
   assert.deepEqual(GOAL_CELEBRATION_OPTIONS.map(({ id }) => id), GOAL_CELEBRATION_IDS);
+  assert.deepEqual(GOAL_CELEBRATION_OPTIONS.map(({ label }) => label), ['SIUUU', '문워크', 'L을 가져가', '슬릭백', 'RKO']);
 });
 
 test('normalizes missing and malformed settings to a fresh random default', () => {

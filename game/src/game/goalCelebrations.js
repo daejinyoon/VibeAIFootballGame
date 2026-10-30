@@ -45,3 +45,25 @@ export function selectGoalCelebrationId(value, random = Math.random) {
     : 0;
   return GOAL_CELEBRATION_IDS[Math.floor(boundedSample * GOAL_CELEBRATION_IDS.length)];
 }
+
+export function assignRkoRoles(participantIds, random = Math.random) {
+  if (!Array.isArray(participantIds) || participantIds.length !== 3
+      || new Set(participantIds).size !== 3
+      || participantIds.some((id) => typeof id !== 'string' || !id)) return null;
+
+  const shuffled = [...participantIds];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const sample = Number(random());
+    const boundedSample = Number.isFinite(sample)
+      ? Math.min(0.999999, Math.max(0, sample))
+      : 0;
+    const swapIndex = Math.floor(boundedSample * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+
+  return {
+    targetId: shuffled[0],
+    strikerId: shuffled[1],
+    finisherId: shuffled[2],
+  };
+}

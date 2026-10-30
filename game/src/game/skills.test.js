@@ -205,6 +205,30 @@ test('Eagle Shot launches one, two, or three angled eagles and awards one point 
   }
 });
 
+test('level-three campaign Eagle Shot starts one celebration after the full volley', () => {
+  const state = createInitialGameState({
+    teamSkillDeck: teamDeck('eagleShot', 3),
+    goalCelebrationId: 'rko',
+  });
+  carrier(state);
+  Object.assign(state.players.find((player) => player.id === 'away-gk'), { x: 900, y: 270 });
+  assert.equal(activateNextTeamSkill(state, 'home', 'home-fw').ok, true);
+
+  const events = [];
+  for (let frameIndex = 0; frameIndex < 100 && state.phase === 'playing'; frameIndex += 1) {
+    events.push(...stepGame(state, frame(), 0.05, { random: () => 0 }));
+  }
+
+  assert.equal(state.score.home, 3);
+  assert.equal(events.filter(({ type, skillId }) => type === 'goal' && skillId === 'eagleShot').length, 3);
+  const ceremonies = events.filter(({ type }) => type === 'goalCelebrationStarted');
+  assert.equal(ceremonies.length, 1);
+  assert.equal(ceremonies[0].points, 3);
+  assert.equal(ceremonies[0].ceremonyId, 'rko');
+  assert.equal(state.goalCelebration.elapsedSeconds, 0);
+  assert.equal(state.phaseSeconds, 3);
+});
+
 test('away Eagle Shot is the 180-degree field-center rotation of the home cycloid', () => {
   const homeState = createInitialGameState();
   const awayState = createInitialGameState();
