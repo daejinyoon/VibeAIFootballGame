@@ -69,7 +69,19 @@ export function GameLoop3D({
     }
     const presentationScale = state.skillCutIn ? 0.4 : 1;
     const simulationDelta = Math.min(delta, 0.05) * presentationScale;
+    const previousPlayerPositions = new Map(
+      state.players.map((player) => [player.id, { x: player.x, y: player.y }]),
+    );
     const events = stepGame(state, inputRef.current?.readFrame(), simulationDelta);
+    for (const player of state.players) {
+      const previous = previousPlayerPositions.get(player.id);
+      const validPositions = previous
+        && [previous.x, previous.y, player.x, player.y].every(Number.isFinite);
+      const movementSpeed = validPositions && simulationDelta > 0
+        ? Math.hypot(player.x - previous.x, player.y - previous.y) / simulationDelta
+        : 0;
+      player.renderMovementSpeed = Number.isFinite(movementSpeed) ? movementSpeed : 0;
+    }
     if (campaignSelectionCue) {
       const selectedPlayerId = state.controlledPlayerId ?? null;
       actorsRef.current.selectedPlayerId = selectedPlayerId;

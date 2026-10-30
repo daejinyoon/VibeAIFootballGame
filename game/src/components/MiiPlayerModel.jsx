@@ -75,7 +75,9 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
     if (paused) return;
     const livePlayer = gameStateRef?.current?.players?.find((candidate) => candidate.id === player?.id) ?? player;
     if (!livePlayer) return;
-    const speed = Math.hypot(livePlayer.vx ?? 0, livePlayer.vy ?? 0);
+    const velocitySpeed = Math.hypot(livePlayer.vx ?? 0, livePlayer.vy ?? 0);
+    const speed = pose === 'cutIn' ? velocitySpeed
+      : (Number.isFinite(livePlayer.renderMovementSpeed) ? livePlayer.renderMovementSpeed : 0);
     const moving = speed > 3 && ['run', 'tackle'].includes(livePlayer.motionAction);
     const ownsBall = gameStateRef?.current?.ball?.ownerId === livePlayer.id;
     const action = livePlayer.motionAction;
