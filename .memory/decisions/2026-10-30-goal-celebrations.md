@@ -47,9 +47,9 @@
 - The user will define any additional original ceremonies later; no extra ceremony names or motions are assumed here.
 
 ## D09. Ceremony audio
-- **Chosen**: Use user-supplied audio for local play only; do not deploy or redistribute the clips. Moonwalk is silent. The RKO file contains both the slam and commentary:
+- **Chosen**: Use the four user-supplied clips in the deployable game. The user confirms they have rights to reproduce and distribute them. Moonwalk is silent. The RKO file contains both the slam and commentary:
   - `SIUUU`: the genuine `SIUUU` shout.
   - `슬릭백`: the supplied Slickback track.
   - `L을 가져가`: the supplied Take the L audio.
   - `RKO`: one supplied clip with the slam effect and WWE commentary shouting `RKO!`.
-- **Rationale**: The user wants recognizable local audio for personal play and supplies the clips.
+- **Rationale**: The user confirmed deployment rights and wants the ceremonies to use these recognizable sounds.

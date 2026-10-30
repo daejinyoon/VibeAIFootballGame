@@ -5,8 +5,9 @@ import { GOAL_CELEBRATION_IDS } from './goalCelebrations.js';
 
 const POSE_FIELDS = [
   'torsoPitch', 'torsoRoll', 'headPitch', 'leftArmPitch', 'rightArmPitch',
-  'leftArmRoll', 'rightArmRoll', 'leftLegPitch', 'rightLegPitch',
-  'rootLift', 'rootGlide', 'rootYaw',
+  'leftArmRoll', 'rightArmRoll', 'leftElbowPitch', 'rightElbowPitch',
+  'leftLegPitch', 'rightLegPitch', 'leftFootPitch', 'rightFootPitch',
+  'rootLift', 'rootGlide', 'rootYaw', 'rootPitch',
 ];
 
 test('every ceremony returns a complete finite pose through its three-second timeline', () => {
@@ -15,6 +16,11 @@ test('every ceremony returns a complete finite pose through its three-second tim
       const pose = getGoalCelebrationPose(ceremonyId, time);
       assert.deepEqual(Object.keys(pose).sort(), [...POSE_FIELDS].sort(), `${ceremonyId} at ${time}s`);
       assert.ok(Object.values(pose).every(Number.isFinite), `${ceremonyId} at ${time}s is finite`);
+      assert.equal(pose.leftElbowPitch, 0, `${ceremonyId} left elbow default at ${time}s`);
+      assert.equal(pose.rightElbowPitch, 0, `${ceremonyId} right elbow default at ${time}s`);
+      assert.equal(pose.leftFootPitch, 0, `${ceremonyId} left foot default at ${time}s`);
+      assert.equal(pose.rightFootPitch, 0, `${ceremonyId} right foot default at ${time}s`);
+      assert.equal(pose.rootPitch, 0, `${ceremonyId} body pitch default at ${time}s`);
     }
   }
 });

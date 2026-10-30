@@ -58,8 +58,12 @@ function Hair({ style, color }) {
 export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1, paused = false, kit, logoId = 'dex', isKeeper = false }) {
   const leftArm = useRef(null);
   const rightArm = useRef(null);
+  const leftForearm = useRef(null);
+  const rightForearm = useRef(null);
   const leftLeg = useRef(null);
   const rightLeg = useRef(null);
+  const leftFoot = useRef(null);
+  const rightFoot = useRef(null);
   const torso = useRef(null);
   const head = useRef(null);
   const body = useRef(null);
@@ -89,14 +93,18 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
         // Write every touched transform each frame so no run, keeper, or prior dance pose leaks through.
         if (leftArm.current) leftArm.current.rotation.set(ceremonyPose.leftArmPitch, 0, ceremonyPose.leftArmRoll);
         if (rightArm.current) rightArm.current.rotation.set(ceremonyPose.rightArmPitch, 0, ceremonyPose.rightArmRoll);
+        if (leftForearm.current) leftForearm.current.rotation.set(ceremonyPose.leftElbowPitch, 0, 0);
+        if (rightForearm.current) rightForearm.current.rotation.set(ceremonyPose.rightElbowPitch, 0, 0);
         if (leftLeg.current) {
           leftLeg.current.rotation.set(ceremonyPose.leftLegPitch, 0, 0);
           leftLeg.current.position.y = 0.22;
         }
+        if (leftFoot.current) leftFoot.current.rotation.set(ceremonyPose.leftFootPitch, 0, 0);
         if (rightLeg.current) {
           rightLeg.current.rotation.set(ceremonyPose.rightLegPitch, 0, 0);
           rightLeg.current.position.y = 0.22;
         }
+        if (rightFoot.current) rightFoot.current.rotation.set(ceremonyPose.rightFootPitch, 0, 0);
         if (torso.current) {
           torso.current.position.set(0, 0.31, 0);
           torso.current.rotation.set(ceremonyPose.torsoPitch, 0, 0);
@@ -104,7 +112,7 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
         if (head.current) head.current.rotation.set(ceremonyPose.headPitch, 0, 0);
         if (body.current) {
           body.current.position.set(0, ceremonyPose.rootLift, ceremonyPose.rootGlide);
-          body.current.rotation.set(0, ceremonyPose.rootYaw, ceremonyPose.torsoRoll);
+          body.current.rotation.set(ceremonyPose.rootPitch, ceremonyPose.rootYaw, ceremonyPose.torsoRoll);
         }
         return;
       }
@@ -112,14 +120,18 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
     // Restore the model's neutral rig before ordinary animation writes its active joints.
     if (leftArm.current) leftArm.current.rotation.set(0, 0, -0.15);
     if (rightArm.current) rightArm.current.rotation.set(0, 0, 0.15);
+    if (leftForearm.current) leftForearm.current.rotation.set(0, 0, 0);
+    if (rightForearm.current) rightForearm.current.rotation.set(0, 0, 0);
     if (leftLeg.current) {
       leftLeg.current.rotation.set(0, 0, 0);
       leftLeg.current.position.y = 0.22;
     }
+    if (leftFoot.current) leftFoot.current.rotation.set(0, 0, 0);
     if (rightLeg.current) {
       rightLeg.current.rotation.set(0, 0, 0);
       rightLeg.current.position.y = 0.22;
     }
+    if (rightFoot.current) rightFoot.current.rotation.set(0, 0, 0);
     if (torso.current) {
       torso.current.position.set(0, 0.31, 0);
       torso.current.rotation.set(0, 0, 0);
@@ -269,33 +281,43 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
       </group>
 
       <group ref={leftArm} position={[-0.17, 0.39, 0]} rotation={[0, 0, -0.15]}>
-        <LimbMesh color={kit.jersey} length={0.18} radius={0.043} />
-        <mesh position={[0, -0.19, 0.015]}>
-          <sphereGeometry args={[0.052, 10, 8]} />
-          <meshStandardMaterial key={`hand-${isKeeper ? kit.glove : variant.skin}`} color={isKeeper ? kit.glove : variant.skin} roughness={0.68} />
-        </mesh>
+        <LimbMesh color={kit.jersey} length={0.14} radius={0.043} />
+        <group ref={leftForearm} position={[0, -0.135, 0.012]}>
+          <LimbMesh color={kit.jersey} length={0.14} radius={0.039} />
+          <mesh position={[0, -0.145, 0.018]}>
+            <sphereGeometry args={[0.052, 10, 8]} />
+            <meshStandardMaterial key={`hand-${isKeeper ? kit.glove : variant.skin}`} color={isKeeper ? kit.glove : variant.skin} roughness={0.68} />
+          </mesh>
+        </group>
       </group>
       <group ref={rightArm} position={[0.17, 0.39, 0]} rotation={[0, 0, 0.15]}>
-        <LimbMesh color={kit.jersey} length={0.18} radius={0.043} />
-        <mesh position={[0, -0.19, 0.015]}>
-          <sphereGeometry args={[0.052, 10, 8]} />
-          <meshStandardMaterial key={`hand-${isKeeper ? kit.glove : variant.skin}`} color={isKeeper ? kit.glove : variant.skin} roughness={0.68} />
-        </mesh>
+        <LimbMesh color={kit.jersey} length={0.14} radius={0.043} />
+        <group ref={rightForearm} position={[0, -0.135, 0.012]}>
+          <LimbMesh color={kit.jersey} length={0.14} radius={0.039} />
+          <mesh position={[0, -0.145, 0.018]}>
+            <sphereGeometry args={[0.052, 10, 8]} />
+            <meshStandardMaterial key={`hand-${isKeeper ? kit.glove : variant.skin}`} color={isKeeper ? kit.glove : variant.skin} roughness={0.68} />
+          </mesh>
+        </group>
       </group>
 
       <group ref={leftLeg} position={[-0.07, 0.22, 0]}>
         <LimbMesh color={kit.shorts} length={0.16} radius={0.042} />
-        <mesh position={[0, -0.18, 0.035]}>
-          <boxGeometry args={[0.09, 0.055, 0.17]} />
-          <meshStandardMaterial key={`boots-${kit.boots}`} color={kit.boots} roughness={0.45} />
-        </mesh>
+        <group ref={leftFoot} position={[0, -0.18, 0.035]}>
+          <mesh>
+            <boxGeometry args={[0.09, 0.055, 0.17]} />
+            <meshStandardMaterial key={`boots-${kit.boots}`} color={kit.boots} roughness={0.45} />
+          </mesh>
+        </group>
       </group>
       <group ref={rightLeg} position={[0.07, 0.22, 0]}>
         <LimbMesh color={kit.shorts} length={0.16} radius={0.042} />
-        <mesh position={[0, -0.18, 0.035]}>
-          <boxGeometry args={[0.09, 0.055, 0.17]} />
-          <meshStandardMaterial key={`boots-${kit.boots}`} color={kit.boots} roughness={0.45} />
-        </mesh>
+        <group ref={rightFoot} position={[0, -0.18, 0.035]}>
+          <mesh>
+            <boxGeometry args={[0.09, 0.055, 0.17]} />
+            <meshStandardMaterial key={`boots-${kit.boots}`} color={kit.boots} roughness={0.45} />
+          </mesh>
+        </group>
       </group>
 
       <group ref={head}>

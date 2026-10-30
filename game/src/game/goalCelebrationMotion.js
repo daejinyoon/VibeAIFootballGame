@@ -17,11 +17,16 @@ function neutralPose() {
     rightArmPitch: 0,
     leftArmRoll: 0,
     rightArmRoll: 0,
+    leftElbowPitch: 0,
+    rightElbowPitch: 0,
     leftLegPitch: 0,
     rightLegPitch: 0,
+    leftFootPitch: 0,
+    rightFootPitch: 0,
     rootLift: 0,
     rootGlide: 0,
     rootYaw: 0,
+    rootPitch: 0,
   };
 }
 
