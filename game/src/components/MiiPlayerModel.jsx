@@ -283,8 +283,8 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
       <group ref={leftArm} position={[-0.17, 0.39, 0]} rotation={[0, 0, -0.15]}>
         <LimbMesh color={kit.jersey} length={0.14} radius={0.043} />
         <group ref={leftForearm} position={[0, -0.135, 0.012]}>
-          <LimbMesh color={kit.jersey} length={0.14} radius={0.039} />
-          <mesh position={[0, -0.145, 0.018]}>
+          <LimbMesh color={kit.jersey} length={0.12} radius={0.039} />
+          <mesh position={[0, -0.08, 0.018]}>
             <sphereGeometry args={[0.052, 10, 8]} />
             <meshStandardMaterial key={`hand-${isKeeper ? kit.glove : variant.skin}`} color={isKeeper ? kit.glove : variant.skin} roughness={0.68} />
           </mesh>
@@ -293,8 +293,8 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
       <group ref={rightArm} position={[0.17, 0.39, 0]} rotation={[0, 0, 0.15]}>
         <LimbMesh color={kit.jersey} length={0.14} radius={0.043} />
         <group ref={rightForearm} position={[0, -0.135, 0.012]}>
-          <LimbMesh color={kit.jersey} length={0.14} radius={0.039} />
-          <mesh position={[0, -0.145, 0.018]}>
+          <LimbMesh color={kit.jersey} length={0.12} radius={0.039} />
+          <mesh position={[0, -0.08, 0.018]}>
             <sphereGeometry args={[0.052, 10, 8]} />
             <meshStandardMaterial key={`hand-${isKeeper ? kit.glove : variant.skin}`} color={isKeeper ? kit.glove : variant.skin} roughness={0.68} />
           </mesh>

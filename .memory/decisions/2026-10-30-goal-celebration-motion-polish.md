@@ -13,7 +13,7 @@
 
 ## D03. Choreography landmarks
 - **Chosen**:
-  - SIUUU: anticipation, jump, half-turn, landing, arms-wide hold.
+  - SIUUU: anticipation, jump and turn toward the camera-facing side, arms-wide landing and hold.
   - Moonwalk: smooth backward glide with alternating toe/heel foot articulation.
   - Take the L: raised L-shaped arm gesture by the head, counterposed arm, and a clear bouncing step.
   - Slickback: alternating lifted-foot shuffle, visible glide, and upper-body counter-sway.
