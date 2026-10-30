@@ -12,7 +12,7 @@ function createMemoryStorage() {
   };
 }
 
-test('cloud profile save and subsequent load preserve the selected team customization', async (t) => {
+test('cloud profile save and subsequent load preserve customization and ceremony selection', async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
   const requests = [];
@@ -29,12 +29,15 @@ test('cloud profile save and subsequent load preserve the selected team customiz
   const storage = createMemoryStorage();
   const account = { idTokenClaims: { tid: 'tenant-guid', oid: 'user-guid' } };
   const customization = { logoId: 'google', paletteId: 'royal-gold' };
-  const savedProfile = { ...createEmptyProfile(), teamCustomization: customization };
+  const goalCelebration = { mode: 'specific', ceremonyId: 'moonwalk' };
+  const savedProfile = { ...createEmptyProfile(), teamCustomization: customization, goalCelebration };
 
   await saveCloudProfile({ account, profile: savedProfile, acquireToken: async () => 'test-token', storage });
   assert.deepEqual(JSON.parse(requests[0].body).profile.teamCustomization, customization);
+  assert.deepEqual(JSON.parse(requests[0].body).profile.goalCelebration, goalCelebration);
 
   const loaded = await loadCloudProfile({ account, acquireToken: async () => 'test-token', storage });
   assert.deepEqual(loaded.profile.teamCustomization, customization);
+  assert.deepEqual(loaded.profile.goalCelebration, goalCelebration);
   assert.equal(loaded.synced, true);
 });
