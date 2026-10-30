@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import { SRGBColorSpace, TextureLoader } from 'three';
 import { LOGO_OPTIONS } from '../game/teamBranding.js';
+import { getGoalCelebrationPose } from '../game/goalCelebrationMotion.js';
 
 const FACE_VARIANTS = [
   { skin: '#f2c49b', hair: '#3b3029', hairStyle: 0, eyeColor: '#293c48' },
@@ -75,6 +76,59 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
     if (paused) return;
     const livePlayer = gameStateRef?.current?.players?.find((candidate) => candidate.id === player?.id) ?? player;
     if (!livePlayer) return;
+    const celebration = gameStateRef?.current?.goalCelebration;
+    if (!isKeeper && celebration?.participantIds?.includes(livePlayer.id)) {
+      const roles = celebration.rkoRoles;
+      const role = roles
+        ? roles.targetId === livePlayer.id ? 'target'
+          : roles.strikerId === livePlayer.id ? 'striker'
+            : roles.finisherId === livePlayer.id ? 'finisher' : 'striker'
+        : null;
+      const ceremonyPose = getGoalCelebrationPose(celebration.ceremonyId, celebration.elapsedSeconds, role);
+      if (ceremonyPose) {
+        // Write every touched transform each frame so no run, keeper, or prior dance pose leaks through.
+        if (leftArm.current) leftArm.current.rotation.set(ceremonyPose.leftArmPitch, 0, ceremonyPose.leftArmRoll);
+        if (rightArm.current) rightArm.current.rotation.set(ceremonyPose.rightArmPitch, 0, ceremonyPose.rightArmRoll);
+        if (leftLeg.current) {
+          leftLeg.current.rotation.set(ceremonyPose.leftLegPitch, 0, 0);
+          leftLeg.current.position.y = 0.22;
+        }
+        if (rightLeg.current) {
+          rightLeg.current.rotation.set(ceremonyPose.rightLegPitch, 0, 0);
+          rightLeg.current.position.y = 0.22;
+        }
+        if (torso.current) {
+          torso.current.position.set(0, 0.31, 0);
+          torso.current.rotation.set(ceremonyPose.torsoPitch, 0, 0);
+        }
+        if (head.current) head.current.rotation.set(ceremonyPose.headPitch, 0, 0);
+        if (body.current) {
+          body.current.position.set(0, ceremonyPose.rootLift, ceremonyPose.rootGlide);
+          body.current.rotation.set(0, ceremonyPose.rootYaw, ceremonyPose.torsoRoll);
+        }
+        return;
+      }
+    }
+    // Restore the model's neutral rig before ordinary animation writes its active joints.
+    if (leftArm.current) leftArm.current.rotation.set(0, 0, -0.15);
+    if (rightArm.current) rightArm.current.rotation.set(0, 0, 0.15);
+    if (leftLeg.current) {
+      leftLeg.current.rotation.set(0, 0, 0);
+      leftLeg.current.position.y = 0.22;
+    }
+    if (rightLeg.current) {
+      rightLeg.current.rotation.set(0, 0, 0);
+      rightLeg.current.position.y = 0.22;
+    }
+    if (torso.current) {
+      torso.current.position.set(0, 0.31, 0);
+      torso.current.rotation.set(0, 0, 0);
+    }
+    if (head.current) head.current.rotation.set(0, 0, 0);
+    if (body.current) {
+      body.current.position.set(0, 0, 0);
+      body.current.rotation.set(0, 0, 0);
+    }
     const velocitySpeed = Math.hypot(livePlayer.vx ?? 0, livePlayer.vy ?? 0);
     const speed = pose === 'cutIn' ? velocitySpeed
       : (Number.isFinite(livePlayer.renderMovementSpeed) ? livePlayer.renderMovementSpeed : 0);
