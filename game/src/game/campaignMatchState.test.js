@@ -4,6 +4,7 @@ import { createCampaignMatchState } from './campaignMatchState.js';
 import { getPlayerKit } from './playerKit.js';
 import { createCampaign } from './campaign.js';
 import { DEFAULT_TEAM_CUSTOMIZATION, getTeamBranding } from './teamBranding.js';
+import { GOAL_CELEBRATION_IDS } from './goalCelebrations.js';
 
 test('campaign match carries the selected logo and palette to every home role, preserving stage rivals', () => {
   const campaign = createCampaign(() => 0.25);
@@ -75,4 +76,26 @@ test('Vacuum Cleaner preview releases the ball and moves it into the preview pos
   assert.deepEqual({ x: state.ball.x, y: state.ball.y, ownerId: state.ball.ownerId, possessionTeam: state.possessionTeam }, {
     x: 610, y: 225, ownerId: null, possessionTeam: null,
   });
+});
+
+test('campaign match resolves a random ceremony once and retains that ID for the match', () => {
+  const campaign = createCampaign(() => 0.25);
+  let calls = 0;
+  const state = createCampaignMatchState(campaign, undefined, { mode: 'random' }, () => {
+    calls += 1;
+    return 0.81;
+  });
+
+  assert.equal(state.goalCelebrationId, GOAL_CELEBRATION_IDS[4]);
+  assert.equal(calls, 1);
+  assert.equal(state.goalCelebration, null);
+});
+
+test('campaign match uses a specific ceremony without drawing randomness', () => {
+  const campaign = createCampaign(() => 0.25);
+  const state = createCampaignMatchState(campaign, undefined, { mode: 'specific', ceremonyId: 'moonwalk' }, () => {
+    throw new Error('specific mode must not draw randomness');
+  });
+
+  assert.equal(state.goalCelebrationId, 'moonwalk');
 });

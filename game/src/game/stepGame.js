@@ -26,6 +26,7 @@ import {
   SPRINT_STAMINA_MAX
 } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
+import { assignRkoRoles } from './goalCelebrations.js';
 import { addSkillEffect, activateNextTeamSkill, spawnNextEagleProjectile } from './skills.js';
 
 const PLAYER_SPEED = 176;
@@ -566,12 +567,73 @@ function clearSkillVfxState(state) {
   delete state.ball.scoreValue;
 }
 
-function scoreGoal(state, scoringTeam) {
+function beginGoalCelebration(state, scoringTeam, points, random = Math.random) {
+  const participants = state.players
+    .filter((player) => player.team === scoringTeam && player.role !== 'goalkeeper' && !player.dismissed)
+    .slice(0, 3);
+  const participantIds = participants.map((player) => player.id);
+  const rkoRoles = state.goalCelebrationId === 'rko'
+    ? assignRkoRoles(participantIds, random)
+    : null;
+  const center = participants.length
+    ? participants.reduce((total, player) => ({ x: total.x + player.x, y: total.y + player.y }), { x: 0, y: 0 })
+    : { x: FIELD.width / 2, y: FIELD.height / 2 };
+  const centerX = clamp(center.x / Math.max(1, participants.length), 0, FIELD.width);
+  const centerY = clamp(center.y / Math.max(1, participants.length), 0, FIELD.height);
+  const attackDirection = scoringTeam === 'home' ? 1 : -1;
+  const roleSlots = rkoRoles
+    ? [
+      [rkoRoles.targetId, 0],
+      [rkoRoles.strikerId, -24 * attackDirection],
+      [rkoRoles.finisherId, 24 * attackDirection],
+    ]
+    : participants.map((player, index) => [player.id, (index - (participants.length - 1) / 2) * 24 * attackDirection]);
+
+  for (const [playerId, offsetX] of roleSlots) {
+    const player = participants.find((candidate) => candidate.id === playerId);
+    if (!player) continue;
+    player.x = clamp(centerX + offsetX, 0, FIELD.width);
+    player.y = centerY;
+    player.vx = 0;
+    player.vy = 0;
+    player.facingX = attackDirection;
+    player.facingY = 0;
+  }
+
+  state.restart = null;
+  state.pendingKickoffTeam = scoringTeam === 'home' ? 'away' : 'home';
+  state.phase = 'goalPause';
+  state.phaseSeconds = 3;
+  state.goalCelebration = {
+    ceremonyId: state.goalCelebrationId,
+    team: scoringTeam,
+    elapsedSeconds: 0,
+    durationSeconds: 3,
+    participantIds,
+    rkoRoles,
+    finishMatchAfter: state.overtimeRemainingSeconds !== null,
+  };
+
+  return [{
+    type: 'goalCelebrationStarted',
+    team: scoringTeam,
+    ceremonyId: state.goalCelebrationId,
+    points,
+    participantIds,
+    rkoRoles,
+  }];
+}
+
+function scoreGoal(state, scoringTeam, random = Math.random) {
   clearSkillVfxState(state);
   const points = 1;
   state.score[scoringTeam] += points;
   state.restart = null;
   const event = { type: 'goal', team: scoringTeam, points, score: { ...state.score } };
+
+  if (state.goalCelebrationId) {
+    return [event, ...beginGoalCelebration(state, scoringTeam, points, random)];
+  }
 
   if (state.overtimeRemainingSeconds !== null) {
     return [event, ...finishMatch(state)];
@@ -888,19 +950,19 @@ function restartGoalKick(state, restartTeam, { pvpMode = false } = {}) {
   return beginManualRestart(state, 'goalKick', restartTeam, spot, { pvpMode });
 }
 
-function checkBallBoundary(state, { pvpMode = false } = {}) {
+function checkBallBoundary(state, { pvpMode = false, random = Math.random } = {}) {
   const { ball } = state;
   if (ball.x - BALL_RADIUS > FIELD.width
       && ball.y - BALL_RADIUS >= FIELD.goalTop
       && ball.y + BALL_RADIUS <= FIELD.goalBottom
       && (ball.height ?? 0) <= GOAL_CROSSBAR_HEIGHT) {
-    return scoreGoal(state, 'home');
+    return scoreGoal(state, 'home', random);
   }
   if (ball.x + BALL_RADIUS < 0
       && ball.y - BALL_RADIUS >= FIELD.goalTop
       && ball.y + BALL_RADIUS <= FIELD.goalBottom
       && (ball.height ?? 0) <= GOAL_CROSSBAR_HEIGHT) {
-    return scoreGoal(state, 'away');
+    return scoreGoal(state, 'away', random);
   }
 
   const lastTouchTeam = ['home', 'away'].includes(ball.lastTouchTeam) ? ball.lastTouchTeam : null;
@@ -926,7 +988,7 @@ function checkBallBoundary(state, { pvpMode = false } = {}) {
   return [];
 }
 
-function finishEagleVolley(state, volley, { pvpMode = false } = {}) {
+function finishEagleVolley(state, volley, { pvpMode = false, random = Math.random } = {}) {
   const ball = state.ball;
   const finalProjectile = state.skillProjectiles.at(-1);
   const lastPosition = volley.lastPosition ?? finalProjectile ?? { x: ball.x, y: ball.y };
@@ -951,6 +1013,9 @@ function finishEagleVolley(state, volley, { pvpMode = false } = {}) {
     ball.x = FIELD.width / 2;
     ball.y = FIELD.height / 2;
     state.restart = null;
+    if (state.goalCelebrationId) {
+      return beginGoalCelebration(state, volley.team, volley.points, random);
+    }
     if (state.overtimeRemainingSeconds !== null) return finishMatch(state);
     state.phase = 'goalPause';
     state.phaseSeconds = 1;
@@ -962,11 +1027,11 @@ function finishEagleVolley(state, volley, { pvpMode = false } = {}) {
   ball.y = clamp(lastPosition.y, -BALL_RADIUS - 1, FIELD.height + BALL_RADIUS + 1);
   ball.lastTouchTeam = volley.team;
   state.possessionTeam = volley.team;
-  if (lastOutcome === 'missed') return checkBallBoundary(state, { pvpMode });
+  if (lastOutcome === 'missed') return checkBallBoundary(state, { pvpMode, random });
   return [];
 }
 
-function advanceEagleVolley(state, deltaSeconds, { pvpMode = false } = {}) {
+function advanceEagleVolley(state, deltaSeconds, { pvpMode = false, random = Math.random } = {}) {
   const volley = state.eagleVolley;
   if (!volley) return [];
   const events = [];
@@ -1061,7 +1126,7 @@ function advanceEagleVolley(state, deltaSeconds, { pvpMode = false } = {}) {
   }
 
   if (volley.spawned >= volley.level && volley.resolved >= volley.level) {
-    events.push(...finishEagleVolley(state, volley, { pvpMode }));
+    events.push(...finishEagleVolley(state, volley, { pvpMode, random }));
   }
   return events;
 }
@@ -2124,6 +2189,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
     ? [...new Set(options.controlledTeams.filter((team) => team === 'home' || team === 'away'))]
     : [];
   const pvpMode = controlledTeams.includes('away');
+  const random = typeof options?.random === 'function' ? options.random : Math.random;
   const teamInputs = pvpMode && inputFrame && typeof inputFrame === 'object'
     && ('home' in inputFrame || 'away' in inputFrame)
     ? Object.fromEntries(['home', 'away'].map((team) => {
@@ -2195,9 +2261,13 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
     if (state.overtimeRemainingSeconds !== null) {
       state.overtimeRemainingSeconds = Math.max(0, state.overtimeRemainingSeconds - dt);
       if (state.overtimeRemainingSeconds === 0 && state.score.home === state.score.away) {
-        state.phase = 'finished';
-        clearSkillTransientState(state);
-        return finishFrame([{ type: 'matchDraw', score: { ...state.score } }]);
+        if (state.goalCelebration) {
+          state.goalCelebration.finishMatchAfter = true;
+        } else {
+          state.phase = 'finished';
+          clearSkillTransientState(state);
+          return finishFrame([{ type: 'matchDraw', score: { ...state.score } }]);
+        }
       }
     } else {
       state.remainingSeconds = Math.max(0, state.remainingSeconds - dt);
@@ -2206,6 +2276,8 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
           state.overtimeRemainingSeconds = GOLDEN_GOAL_SECONDS;
           if (state.phase === 'playing') state.phase = 'overtime';
           events.push({ type: 'overtime' });
+        } else if (state.goalCelebration) {
+          state.goalCelebration.finishMatchAfter = true;
         } else {
           return finishFrame(finishMatch(state));
         }
@@ -2213,7 +2285,17 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
     }
   }
 
-  if (state.phase === 'goalPause') return finishFrame([...events, ...beginKickoff(state, dt)]);
+  if (state.phase === 'goalPause') {
+    if (!state.goalCelebration) return finishFrame([...events, ...beginKickoff(state, dt)]);
+    const celebration = state.goalCelebration;
+    celebration.elapsedSeconds = Math.min(celebration.durationSeconds, celebration.elapsedSeconds + dt);
+    state.phaseSeconds = Math.max(0, state.phaseSeconds - dt);
+    if (state.phaseSeconds > 1e-9) return finishFrame(events);
+    state.goalCelebration = null;
+    if (celebration.finishMatchAfter) return finishFrame([...events, ...finishMatch(state)]);
+    state.phaseSeconds = 0;
+    return finishFrame([...events, ...beginKickoff(state, 0)]);
+  }
   if (state.restart && ['throwIn', 'cornerKick', 'goalKick'].includes(state.phase)) {
     return finishFrame([...events, ...advanceManualRestart(state, input, dt, { pvpMode })]);
   }
@@ -2275,7 +2357,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
       if (keeper) updateKeeperPosition(state, team, carrier(state), dt, null);
     }
     enforceKickoffCircle(state);
-    if (state.eagleVolley) events.push(...advanceEagleVolley(state, dt, { pvpMode }));
+    if (state.eagleVolley) events.push(...advanceEagleVolley(state, dt, { pvpMode, random }));
     else if (state.vacuumEffect) events.push(...advanceVacuum(state, dt, { pvpMode }));
     else {
       const owner = carrier(state);
@@ -2288,7 +2370,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
         events.push(...integrateLooseBall(state, dt));
         events.push(...handleKeeperContact(state, previousBallPosition, { pvpMode }));
         events.push(...resolveAerialHeader(state));
-        events.push(...checkBallBoundary(state, { pvpMode }));
+        events.push(...checkBallBoundary(state, { pvpMode, random }));
         if (!['goalPause', 'goalKick', 'finished'].includes(state.phase)) events.push(...collectLooseBall(state));
       }
     }
@@ -2338,7 +2420,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
   updateLooseBallChasers(state, looseBallChasers, looseBallTarget, dt);
 
   if (state.eagleVolley) {
-    events.push(...advanceEagleVolley(state, dt, { pvpMode }));
+    events.push(...advanceEagleVolley(state, dt, { pvpMode, random }));
   } else if (state.vacuumEffect) {
     events.push(...advanceVacuum(state, dt, { pvpMode }));
   } else {
@@ -2354,7 +2436,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
       events.push(...integrateLooseBall(state, dt));
       events.push(...handleKeeperContact(state, previousBallPosition, { pvpMode }));
       events.push(...resolveAerialHeader(state));
-      events.push(...checkBallBoundary(state, { pvpMode }));
+      events.push(...checkBallBoundary(state, { pvpMode, random }));
       if (!['goalPause', 'goalKick', 'finished'].includes(state.phase)) {
         events.push(...collectLooseBall(state));
       }

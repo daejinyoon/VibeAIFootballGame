@@ -4,6 +4,7 @@ import { BALL_RADIUS, FIELD, GOAL_CROSSBAR_HEIGHT, KICKOFF_CIRCLE_RADIUS, PLAYER
 import { createInitialGameState as createGameState, getBaseFormationPositions } from './createInitialGameState.js';
 import { applySkill } from './skills.js';
 import { applyTornadoContacts, stepGame } from './stepGame.js';
+import { assignRkoRoles } from './goalCelebrations.js';
 
 const frame = ({ moveX = 0, moveY = 0, down = [], pressed = [], released = [] } = {}) => ({
   moveX,
@@ -1781,6 +1782,93 @@ test('a golden-goal score immediately finishes the stage', () => {
   assert.equal(state.phase, 'finished');
   assert.deepEqual(state.score, { home: 1, away: 0 });
   assert.ok(events.some((event) => event.type === 'matchWon'));
+});
+
+test('campaign goals stage three players and wait three seconds before kickoff while the clock runs', () => {
+  const state = createInitialGameState({ goalCelebrationId: 'rko' });
+  state.remainingSeconds = 20;
+  Object.assign(state.ball, { ownerId: null, x: FIELD.width - 1, y: 270, vx: 500, vy: 0, flightKind: 'shot', lastTouchTeam: 'home' });
+
+  const started = stepGame(state, frame(), 0.05, { random: () => 0 });
+  const event = started.find(({ type }) => type === 'goalCelebrationStarted');
+  assert.ok(event);
+  assert.equal(event.points, 1);
+  assert.equal(event.team, 'home');
+  assert.equal(event.ceremonyId, 'rko');
+  assert.equal(event.participantIds.length, 3);
+  assert.deepEqual(new Set(Object.values(event.rkoRoles)), new Set(event.participantIds));
+  assert.equal(state.goalCelebration.elapsedSeconds, 0);
+  assert.equal(state.phaseSeconds, 3);
+  assert.ok(state.remainingSeconds < 20);
+  assert.equal(state.pendingKickoffTeam, 'away');
+
+  let kickoffCount = 0;
+  for (let index = 0; index < 59; index += 1) {
+    kickoffCount += stepGame(state, frame(), 0.05).filter(({ type }) => type === 'kickoff').length;
+  }
+  assert.equal(state.phase, 'goalPause');
+  assert.ok(Math.abs(state.goalCelebration.elapsedSeconds - 2.95) < 1e-9);
+  assert.equal(kickoffCount, 0);
+  kickoffCount += stepGame(state, frame(), 0.05).filter(({ type }) => type === 'kickoff').length;
+  assert.equal(kickoffCount, 1);
+  assert.equal(state.goalCelebration, null);
+  assert.equal(state.phase, 'playing');
+});
+
+test('campaign golden goal delays the result until the celebration finishes', () => {
+  const state = createInitialGameState({ goalCelebrationId: 'siuuu' });
+  state.phase = 'overtime';
+  Object.assign(state.ball, { ownerId: null, x: FIELD.width - 1, y: 270, vx: 500, vy: 0, flightKind: 'shot', lastTouchTeam: 'home' });
+  const events = stepGame(state, frame(), 0.05);
+
+  assert.equal(state.phase, 'goalPause');
+  assert.equal(state.goalCelebration.finishMatchAfter, true);
+  assert.equal(events.some(({ type }) => type === 'matchWon'), false);
+  let results = [];
+  for (let index = 0; index < 59; index += 1) results.push(...stepGame(state, frame(), 0.05));
+  assert.equal(state.phase, 'goalPause');
+  assert.equal(results.some(({ type }) => type.startsWith('match')), false);
+  results.push(...stepGame(state, frame(), 0.05));
+  assert.equal(state.phase, 'finished');
+  assert.ok(results.some(({ type }) => type === 'matchWon'));
+  assert.equal(state.goalCelebration, null);
+});
+
+test('campaign ceremony safely uses remaining players and invalid RKO groups have no roles', () => {
+  const state = createInitialGameState({ goalCelebrationId: 'rko' });
+  state.players = state.players.filter((player) => player.team !== 'home'
+    || player.role === 'goalkeeper' || player.id === 'home-fw');
+  Object.assign(state.ball, { ownerId: null, x: FIELD.width - 1, y: 270, vx: 500, vy: 0, flightKind: 'shot', lastTouchTeam: 'home' });
+  const event = stepGame(state, frame(), 0.05, { random: () => 0 }).find(({ type }) => type === 'goalCelebrationStarted');
+
+  assert.equal(event.participantIds.length, 1);
+  assert.equal(event.rkoRoles, null);
+  assert.equal(assignRkoRoles(['a', 'a', 'c'], () => 0), null);
+  assert.equal(assignRkoRoles(['a', 'b'], () => 0), null);
+  assert.deepEqual(assignRkoRoles(['a', 'b', 'c'], () => 0), {
+    targetId: 'b', strikerId: 'c', finisherId: 'a',
+  });
+});
+
+test('regulation result waits for an active campaign ceremony to finish', () => {
+  const state = createInitialGameState({ goalCelebrationId: 'moonwalk' });
+  state.phase = 'goalPause';
+  state.phaseSeconds = 1;
+  state.goalCelebration = {
+    ceremonyId: 'moonwalk', team: 'home', elapsedSeconds: 2, durationSeconds: 3,
+    participantIds: [], rkoRoles: null, finishMatchAfter: false,
+  };
+  state.score.home = 1;
+  state.remainingSeconds = 0.01;
+  const events = stepGame(state, frame(), 0.05);
+
+  assert.equal(state.phase, 'goalPause');
+  assert.equal(state.goalCelebration.finishMatchAfter, true);
+  assert.equal(events.some(({ type }) => type === 'matchWon'), false);
+  let result = [];
+  for (let index = 0; index < 20; index += 1) result.push(...stepGame(state, frame(), 0.05));
+  assert.equal(state.phase, 'finished');
+  assert.ok(result.some(({ type }) => type === 'matchWon'));
 });
 
 test('a tied regulation timer enters golden-goal overtime; a leader wins on time', () => {

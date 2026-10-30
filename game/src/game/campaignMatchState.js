@@ -1,9 +1,18 @@
 import { createInitialGameState } from './createInitialGameState.js';
 import { applySkill } from './skills.js';
 import { getTeamBranding } from './teamBranding.js';
+import {
+  DEFAULT_GOAL_CELEBRATION_SETTINGS,
+  selectGoalCelebrationId,
+} from './goalCelebrations.js';
 
 /** Create the campaign kickoff state, including saved branding and preview setup. */
-export function createCampaignMatchState(campaign, teamCustomization) {
+export function createCampaignMatchState(
+  campaign,
+  teamCustomization,
+  goalCelebration = DEFAULT_GOAL_CELEBRATION_SETTINGS,
+  random = Math.random,
+) {
   const ownedSkills = new Map((campaign.ownedTeamSkills ?? []).map((entry) => [entry.skillId, entry]));
   const state = createInitialGameState({
     stage: campaign.currentStage,
@@ -13,6 +22,7 @@ export function createCampaignMatchState(campaign, teamCustomization) {
     opponentSkillDeck: (campaign.opponentSkillSets?.[campaign.currentStage] ?? [])
       .map((skillId) => ({ skillId, level: 1 })),
     teamBranding: getTeamBranding(campaign.currentStage, teamCustomization),
+    goalCelebrationId: selectGoalCelebrationId(goalCelebration, random),
   });
   if (campaign.isSkillPreview) {
     const skillId = campaign.ownedTeamSkills?.[0]?.skillId;

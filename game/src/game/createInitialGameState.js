@@ -77,6 +77,7 @@ export function createInitialGameState({
   teamSkillDeck = [],
   opponentSkillDeck,
   teamBranding,
+  goalCelebrationId = null,
 } = {}) {
   const safeStage = Number.isInteger(stage) && stage >= 1 && stage <= STAGE_COUNT ? stage : 1;
   const safeOpponentSkills = Array.isArray(opponentSkillIds)
@@ -115,6 +116,8 @@ export function createInitialGameState({
     stage: safeStage,
     teamBranding: teamBranding ?? getTeamBranding(safeStage),
     phase: 'playing',
+    goalCelebrationId,
+    goalCelebration: null,
     kickoffLocked: true,
     kickoffTakerId: 'home-fw',
     openingKickoffTakerId: 'home-fw',
