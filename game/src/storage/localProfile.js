@@ -8,9 +8,13 @@ import {
   validateTeamSkillLoadout,
 } from '../game/skills.js';
 import { DEFAULT_TEAM_CUSTOMIZATION, normalizeTeamCustomization } from '../game/teamBranding.js';
+import {
+  DEFAULT_GOAL_CELEBRATION_SETTINGS,
+  normalizeGoalCelebrationSettings,
+} from '../game/goalCelebrations.js';
 
 export const STORAGE_KEY = 'dex-pixel-football:v1';
-const PROFILE_VERSION = 7;
+const PROFILE_VERSION = 8;
 const REMOVED_SKILL_IDS = new Set(['rainbowReflect', 'powerTackle']);
 
 export function createEmptyProfile() {
@@ -20,6 +24,7 @@ export function createEmptyProfile() {
     campaignSave: null,
     bestRecord: null,
     teamCustomization: { ...DEFAULT_TEAM_CUSTOMIZATION },
+    goalCelebration: { ...DEFAULT_GOAL_CELEBRATION_SETTINGS },
   };
 }
 
@@ -144,6 +149,7 @@ export function migrateProfileV1(parsedProfile) {
     campaignSave: migrateLegacyCampaign(parsedProfile.campaignSave),
     bestRecord: isBestRecord(parsedProfile.bestRecord) ? { ...parsedProfile.bestRecord } : null,
     teamCustomization: { ...DEFAULT_TEAM_CUSTOMIZATION },
+    goalCelebration: { ...DEFAULT_GOAL_CELEBRATION_SETTINGS },
   };
 }
 
@@ -158,6 +164,7 @@ export function migrateProfileV2(parsedProfile) {
     campaignSave: migrateLegacyCampaign(parsedProfile.campaignSave),
     bestRecord: isBestRecord(parsedProfile.bestRecord) ? { ...parsedProfile.bestRecord } : null,
     teamCustomization: { ...DEFAULT_TEAM_CUSTOMIZATION },
+    goalCelebration: { ...DEFAULT_GOAL_CELEBRATION_SETTINGS },
   };
 }
 
@@ -172,6 +179,7 @@ export function migrateProfileV3(parsedProfile) {
     campaignSave: migrateLegacyCampaign(parsedProfile.campaignSave),
     bestRecord: isBestRecord(parsedProfile.bestRecord) ? { ...parsedProfile.bestRecord } : null,
     teamCustomization: normalizeTeamCustomization(parsedProfile.teamCustomization),
+    goalCelebration: { ...DEFAULT_GOAL_CELEBRATION_SETTINGS },
   };
 }
 
@@ -220,6 +228,7 @@ export function migrateProfileV4(parsedProfile) {
     campaignSave: migrateV4Campaign(parsedProfile.campaignSave),
     bestRecord: isBestRecord(parsedProfile.bestRecord) ? { ...parsedProfile.bestRecord } : null,
     teamCustomization: normalizeTeamCustomization(parsedProfile.teamCustomization),
+    goalCelebration: { ...DEFAULT_GOAL_CELEBRATION_SETTINGS },
   };
 }
 
@@ -267,6 +276,7 @@ export function migrateProfileV5(parsedProfile) {
     campaignSave: migrateV5Campaign(parsedProfile.campaignSave),
     bestRecord: isBestRecord(parsedProfile.bestRecord) ? { ...parsedProfile.bestRecord } : null,
     teamCustomization: normalizeTeamCustomization(parsedProfile.teamCustomization),
+    goalCelebration: { ...DEFAULT_GOAL_CELEBRATION_SETTINGS },
   };
   if (!isCampaignSave(migrated.campaignSave)) migrated.campaignSave = null;
   return migrated;
@@ -283,8 +293,25 @@ export function migrateProfileV6(parsedProfile) {
     campaignSave: migrateV6Campaign(parsedProfile.campaignSave),
     bestRecord: isBestRecord(parsedProfile.bestRecord) ? { ...parsedProfile.bestRecord } : null,
     teamCustomization: normalizeTeamCustomization(parsedProfile.teamCustomization),
+    goalCelebration: { ...DEFAULT_GOAL_CELEBRATION_SETTINGS },
   };
   if (!isCampaignSave(migrated.campaignSave)) migrated.campaignSave = null;
+  return migrated;
+}
+
+/** Adds the first saved goal-ceremony preference to a valid v7 profile. */
+export function migrateProfileV7(parsedProfile) {
+  if (!parsedProfile || parsedProfile.schemaVersion !== 7 || typeof parsedProfile.nickname !== 'string') {
+    return createEmptyProfile();
+  }
+  const migrated = {
+    schemaVersion: PROFILE_VERSION,
+    nickname: parsedProfile.nickname,
+    campaignSave: isCampaignSave(parsedProfile.campaignSave) ? parsedProfile.campaignSave : null,
+    bestRecord: isBestRecord(parsedProfile.bestRecord) ? { ...parsedProfile.bestRecord } : null,
+    teamCustomization: normalizeTeamCustomization(parsedProfile.teamCustomization),
+    goalCelebration: normalizeGoalCelebrationSettings(parsedProfile.goalCelebration),
+  };
   return migrated;
 }
 
@@ -301,6 +328,7 @@ export function readProfile(storage = getDefaultStorage()) {
     if (parsed.schemaVersion === 4) return migrateProfileV4(parsed);
     if (parsed.schemaVersion === 5) return migrateProfileV5(parsed);
     if (parsed.schemaVersion === 6) return migrateProfileV6(parsed);
+    if (parsed.schemaVersion === 7) return migrateProfileV7(parsed);
     if (parsed.schemaVersion !== PROFILE_VERSION) return createEmptyProfile();
     return {
       schemaVersion: PROFILE_VERSION,
@@ -308,6 +336,7 @@ export function readProfile(storage = getDefaultStorage()) {
       campaignSave: isCampaignSave(parsed.campaignSave) ? parsed.campaignSave : null,
       bestRecord: isBestRecord(parsed.bestRecord) ? { ...parsed.bestRecord } : null,
       teamCustomization: normalizeTeamCustomization(parsed.teamCustomization),
+      goalCelebration: normalizeGoalCelebrationSettings(parsed.goalCelebration),
     };
   } catch {
     return createEmptyProfile();
@@ -322,6 +351,7 @@ export function writeProfile(profile, storage = getDefaultStorage()) {
     campaignSave: isCampaignSave(profile?.campaignSave) ? profile.campaignSave : null,
     bestRecord: isBestRecord(profile?.bestRecord) ? { ...profile.bestRecord } : null,
     teamCustomization: normalizeTeamCustomization(profile?.teamCustomization),
+    goalCelebration: normalizeGoalCelebrationSettings(profile?.goalCelebration),
   };
   storage.setItem(STORAGE_KEY, JSON.stringify(normalized));
   return normalized;

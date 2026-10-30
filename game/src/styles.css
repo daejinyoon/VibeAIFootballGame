@@ -684,6 +684,15 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
 .kit-palette-name { overflow: hidden; max-width: 100%; color: #29495b; font-size: 11px; font-weight: 900; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .kit-palette-swatches { display: flex; width: 100%; justify-content: center; gap: 4px; }
 .kit-palette-swatches i { width: 25px; height: 12px; border: 1px solid #17364f55; border-radius: 3px; }
+.goal-ceremony-description { margin: 0 0 10px; color: #547284; font-size: 11px; line-height: 1.5; }
+.goal-ceremony-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.goal-ceremony-card { position: relative; display: flex; min-width: 0; min-height: 66px; flex-direction: column; justify-content: center; gap: 5px; padding: 10px 10px 10px 30px; border: 2px solid #b3c8cc; border-radius: 11px 4px 11px 4px; background: white; cursor: pointer; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.goal-ceremony-card:hover { transform: translateY(-2px); }
+.goal-ceremony-card.is-selected { border-color: #e95449; background: #fff9e9; box-shadow: 0 0 0 2px #ff765e44, 3px 3px 0 #15334f; }
+.goal-ceremony-card:focus-within { outline: 3px solid #338eaa; outline-offset: 3px; }
+.goal-ceremony-card input { position: absolute; top: 10px; left: 9px; width: 16px; height: 16px; margin: 0; accent-color: #e95449; }
+.goal-ceremony-name { color: #29495b; font-size: 12px; font-weight: 1000; }
+.goal-ceremony-detail { color: #6c828c; font-size: 9px; line-height: 1.35; }
 .brand-option-mark { display: grid; min-height: 33px; place-items: center; }
 .brand-option-name { overflow: hidden; max-width: 100%; color: #526d7b; font: 900 8px Consolas, monospace; letter-spacing: .06em; text-overflow: ellipsis; }
 .team-customization-preview { position: sticky; top: 18px; padding: 12px; border: 2px solid #15334f; border-radius: 17px 6px 17px 6px; background: #eaf8f7; box-shadow: 4px 5px 0 #15334f; }
@@ -762,6 +771,7 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
 @media (max-width: 420px) {
   .brand-option-grid { gap: 5px; }
   .brand-option { min-height: 80px; }
+  .goal-ceremony-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
   .team-customization-actions > div { gap: 8px; }
 }
 

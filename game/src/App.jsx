@@ -110,7 +110,7 @@ export default function App({ authBootstrap = {} }) {
         const previewCampaign = createSkillPreviewCampaign(skillId);
         if (previewCampaign) {
           setCampaign(previewCampaign);
-          setMatchState(createCampaignMatchState(previewCampaign, loadedProfile.teamCustomization));
+          setMatchState(createCampaignMatchState(previewCampaign, loadedProfile.teamCustomization, loadedProfile.goalCelebration));
           setScreen('match');
         }
         setProfileLoading(false);
@@ -187,7 +187,7 @@ export default function App({ authBootstrap = {} }) {
     void startCrowdAmbience();
     void playCrowdCheer('kickoff');
     activeMatchInstanceRef.current += 1;
-    setMatchState(createCampaignMatchState(activeCampaign, profile.teamCustomization));
+    setMatchState(createCampaignMatchState(activeCampaign, profile.teamCustomization, profile.goalCelebration));
     setScreen('match');
   };
 
@@ -220,8 +220,8 @@ export default function App({ authBootstrap = {} }) {
     setScreen('teamCustomization');
   };
 
-  const handleTeamCustomizationSave = (teamCustomization) => {
-    saveProfile({ ...profile, teamCustomization }).then(() => setScreen('start')).catch(() => undefined);
+  const handleTeamCustomizationSave = (teamCustomization, goalCelebration) => {
+    saveProfile({ ...profile, teamCustomization, goalCelebration }).then(() => setScreen('start')).catch(() => undefined);
   };
 
   const selectStage = (stage) => {
@@ -425,6 +425,7 @@ export default function App({ authBootstrap = {} }) {
       {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} onOpenTeamCustomization={openTeamCustomization} />}
       {screen === 'teamCustomization' && <TeamCustomizationScreen
         customization={profile.teamCustomization}
+        goalCelebration={profile.goalCelebration}
         onSave={handleTeamCustomizationSave}
         onBack={() => { setProfileError(''); setScreen('start'); }}
         errorMessage={profileError}
