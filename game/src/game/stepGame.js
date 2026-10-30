@@ -2183,7 +2183,8 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
     pressed: inputFrame.pressed instanceof Set ? inputFrame.pressed : new Set(),
     released: inputFrame.released instanceof Set ? inputFrame.released : new Set(),
   };
-  const random = typeof options?.random === 'function' ? options.random : Math.random;`r`n  const events = [];
+  const random = typeof options?.random === 'function' ? options.random : Math.random;
+  const events = [];
 
   if (state.phase === 'finished' || dt === 0) return events;
   const finishFrame = (frameEvents) => {
@@ -2283,7 +2284,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
   if (state.phase === 'throwIn' || state.phase === 'cornerKick') return finishFrame(events);
   if (state.phase === 'freeKick' || state.phase === 'penaltyKick') return finishFrame([...events, ...beginSetPiece(state, dt)]);
 
-  const random = typeof options?.random === 'function' ? options.random : Math.random;`r`n  updateAutomaticHomeDefender(state);
+  updateAutomaticHomeDefender(state);
   let controlled = byId(state, state.controlledPlayerId);
   if (!controlled || controlled.dismissed) {
     const availableHomePlayers = activePlayers(state, 'home').filter((player) => state.possessionTeam !== 'away'
