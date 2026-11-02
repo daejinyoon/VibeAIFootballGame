@@ -2,7 +2,7 @@
 
 ## Status: superseded
 
-This Table Storage configuration blueprint is superseded by [Cosmos DB Profile Storage](../../../../plans/2026-10-26-cosmos-profile-storage.md). Keep the Entra app registration, GitHub deployment, and Static Web App decisions that remain applicable; do not create the dedicated Table Storage account for this implementation.
+This Table Storage configuration blueprint is superseded by [Cosmos DB Profile Storage](../../../../plans/2026-10-26-cloud-profile-storage.md). Keep the Entra app registration, GitHub deployment, and Static Web App decisions that remain applicable; do not create the dedicated Table Storage account for this implementation.
 
 ## Goal
 

@@ -6,7 +6,7 @@
 The desktop match canvas occupies the expanded panel width and most usable browser height, with a readable scoreboard and minimap. The active play area remains framed when the window changes shape, while detailed skill information can scroll below the visible field.
 
 ## Decision Summary
-- Use the [desktop responsive layout decisions](../../../decisions/2026-10-27-desktop-responsive-layout.md): variable canvas aspect ratio, visible pitch and scoreboard first, secondary skills below the fold on short windows, no phone redesign.
+- Use the [desktop responsive layout decisions](../../../decisions/2026-10-27-desktop-layout.md): variable canvas aspect ratio, visible pitch and scoreboard first, secondary skills below the fold on short windows, no phone redesign.
 - T01 expands the common `.app-shell` gutters and menu panels. This Task explicitly expands `.game-panel` and match-specific descendants.
 - `TrackingCamera3D` already uses `useThree().size.width / size.height` and derives `cameraDistance` from horizontal and vertical field bounds. A resized React Three Fiber canvas updates that value, so preserve this camera behavior instead of adding another resize listener or fixed camera zoom.
 

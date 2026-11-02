@@ -6,7 +6,7 @@
 At 800x600, the live match canvas must show the center play zone without cutting off the goalkeepers at the left and right edges. Preserve the existing responsive field size, HUD, input, pause, and camera tracking behavior.
 
 ## Decision Summary
-- [D04 of the desktop responsive layout decisions](../../../decisions/2026-10-27-desktop-responsive-layout.md) requires the field and players to remain visible as the canvas aspect ratio changes.
+- [D04 of the desktop responsive layout decisions](../../../decisions/2026-10-27-desktop-layout.md) requires the field and players to remain visible as the canvas aspect ratio changes.
 - A live React `GameScreen` check at 800x600 showed both goalkeepers partly clipped. The current center-zone camera fit allows only one half of the field plus a small margin, while its minimum distance hides the error at wider ratios.
 - Extend the existing aspect-aware distance calculation to include the whole field width in the center zone. Keep the left/right zone follow logic and all other camera behavior.
 

@@ -6,7 +6,7 @@
 Every post-login menu and information screen uses nearly all available desktop browser width, fills short pages vertically, and keeps text, buttons, and cards readable at 800x600 through 3440x1440. Remove the effective 1100px desktop limit without changing the sign-in screen or the current phone layout.
 
 ## Decision Summary
-- Apply [desktop responsive layout decisions](../../../decisions/2026-10-27-desktop-responsive-layout.md): all post-login screens, modest desktop gutters, multi-column wide menus, bounded text/button growth, and no mobile-specific redesign.
+- Apply [desktop responsive layout decisions](../../../decisions/2026-10-27-desktop-layout.md): all post-login screens, modest desktop gutters, multi-column wide menus, bounded text/button growth, and no mobile-specific redesign.
 - `App.jsx` renders post-login content under `<main className="page-shell app-shell">`; `SignInScreen.jsx` also uses `.page-shell` but is outside scope. Scope new layout rules to `.app-shell`.
 - Make this a CSS-only Task. No React props, persistence, API, or game state changes are needed.
 

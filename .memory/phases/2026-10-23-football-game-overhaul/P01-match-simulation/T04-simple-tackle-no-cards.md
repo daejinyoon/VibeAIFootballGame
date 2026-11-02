@@ -6,7 +6,7 @@
 Simplify tackle outcomes to direct possession steals without foul stoppages, warnings, or dismissals.
 
 ## Decision Summary
-- Follow [Simple Tackles Without Cards](../../../../decisions/2026-10-23-simple-tackle-no-cards.md).
+- Follow [Simple Tackles Without Cards](../../../../decisions/2026-10-23-simple-tackles-no-cards.md).
 - A valid tackle inside the existing range always wins the ball and retains the existing tackle and knockdown feedback.
 - Keep the powered tackle range/effect; remove foul severity, card escalation, free-kick/penalty awards from tackle contacts, and the foul HUD notice.
 

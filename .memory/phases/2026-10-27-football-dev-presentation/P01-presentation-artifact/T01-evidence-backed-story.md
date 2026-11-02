@@ -16,11 +16,11 @@
 
 - Related Files:
   - `presentation/football-dev-talk/slide-content.json` :: `PresentationContent`, `SlideSpec`, `sourceCatalog` — 발표 문구·시간·노트·출처의 단일 원본; new
-  - `.memory/decisions/2026-10-27-football-dev-presentation.md` :: `D01`–`D09` — 사용자 확정 범위; read-only
-  - `.memory/decisions/2026-10-21-football-game.md` :: `D01`, `D03`, `D06`, `D10` — 초기 2D·6대6·3단계·React/JS 근거; read-only
-  - `.memory/decisions/2026-10-22-3d-football-game.md` :: `D02`, `D04`, `D05` — 3D 기술·카메라·공 높이·4대4·5단계 근거; read-only
+  - `.memory/decisions/2026-10-27-developer-presentation.md` :: `D01`–`D09` — 사용자 확정 범위; read-only
+  - `.memory/decisions/2026-10-21-pixel-football.md` :: `D01`, `D03`, `D06`, `D10` — 초기 2D·6대6·3단계·React/JS 근거; read-only
+  - `.memory/decisions/2026-10-22-3d-arcade-football.md` :: `D02`, `D04`, `D05` — 3D 기술·카메라·공 높이·4대4·5단계 근거; read-only
   - `.memory/phases/2026-10-27-football-beta-feedback/P01-game-stability-and-polish/T01-renderer-stability-and-input-latency.md` :: `Acceptance Criteria`, `Execution Notes` — 태클 수정과 검증 한계; read-only
-  - `.memory/decisions/2026-10-27-ydj-football-azure-target.md` :: `Decision`, `Existing app recovery` — 배포 대상 정정 및 미복구 근거; read-only
+  - `.memory/decisions/2026-10-27-azure-deployment-target.md` :: `Decision`, `Existing app recovery` — 배포 대상 정정 및 미복구 근거; read-only
   - `.agents/skills/grill-me/SKILL.md`, `.agents/skills/memory-plan/SKILL.md`, `.agents/skills/memory-execute/SKILL.md` :: 각 스킬 워크플로 — 사용 순서와 산출물 근거; read-only
   - `game/src/components/TrackingCamera3D.jsx`, `game/src/components/FootballPlayer3D.jsx`, `game/src/components/FootballBall3D.jsx`, `game/src/components/MiiPlayerModel.jsx` :: 구현 파일명과 태클 상태 코드 근거; read-only
 
@@ -75,8 +75,8 @@
 | S08 | closing | 55초 | `다음 프로젝트에도 남길 방법` — 원하는 경험을 문장으로, 결정은 파일로, 실행은 검증으로 | ① 목표 장면 설명 ② 설계 항목 확정 ③ 작은 Task로 구현 ④ 확인된 결과와 미검증 범위 분리; 질문 유도 없이 감사 인사로 종료 |
 
 #### 정확한 인용 후보
-- S03 좌측: `위에서 내려다보는 2D 탑다운 화면. PC 웹 브라우저를 우선 지원한다.` — `.memory/decisions/2026-10-21-football-game.md` D01.
-- S03 우측: `React Three Fiber와 Three.js로 실제 3D 경기장·선수·공을 렌더링한다.` — `.memory/decisions/2026-10-22-3d-football-game.md` D02.
+- S03 좌측: `위에서 내려다보는 2D 탑다운 화면. PC 웹 브라우저를 우선 지원한다.` — `.memory/decisions/2026-10-21-pixel-football.md` D01.
+- S03 우측: `React Three Fiber와 Three.js로 실제 3D 경기장·선수·공을 렌더링한다.` — `.memory/decisions/2026-10-22-3d-arcade-football.md` D02.
 - S03/S04 우측 보조: `높은 사선 중계 시점의 카메라가 공을 부드럽게 따라간다.` — 같은 문서 D02의 문장.
 - S06 짧은 코드 표시: `const sliding = (livePlayer.slideSeconds ?? 0) > 0;` — 태클 Task 청사진과 commit `1f78f26`에 기록된 수정.
 

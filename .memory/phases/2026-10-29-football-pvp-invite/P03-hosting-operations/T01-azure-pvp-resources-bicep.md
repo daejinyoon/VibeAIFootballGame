@@ -17,8 +17,8 @@ Define a repeatable, narrowly scoped deployment that creates the PvP Azure Web P
 
 - Related Files:
   - `infra/pvp/main.bicep` :: `webPubSub`, `pvpHub`, `cosmosAccount`, `footballDatabase`, `pvpContainer` — isolated infrastructure definition; new
-  - `.memory/decisions/2026-10-27-ydj-football-azure-target.md` :: approved subscription, resource group, and location — read-only
-  - `.memory/decisions/2026-10-26-cosmos-profile-storage.md` :: approved Cosmos account/database and partition boundary — read-only
+  - `.memory/decisions/2026-10-27-azure-deployment-target.md` :: approved subscription, resource group, and location — read-only
+  - `.memory/decisions/2026-10-26-cloud-profile-storage.md` :: approved Cosmos account/database and partition boundary — read-only
 - **Signatures & Types**:
   ```bicep
   targetScope = 'resourceGroup'
