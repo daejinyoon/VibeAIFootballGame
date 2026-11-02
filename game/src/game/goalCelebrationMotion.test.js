@@ -2,12 +2,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getGoalCelebrationPose } from './goalCelebrationMotion.js';
 import { GOAL_CELEBRATION_DURATION_SECONDS, GOAL_CELEBRATION_IDS } from './goalCelebrations.js';
+import {
+  PREVIEW_PLAYER_IDS,
+  PREVIEW_PLAYER_POSITIONS,
+  RKO_PREVIEW_CAMERA,
+  RKO_PREVIEW_ROLES,
+} from './goalCelebrationPreview.js';
 
 const POSE_FIELDS = [
   'torsoPitch', 'torsoRoll', 'headPitch', 'leftArmPitch', 'rightArmPitch',
   'leftArmRoll', 'rightArmRoll', 'leftElbowPitch', 'rightElbowPitch',
   'leftLegPitch', 'rightLegPitch', 'leftFootPitch', 'rightFootPitch',
-  'rootLift', 'rootGlide', 'rootYaw', 'rootPitch',
+  'rootLift', 'rootShiftX', 'rootGlide', 'rootYaw', 'rootPitch',
 ];
 
 const choreographyTime = (seconds) => seconds * GOAL_CELEBRATION_DURATION_SECONDS / 3;
@@ -67,28 +73,59 @@ test('Take the L raises a bent arm and Slickback glides out and returns', () => 
   assert.ok(Math.abs(getGoalCelebrationPose('slickback', 5).rootGlide) < 1e-9);
 });
 
-test('RKO visibly sequences the abdominal strike, bend, hook, backward fall, hold, and recovery', () => {
+test('RKO preview separates the three roles by depth and keeps the target centered', () => {
+  const { targetId, strikerId, finisherId } = RKO_PREVIEW_ROLES;
+  const [striker, target, finisher] = PREVIEW_PLAYER_POSITIONS.rko;
+
+  assert.equal(new Set([targetId, strikerId, finisherId]).size, 3);
+  assert.deepEqual(new Set([targetId, strikerId, finisherId]), new Set(PREVIEW_PLAYER_IDS));
+  assert.deepEqual(target, [0, 0, 0]);
+  assert.ok(striker[2] > target[2]);
+  assert.ok(finisher[2] < target[2]);
+  assert.notEqual(striker[2], finisher[2]);
+  assert.ok(RKO_PREVIEW_CAMERA.position[0] > 0);
+  assert.ok(RKO_PREVIEW_CAMERA.position[2] > 0);
+});
+
+test('RKO connects the abdominal hit, target bend, finisher approach, paired fall, hold, and recovery', () => {
   const strike = getGoalCelebrationPose('rko', choreographyTime(0.3), 'striker');
   const contact = getGoalCelebrationPose('rko', choreographyTime(0.35), 'target');
   const bent = getGoalCelebrationPose('rko', choreographyTime(0.75), 'target');
-  const hook = getGoalCelebrationPose('rko', choreographyTime(0.95), 'finisher');
-  const falling = getGoalCelebrationPose('rko', choreographyTime(1.3), 'target');
-  const held = getGoalCelebrationPose('rko', choreographyTime(1.7), 'target');
-  const recovering = getGoalCelebrationPose('rko', choreographyTime(2.6), 'target');
+  const approaching = getGoalCelebrationPose('rko', choreographyTime(0.95), 'finisher');
+  const hooked = getGoalCelebrationPose('rko', choreographyTime(1.1), 'finisher');
+  const falling = getGoalCelebrationPose('rko', choreographyTime(1.5), 'target');
+  const finisherFalling = getGoalCelebrationPose('rko', choreographyTime(1.5), 'finisher');
+  const held = getGoalCelebrationPose('rko', choreographyTime(1.8), 'target');
+  const finisherHeld = getGoalCelebrationPose('rko', choreographyTime(1.8), 'finisher');
+  const recovering = getGoalCelebrationPose('rko', choreographyTime(2.35), 'target');
+  const finisherRecovering = getGoalCelebrationPose('rko', choreographyTime(2.35), 'finisher');
   const recovered = getGoalCelebrationPose('rko', 5, 'target');
+  const finisherRecovered = getGoalCelebrationPose('rko', 5, 'finisher');
   const groupFallback = getGoalCelebrationPose('rko', choreographyTime(0.95), null);
 
   assert.ok(strike.rightArmPitch < -1);
   assert.ok(contact.headPitch > 0);
   assert.ok(bent.torsoPitch > 0.7);
   assert.ok(bent.leftElbowPitch < -1);
-  assert.ok(Math.abs(hook.rootYaw) > 2.5);
+  assert.ok(approaching.rootShiftX < 0);
+  assert.ok(approaching.rootGlide > 0);
+  assert.ok(Math.abs(approaching.rootYaw) < 0.5);
+  assert.ok(hooked.leftArmPitch < -0.9 && hooked.rightArmPitch < -0.8);
   assert.ok(falling.rootPitch < -0.8);
-  assert.ok(falling.rootLift > 0);
+  assert.ok(finisherFalling.rootPitch < -0.8);
+  assert.ok(Math.abs(falling.rootPitch - finisherFalling.rootPitch) < 0.01);
+  assert.ok(finisherFalling.rootShiftX < 0 && finisherFalling.rootGlide > 0);
   assert.equal(held.rootPitch, -1.38);
+  assert.equal(finisherHeld.rootPitch, -1.38);
+  assert.equal(finisherHeld.rootShiftX, -0.72);
   assert.ok(recovering.rootPitch < 0 && recovering.rootPitch > -1.38);
+  assert.ok(finisherRecovering.rootPitch < 0 && finisherRecovering.rootPitch > -1.38);
+  assert.ok(finisherRecovering.rootShiftX > -0.72 && finisherRecovering.rootShiftX < 0);
   assert.equal(recovered.rootPitch, 0);
+  assert.equal(recovered.rootShiftX, 0);
+  assert.equal(finisherRecovered.rootShiftX, 0);
   assert.equal(groupFallback.rootPitch, 0);
+  assert.equal(groupFallback.rootShiftX, 0);
   assert.ok(groupFallback.leftArmRoll < 0);
   assert.ok(groupFallback.rightArmRoll > 0);
 });
@@ -99,4 +136,11 @@ test('RKO missing role assignments use a safe group pose', () => {
   assert.ok(pose.rightArmRoll > 0);
   assert.equal(pose.torsoRoll, 0);
   assert.equal(pose.rootPitch, 0);
+  assert.equal(pose.rootShiftX, 0);
+});
+
+test('non-RKO ceremonies do not use horizontal root translation', () => {
+  for (const ceremonyId of ['siuuu', 'takeTheL', 'slickback']) {
+    assert.equal(getGoalCelebrationPose(ceremonyId, 1).rootShiftX, 0);
+  }
 });

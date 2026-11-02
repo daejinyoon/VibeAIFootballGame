@@ -111,7 +111,7 @@ export function MiiPlayerModel({ player, gameStateRef, pose = 'field', scale = 1
         }
         if (head.current) head.current.rotation.set(ceremonyPose.headPitch, 0, 0);
         if (body.current) {
-          body.current.position.set(0, ceremonyPose.rootLift, ceremonyPose.rootGlide);
+          body.current.position.set(ceremonyPose.rootShiftX ?? 0, ceremonyPose.rootLift, ceremonyPose.rootGlide);
           body.current.rotation.set(ceremonyPose.rootPitch, ceremonyPose.rootYaw, ceremonyPose.torsoRoll);
         }
         return;

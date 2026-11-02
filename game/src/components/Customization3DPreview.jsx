@@ -6,21 +6,15 @@ import {
   GOAL_CELEBRATION_IDS,
   GOAL_CELEBRATION_OPTIONS,
 } from '../game/goalCelebrations.js';
+import {
+  PREVIEW_PLAYER_IDS,
+  PREVIEW_PLAYER_POSITIONS,
+  RKO_PREVIEW_CAMERA,
+  RKO_PREVIEW_ROLES,
+} from '../game/goalCelebrationPreview.js';
 import { getPlayerKit } from '../game/playerKit.js';
 import { getTeamBranding } from '../game/teamBranding.js';
 import { MiiPlayerModel } from './MiiPlayerModel.jsx';
-
-const PREVIEW_PLAYER_IDS = Object.freeze(['preview-home-left', 'preview-home-center', 'preview-home-right']);
-const RKO_ROLES = Object.freeze({
-  targetId: PREVIEW_PLAYER_IDS[1],
-  strikerId: PREVIEW_PLAYER_IDS[0],
-  finisherId: PREVIEW_PLAYER_IDS[2],
-});
-const PREVIEW_PLAYER_POSITIONS = Object.freeze({
-  kit: [[0, 0, 0]],
-  group: [[-0.92, 0, 0], [0, 0, -0.12], [0.92, 0, 0]],
-  rko: [[-0.78, 0, -0.12], [0, 0, 0], [0.78, 0, -0.12]],
-});
 
 const ceremonyLabel = (id) => GOAL_CELEBRATION_OPTIONS.find((option) => option.id === id)?.label ?? '세리머니';
 
@@ -107,7 +101,7 @@ export function Customization3DPreview({
     participantIds,
     elapsedSeconds: 0,
     durationSeconds: GOAL_CELEBRATION_DURATION_SECONDS,
-    rkoRoles: activeCeremonyId === 'rko' ? RKO_ROLES : null,
+    rkoRoles: activeCeremonyId === 'rko' ? RKO_PREVIEW_ROLES : null,
   }), [activeCeremonyId, isKitPreview]);
   const gameStateRef = useRef(null);
   gameStateRef.current = {
@@ -131,6 +125,7 @@ export function Customization3DPreview({
   const positionSet = isKitPreview ? 'kit' : activeCeremonyId === 'rko' ? 'rko' : 'group';
   const positions = PREVIEW_PLAYER_POSITIONS[positionSet];
   const displayCount = isKitPreview ? 1 : players.length;
+  const isRkoPreview = !isKitPreview && activeCeremonyId === 'rko';
   const homeBranding = branding.home;
   const kitLabel = `${homeBranding.displayName} 로고, ${palette?.name ?? '선택된'} 유니폼 3D 미리보기`;
   const previewLabel = rotateRandom
@@ -146,11 +141,13 @@ export function Customization3DPreview({
         dpr={[1, 1.5]}
         camera={isKitPreview
           ? { position: [0, 1.02, 3.25], fov: 32 }
-          : { position: [0, 2.35, 6.8], fov: 28 }}
+          : isRkoPreview
+            ? { position: RKO_PREVIEW_CAMERA.position, fov: RKO_PREVIEW_CAMERA.fov }
+            : { position: [0, 2.35, 6.8], fov: 28 }}
         gl={{ alpha: true, antialias: true }}
         style={{ pointerEvents: 'none' }}
       >
-        <AimCamera targetY={isKitPreview ? 0.74 : 0.76} />
+        <AimCamera targetY={isRkoPreview ? RKO_PREVIEW_CAMERA.target[1] : isKitPreview ? 0.74 : 0.76} />
         <ambientLight intensity={1.55} />
         <directionalLight position={[-2.5, 4.5, 5]} color="#fff4dd" intensity={2.25} />
         <directionalLight position={[3, 2.5, -2]} color="#b6f2ff" intensity={0.55} />
