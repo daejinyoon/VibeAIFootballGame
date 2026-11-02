@@ -10,7 +10,7 @@ export const SKILL_IDS = Object.freeze([
 export const SKILLS = Object.freeze({
   eagleShot: Object.freeze({ name: '독수리슛', type: 'attack', description: '일반 골키퍼가 막을 수 없는 필살 슛', artwork: '/images/skills/eagle-shot.png' }),
   tornadoShot: Object.freeze({ name: '회오리슛', type: 'attack', description: '수비수를 휘어 지나가는 슛', artwork: '/images/skills/tornado-shot.png' }),
-  eulryongta: Object.freeze({ name: '을룡타', type: 'defense', description: '앞에 있는 상대를 최대 3명까지 5초간 기절시킴', artwork: '/images/skills/eulryongta.png' }),
+  eulryongta: Object.freeze({ name: '을용타', type: 'defense', description: '앞에 있는 상대를 최대 3명까지 5초간 기절시킴', artwork: '/images/skills/eulryongta.png' }),
   vacuumCleaner: Object.freeze({ name: '진공청소기', type: 'utility', description: '주변 공을 사용자에게 끌어옴', artwork: '/images/skills/vacuum-cleaner.png' }),
 });
 
