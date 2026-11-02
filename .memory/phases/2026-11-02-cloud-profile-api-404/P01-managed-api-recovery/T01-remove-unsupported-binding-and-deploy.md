@@ -6,7 +6,8 @@
 Allow Azure Static Web Apps managed Functions to index the profile and other HTTP functions by not registering its unsupported Web PubSub Context binding.
 
 ## Implementation
-- `game/api/src/functions/pvpRealtime.js`: remove `input` import and the `pvpEvents` registration that declares `webPubSubContext`; keep the pure upstream handler for a future standalone Functions backend.
+- `game/api/src/index.js`: do not import the real-time PvP module into the managed API app while its `WebPubSubContext` binding is unsupported.
+- `game/api/src/functions/pvpRealtime.js`: remove the `pvpEvents` registration that declares `webPubSubContext`; keep the pure handler for a future standalone Functions backend.
 - `game/PVP_AZURE_SETUP.md`: document the managed API limitation and defer the upstream callback until an external supported Functions backend is configured.
 - Keep all unrelated dirty working tree files untouched.
 
