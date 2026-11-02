@@ -85,7 +85,12 @@ test('the opening clock stays stopped until the opening taker kicks and starts o
   assert.equal(state.remainingSeconds, 60);
   assert.equal(state.hasMatchClockStarted, false);
 
-  state.players.find((player) => player.id === 'home-fw').facingX = -1;
+  const positionsBeforeAim = state.players.map(({ id, x, y }) => ({ id, x, y }));
+  stepGame(state, frame({ moveX: -1 }), 0.05);
+  assert.equal(state.kickoffLocked, true);
+  assert.equal(state.players.find((player) => player.id === 'home-fw').facingX, -1);
+  assert.deepEqual(state.players.map(({ id, x, y }) => ({ id, x, y })), positionsBeforeAim);
+
   const kickoffEvents = stepGame(state, frame({ pressed: ['s'] }), 0.05);
   assert.equal(state.hasMatchClockStarted, true);
   assert.equal(state.remainingSeconds, 60, 'the kick frame is not charged');
@@ -222,7 +227,7 @@ test('both teams wait for the opening kickoff to start the clock before using sk
   const homeKickoff = stepGame(homeState, frame({ pressed: ['s'] }), 0.05);
   assert.ok(homeKickoff.some((event) => event.type === 'pass' && event.team === 'home'));
   assert.equal(homeState.hasMatchClockStarted, true);
-  homeState.ball.ownerId = 'home-fw';
+  homeState.ball.ownerId = homeState.controlledPlayerId;
   homeState.possessionTeam = 'home';
   const homeAfterKickoff = stepGame(homeState, frame({ pressed: ['f'] }), 0.05);
   assert.ok(homeAfterKickoff.some((event) => event.type === 'skillUsed' && event.team === 'home' && event.skillId === 'eagleShot'));
@@ -431,7 +436,11 @@ test('kickoff holds every player until S kicks the ball clear', () => {
   assert.deepEqual(state.players.map(({ id, x, y }) => ({ id, x, y })), positionsBeforeInput);
 
   const kickoffEvents = stepGame(state, frame({ pressed: ['s'] }), 0.05);
-  assert.ok(kickoffEvents.some((event) => event.type === 'pass' && event.team === 'home'));
+  const kickoffPass = kickoffEvents.find((event) => event.type === 'pass' && event.team === 'home');
+  assert.ok(kickoffPass);
+  assert.equal(kickoffPass.receiverId, 'home-mid-1', 'an untargeted opening pass falls back to the nearest teammate');
+  assert.equal(state.ball.passReceiverId, 'home-mid-1');
+  assert.equal(state.controlledPlayerId, 'home-mid-1');
   assert.equal(state.kickoffLocked, false);
   assert.equal(state.kickoffTakerId, null);
 });

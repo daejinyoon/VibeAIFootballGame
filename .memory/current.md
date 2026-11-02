@@ -1,16 +1,16 @@
 # Current Context
 
 ## Active Plan
-[Readable RKO Preview Staging](./plans/2026-11-02-rko-preview-staging.md)
+[Opening Kickoff Teammate Pass](./plans/2026-11-02-opening-kickoff-teammate-pass.md)
 
 ## Active Phase
-[P01 Readable RKO](./phases/2026-11-02-rko-preview-staging/P01-readable-rko/P01-readable-rko.md)
+[P01 Kickoff Pass](./phases/2026-11-02-opening-kickoff-teammate-pass/P01-kickoff-pass/P01-kickoff-pass.md)
 
 ## Active Task
-None. All tasks in P01 are complete.
+[T01 Aim and Select Teammate](./phases/2026-11-02-opening-kickoff-teammate-pass/P01-kickoff-pass/T01-aim-and-select-teammate.md)
 
 ## Status
-- T01–T04 stage the trio, require close kick contact, land the finisher face-up and target face-down, and restore the user's preferred impact spacing. Ten motion tests and the production build pass; the existing large-chunk advisory remains.
+- Opening kickoff teammate passing is complete and committed. RKO participant spacing remains a separate follow-up awaiting the user's clarification.
 
-## Next Step
-Open the local game and review the finisher's sky-facing landing with the restored impact spacing in the team customization RKO preview.
+## Next Step (IMPORTANT)
+Resume the RKO ceremony spacing adjustment after the user clarifies whether to widen the initial formation, landing positions, or both.

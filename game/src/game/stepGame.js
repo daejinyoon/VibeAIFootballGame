@@ -215,7 +215,19 @@ function advanceLockedKickoff(state, input, teamInputs, pvpMode) {
   const takerInput = pvpMode ? teamInputs[taker.team] : input;
   const isHumanKickoff = taker.team === 'home' || pvpMode;
   if (isHumanKickoff) {
-    if (takerInput.pressed.has('s')) return releasePass(state, taker, 'groundPass');
+    if (takerInput.moveX !== 0 || takerInput.moveY !== 0) {
+      const facing = unit(takerInput.moveX, takerInput.moveY);
+      taker.facingX = facing.x;
+      taker.facingY = facing.y;
+    }
+    if (takerInput.pressed.has('s')) {
+      const receiver = chooseReceiver(state, taker, 'groundPass')
+        ?? nearestPlayer(
+          getTeammates(state, taker).filter((player) => player.role !== 'goalkeeper'),
+          taker,
+        );
+      return releasePass(state, taker, 'groundPass', receiver);
+    }
   } else {
     return releasePass(state, taker, 'groundPass');
   }
