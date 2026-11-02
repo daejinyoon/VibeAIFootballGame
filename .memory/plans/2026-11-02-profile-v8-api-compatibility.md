@@ -6,7 +6,7 @@ Allow cloud profile saves to accept the current v8 profile, including goal celeb
 ## Phases
 | Phase | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
-| P01 | `in_progress` | Update API validation and release it to Azure Static Web Apps | [P01](../phases/2026-11-02-profile-v8-api-compatibility/P01-api-schema-fix/phase.md) |
+| P01 | `done` | Update API validation and release it to Azure Static Web Apps | [P01](../phases/2026-11-02-profile-v8-api-compatibility/P01-api-schema-fix/phase.md) |
 
 ## Dependencies
 - Current frontend profile schema is v8 and includes `goalCelebration`.

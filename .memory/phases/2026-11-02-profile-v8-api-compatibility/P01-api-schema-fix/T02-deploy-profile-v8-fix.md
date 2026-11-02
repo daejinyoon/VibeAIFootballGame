@@ -1,6 +1,6 @@
 # Task: T02 Deploy Profile v8 Fix
 
-## Status: pending
+## Status: done
 
 ## Goal
 Publish the validated profile API fix to the production Azure Static Web App and confirm Azure's deployment workflow succeeds.
@@ -33,3 +33,9 @@ Publish the validated profile API fix to the production Azure Static Web App and
   Phase: P01-api-schema-fix
   Task: T02-deploy-profile-v8-fix
   ```
+
+## Progress
+- [x] T01 fix commit `563e3742fe00bf41d62d6b241f2a6db11a8477e7` was pushed to `master` from the clean deployment worktree.
+- [x] GitHub Actions run [#20](https://github.com/daejinyoon/VibeAIFootballGame/actions/runs/41372666571) completed successfully.
+- [x] Production app returned HTTP 200; `/api/profile` returned HTTP 401 without a token, as expected for the authenticated endpoint.
+- User confirmation is still useful to verify an authenticated save from their browser; no real user token/profile was used in automation.
