@@ -95,6 +95,7 @@ test('RKO folds the target and lands the finisher forward after close contact', 
   const strikerRetracting = getGoalCelebrationPose('rko', choreographyTime(0.75), 'striker');
   const bent = getGoalCelebrationPose('rko', choreographyTime(0.95), 'target');
   const approaching = getGoalCelebrationPose('rko', choreographyTime(1), 'finisher');
+  const justBeforeContact = getGoalCelebrationPose('rko', choreographyTime(1.19), 'finisher');
   const hooked = getGoalCelebrationPose('rko', choreographyTime(1.2), 'finisher');
   const leaping = getGoalCelebrationPose('rko', choreographyTime(1.4), 'finisher');
   const targetEarlySlam = getGoalCelebrationPose('rko', choreographyTime(1.25), 'target');
@@ -122,10 +123,13 @@ test('RKO folds the target and lands the finisher forward after close contact', 
   assert.ok(bent.leftElbowPitch < -1);
   assert.ok(approaching.rootShiftX < 0);
   assert.ok(approaching.rootGlide > 0);
-  assert.equal(approaching.rootPitch, -Math.PI / 2, 'the finisher faces up from the start of the RKO approach');
-  assert.equal(approaching.rootLift, 0.035);
+  assert.equal(approaching.rootPitch, 0, 'the finisher stays upright while approaching');
+  assert.equal(approaching.rootLift, 0);
   assert.ok(Math.abs(approaching.rootYaw) < 0.5);
+  assert.equal(justBeforeContact.rootPitch, 0, 'the finisher stays upright until contact');
+  assert.equal(justBeforeContact.rootLift, 0);
   assert.equal(hooked.rootPitch, -Math.PI / 2);
+  assert.equal(hooked.rootLift, 0.035);
   assert.ok(hooked.leftArmPitch < -0.9 && hooked.rightArmPitch < -0.8);
   assert.equal(leaping.rootPitch, -Math.PI / 2);
   assert.ok(leaping.rootLift > 0.3);

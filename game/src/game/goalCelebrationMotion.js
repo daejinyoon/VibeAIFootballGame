@@ -2,6 +2,7 @@ import { GOAL_CELEBRATION_DURATION_SECONDS, GOAL_CELEBRATION_IDS } from './goalC
 
 const CHOREOGRAPHY_DURATION_SECONDS = 3;
 const RKO_FINISHER_LANDING_GLIDE = 1.2;
+const RKO_FINISHER_FACE_UP_TIME = 1.2;
 const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
 const smoothstep = (value) => {
   const t = clamp(value, 0, 1);
@@ -194,8 +195,8 @@ function getRkoPose(time, role) {
         rootShiftX: -0.72 * approach,
         rootGlide: 0.48 * approach,
         rootYaw: -0.12 * approach,
-        rootPitch: -Math.PI / 2,
-        rootLift: 0.035,
+        rootPitch: time >= RKO_FINISHER_FACE_UP_TIME ? -Math.PI / 2 : 0,
+        rootLift: time >= RKO_FINISHER_FACE_UP_TIME ? 0.035 : 0,
       };
     }
     if (time < 1.75) {
