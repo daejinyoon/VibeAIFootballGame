@@ -26,7 +26,7 @@ import {
   SPRINT_STAMINA_MAX
 } from './constants.js';
 import { createInitialGameState } from './createInitialGameState.js';
-import { assignRkoRoles } from './goalCelebrations.js';
+import { assignRkoRoles, GOAL_CELEBRATION_DURATION_SECONDS } from './goalCelebrations.js';
 import { addSkillEffect, activateNextTeamSkill, spawnNextEagleProjectile } from './skills.js';
 
 const PLAYER_SPEED = 176;
@@ -175,16 +175,17 @@ function enforceKickoffCircle(state) {
   const center = { x: FIELD.width / 2, y: FIELD.height / 2 };
   for (const player of state.players) {
     if (player.dismissed || player.id === state.kickoffTakerId) continue;
+    const halfLineMargin = PLAYER_BODY_WIDTH / 2;
+    player.x = player.team === 'home'
+      ? clamp(player.x, halfLineMargin, center.x - halfLineMargin)
+      : clamp(player.x, center.x + halfLineMargin, FIELD.width - halfLineMargin);
     const dx = player.x - center.x;
     const dy = player.y - center.y;
     const radius = Math.hypot(dx, dy);
     if (radius >= KICKOFF_CIRCLE_RADIUS) continue;
-    const fallbackX = player.team === state.possessionTeam
-      ? (player.team === 'home' ? -1 : 1)
-      : (player.team === 'home' ? 1 : -1);
-    const direction = radius > 0.001 ? { x: dx / radius, y: dy / radius } : { x: fallbackX, y: 0 };
-    player.x = clamp(center.x + direction.x * KICKOFF_CIRCLE_RADIUS, 0, FIELD.width);
-    player.y = clamp(center.y + direction.y * KICKOFF_CIRCLE_RADIUS, 0, FIELD.height);
+    const requiredLateralDistance = Math.sqrt(Math.max(0, KICKOFF_CIRCLE_RADIUS ** 2 - dx ** 2)) + 0.01;
+    const directionY = Math.abs(dy) > 0.001 ? Math.sign(dy) : player.team === 'home' ? -1 : 1;
+    player.y = clamp(center.y + directionY * requiredLateralDistance, halfLineMargin, FIELD.height - halfLineMargin);
   }
 }
 
@@ -227,6 +228,7 @@ function placeKickoffPlayers(state, kickoffTeam) {
     player.x = center.x + useOwnSide * (KICKOFF_CIRCLE_RADIUS + 18);
     player.y = center.y;
   }
+  enforceKickoffCircle(state);
 }
 
 function setBallOwner(state, player) {
@@ -578,22 +580,37 @@ function beginGoalCelebration(state, scoringTeam, points, random = Math.random) 
   const center = participants.length
     ? participants.reduce((total, player) => ({ x: total.x + player.x, y: total.y + player.y }), { x: 0, y: 0 })
     : { x: FIELD.width / 2, y: FIELD.height / 2 };
-  const centerX = clamp(center.x / Math.max(1, participants.length), 0, FIELD.width);
-  const centerY = clamp(center.y / Math.max(1, participants.length), 0, FIELD.height);
+  const lateralSpacing = PLAYER_BODY_WIDTH * 2;
+  const maximumLateralOffset = (participants.length - 1) * lateralSpacing / 2;
+  const outerDepthOffset = participants.length > 1 ? PLAYER_BODY_WIDTH / 2 : 0;
+  const centerX = clamp(
+    center.x / Math.max(1, participants.length),
+    PLAYER_BODY_WIDTH / 2 + outerDepthOffset,
+    FIELD.width - PLAYER_BODY_WIDTH / 2 - outerDepthOffset,
+  );
+  const centerY = clamp(
+    center.y / Math.max(1, participants.length),
+    PLAYER_BODY_WIDTH / 2 + maximumLateralOffset,
+    FIELD.height - PLAYER_BODY_WIDTH / 2 - maximumLateralOffset,
+  );
   const attackDirection = scoringTeam === 'home' ? 1 : -1;
   const roleSlots = rkoRoles
     ? [
-      [rkoRoles.targetId, 0],
-      [rkoRoles.strikerId, -24 * attackDirection],
-      [rkoRoles.finisherId, 24 * attackDirection],
+      [rkoRoles.targetId, 0, 0],
+      [rkoRoles.strikerId, -attackDirection * outerDepthOffset, attackDirection * lateralSpacing],
+      [rkoRoles.finisherId, -attackDirection * outerDepthOffset, -attackDirection * lateralSpacing],
     ]
-    : participants.map((player, index) => [player.id, (index - (participants.length - 1) / 2) * 24 * attackDirection]);
+    : participants.map((player, index) => {
+      const lateralOffset = ((participants.length - 1) / 2 - index) * lateralSpacing * attackDirection;
+      const depthOffset = Math.abs(lateralOffset) > 0 ? -attackDirection * outerDepthOffset : 0;
+      return [player.id, depthOffset, lateralOffset];
+    });
 
-  for (const [playerId, offsetX] of roleSlots) {
+  for (const [playerId, offsetX, offsetY] of roleSlots) {
     const player = participants.find((candidate) => candidate.id === playerId);
     if (!player) continue;
     player.x = clamp(centerX + offsetX, 0, FIELD.width);
-    player.y = centerY;
+    player.y = clamp(centerY + offsetY, PLAYER_BODY_WIDTH / 2, FIELD.height - PLAYER_BODY_WIDTH / 2);
     player.vx = 0;
     player.vy = 0;
     player.facingX = attackDirection;
@@ -603,12 +620,12 @@ function beginGoalCelebration(state, scoringTeam, points, random = Math.random) 
   state.restart = null;
   state.pendingKickoffTeam = scoringTeam === 'home' ? 'away' : 'home';
   state.phase = 'goalPause';
-  state.phaseSeconds = 3;
+  state.phaseSeconds = GOAL_CELEBRATION_DURATION_SECONDS;
   state.goalCelebration = {
     ceremonyId: state.goalCelebrationId,
     team: scoringTeam,
     elapsedSeconds: 0,
-    durationSeconds: 3,
+    durationSeconds: GOAL_CELEBRATION_DURATION_SECONDS,
     participantIds,
     rkoRoles,
     finishMatchAfter: state.overtimeRemainingSeconds !== null,
@@ -2418,6 +2435,7 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
 
   enforceKickoffCircle(state);
   updateLooseBallChasers(state, looseBallChasers, looseBallTarget, dt);
+  enforceKickoffCircle(state);
 
   if (state.eagleVolley) {
     events.push(...advanceEagleVolley(state, dt, { pvpMode, random }));

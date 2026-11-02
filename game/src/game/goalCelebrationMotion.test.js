@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getGoalCelebrationPose } from './goalCelebrationMotion.js';
-import { GOAL_CELEBRATION_IDS } from './goalCelebrations.js';
+import { GOAL_CELEBRATION_DURATION_SECONDS, GOAL_CELEBRATION_IDS } from './goalCelebrations.js';
 
 const POSE_FIELDS = [
   'torsoPitch', 'torsoRoll', 'headPitch', 'leftArmPitch', 'rightArmPitch',
@@ -10,9 +10,11 @@ const POSE_FIELDS = [
   'rootLift', 'rootGlide', 'rootYaw', 'rootPitch',
 ];
 
-test('every ceremony returns a complete finite pose through its three-second timeline', () => {
+const choreographyTime = (seconds) => seconds * GOAL_CELEBRATION_DURATION_SECONDS / 3;
+
+test('every ceremony returns a complete finite pose through its five-second timeline', () => {
   for (const ceremonyId of GOAL_CELEBRATION_IDS) {
-    for (const time of [0, 0.275, 0.55, 0.95, 1.35, 2, 2.5, 3]) {
+    for (const time of [0, 0.275, 0.55, 0.95, 1.35, 2, 2.5, 3, 4, 5]) {
       const pose = getGoalCelebrationPose(ceremonyId, time);
       assert.deepEqual(Object.keys(pose).sort(), [...POSE_FIELDS].sort(), `${ceremonyId} at ${time}s`);
       assert.ok(Object.values(pose).every(Number.isFinite), `${ceremonyId} at ${time}s is finite`);
@@ -26,24 +28,24 @@ test('unknown ceremonies and non-finite time samples return null', () => {
   assert.equal(getGoalCelebrationPose('siuuu', Number.POSITIVE_INFINITY), null);
 });
 
-test('time clamps to the three-second interval', () => {
+test('time clamps to the five-second interval', () => {
   assert.deepEqual(getGoalCelebrationPose('moonwalk', -4), getGoalCelebrationPose('moonwalk', 0));
-  assert.deepEqual(getGoalCelebrationPose('moonwalk', 8), getGoalCelebrationPose('moonwalk', 3));
-  assert.ok(Math.abs(getGoalCelebrationPose('moonwalk', 3).rootGlide) < 1e-9);
+  assert.deepEqual(getGoalCelebrationPose('moonwalk', 8), getGoalCelebrationPose('moonwalk', GOAL_CELEBRATION_DURATION_SECONDS));
+  assert.ok(Math.abs(getGoalCelebrationPose('moonwalk', GOAL_CELEBRATION_DURATION_SECONDS).rootGlide) < 1e-9);
 });
 
 test('the five ceremonies use different signature poses', () => {
   const signatures = GOAL_CELEBRATION_IDS.map((ceremonyId) => {
-    const pose = getGoalCelebrationPose(ceremonyId, 0.4, null);
+    const pose = getGoalCelebrationPose(ceremonyId, choreographyTime(0.4), null);
     return POSE_FIELDS.map((field) => pose[field].toFixed(4)).join(',');
   });
   assert.equal(new Set(signatures).size, GOAL_CELEBRATION_IDS.length);
 });
 
 test('SIUU stages anticipation, a jump turn, and an arms-wide landing', () => {
-  const anticipation = getGoalCelebrationPose('siuuu', 0.2);
-  const airborne = getGoalCelebrationPose('siuuu', 0.62);
-  const landed = getGoalCelebrationPose('siuuu', 1.2);
+  const anticipation = getGoalCelebrationPose('siuuu', choreographyTime(0.2));
+  const airborne = getGoalCelebrationPose('siuuu', choreographyTime(0.62));
+  const landed = getGoalCelebrationPose('siuuu', choreographyTime(1.2));
 
   assert.equal(anticipation.rootLift, 0);
   assert.ok(airborne.rootLift > 0.3);
@@ -54,9 +56,9 @@ test('SIUU stages anticipation, a jump turn, and an arms-wide landing', () => {
 });
 
 test('Take the L raises a bent arm while Moonwalk and Slickback use different glides', () => {
-  const takeTheL = getGoalCelebrationPose('takeTheL', 0.3);
-  const moonwalk = getGoalCelebrationPose('moonwalk', 0.3);
-  const slickback = getGoalCelebrationPose('slickback', 0.3);
+  const takeTheL = getGoalCelebrationPose('takeTheL', choreographyTime(0.3));
+  const moonwalk = getGoalCelebrationPose('moonwalk', choreographyTime(0.3));
+  const slickback = getGoalCelebrationPose('slickback', choreographyTime(0.3));
 
   assert.ok(takeTheL.leftArmRoll < -2);
   assert.ok(takeTheL.leftElbowPitch < -0.5);
@@ -65,20 +67,20 @@ test('Take the L raises a bent arm while Moonwalk and Slickback use different gl
   assert.notEqual(moonwalk.rootGlide, slickback.rootGlide);
   assert.ok(moonwalk.rootGlide < 0);
   assert.ok(slickback.rootGlide < 0);
-  assert.ok(Math.abs(getGoalCelebrationPose('moonwalk', 3).rootGlide) < 1e-9);
-  assert.ok(Math.abs(getGoalCelebrationPose('slickback', 3).rootGlide) < 1e-9);
+  assert.ok(Math.abs(getGoalCelebrationPose('moonwalk', 5).rootGlide) < 1e-9);
+  assert.ok(Math.abs(getGoalCelebrationPose('slickback', 5).rootGlide) < 1e-9);
 });
 
 test('RKO visibly sequences the abdominal strike, bend, hook, backward fall, hold, and recovery', () => {
-  const strike = getGoalCelebrationPose('rko', 0.3, 'striker');
-  const contact = getGoalCelebrationPose('rko', 0.35, 'target');
-  const bent = getGoalCelebrationPose('rko', 0.75, 'target');
-  const hook = getGoalCelebrationPose('rko', 0.95, 'finisher');
-  const falling = getGoalCelebrationPose('rko', 1.3, 'target');
-  const held = getGoalCelebrationPose('rko', 1.7, 'target');
-  const recovering = getGoalCelebrationPose('rko', 2.6, 'target');
-  const recovered = getGoalCelebrationPose('rko', 3, 'target');
-  const groupFallback = getGoalCelebrationPose('rko', 0.95, null);
+  const strike = getGoalCelebrationPose('rko', choreographyTime(0.3), 'striker');
+  const contact = getGoalCelebrationPose('rko', choreographyTime(0.35), 'target');
+  const bent = getGoalCelebrationPose('rko', choreographyTime(0.75), 'target');
+  const hook = getGoalCelebrationPose('rko', choreographyTime(0.95), 'finisher');
+  const falling = getGoalCelebrationPose('rko', choreographyTime(1.3), 'target');
+  const held = getGoalCelebrationPose('rko', choreographyTime(1.7), 'target');
+  const recovering = getGoalCelebrationPose('rko', choreographyTime(2.6), 'target');
+  const recovered = getGoalCelebrationPose('rko', 5, 'target');
+  const groupFallback = getGoalCelebrationPose('rko', choreographyTime(0.95), null);
 
   assert.ok(strike.rightArmPitch < -1);
   assert.ok(contact.headPitch > 0);
@@ -96,7 +98,7 @@ test('RKO visibly sequences the abdominal strike, bend, hook, backward fall, hol
 });
 
 test('RKO missing role assignments use a safe group pose', () => {
-  const pose = getGoalCelebrationPose('rko', 1, null);
+  const pose = getGoalCelebrationPose('rko', choreographyTime(1), null);
   assert.ok(pose.leftArmRoll < 0);
   assert.ok(pose.rightArmRoll > 0);
   assert.equal(pose.torsoRoll, 0);

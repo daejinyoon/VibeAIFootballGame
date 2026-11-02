@@ -4,7 +4,7 @@ import { BALL_RADIUS, FIELD, GOAL_CROSSBAR_HEIGHT, KICKOFF_CIRCLE_RADIUS, PLAYER
 import { createInitialGameState as createGameState, getBaseFormationPositions } from './createInitialGameState.js';
 import { applySkill } from './skills.js';
 import { applyTornadoContacts, stepGame } from './stepGame.js';
-import { assignRkoRoles } from './goalCelebrations.js';
+import { assignRkoRoles, GOAL_CELEBRATION_DURATION_SECONDS, GOAL_CELEBRATION_IDS } from './goalCelebrations.js';
 
 const frame = ({ moveX = 0, moveY = 0, down = [], pressed = [], released = [] } = {}) => ({
   moveX,
@@ -76,7 +76,7 @@ test('PvP controlled teams move independently, switch defenders, and use their o
 
 test('the opening clock stays stopped until the opening taker kicks and starts opponent skill grace', () => {
   const state = createGameState({
-    teamSkillDeck: [{ skillId: 'eagleShot', level: 1 }],
+    teamSkillDeck: [{ skillId: 'vacuumCleaner', level: 1 }],
     opponentSkillDeck: [{ skillId: 'eulryongta', level: 1 }],
   });
 
@@ -85,18 +85,22 @@ test('the opening clock stays stopped until the opening taker kicks and starts o
   assert.equal(state.remainingSeconds, 60);
   assert.equal(state.hasMatchClockStarted, false);
 
+  state.players.find((player) => player.id === 'home-fw').facingX = -1;
   const kickoffEvents = stepGame(state, frame({ pressed: ['s'] }), 0.05);
   assert.equal(state.hasMatchClockStarted, true);
   assert.equal(state.remainingSeconds, 60, 'the kick frame is not charged');
   assert.equal(state.aiSkillGraceSecondsRemaining, 3);
   assert.ok(kickoffEvents.some((event) => event.type === 'pass'));
+  assert.equal(state.ball.passReceiverId, 'home-mid-1');
+  for (let index = 0; index < 10 && !state.ball.ownerId; index += 1) stepGame(state, frame(), 0.05);
+  assert.equal(state.ball.ownerId, 'home-mid-1');
 
   const homeSkillEvents = stepGame(state, frame({ pressed: ['f'] }), 0.05);
   assert.ok(homeSkillEvents.some((event) => event.type === 'skillUsed' && event.team === 'home'));
   assert.ok(!homeSkillEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'));
-  assert.equal(state.remainingSeconds, 59.95);
+  assert.ok(state.remainingSeconds < 60 && state.remainingSeconds > 59.6);
   let awayEvents = [];
-  for (let index = 0; index < 58; index += 1) {
+  for (let index = 0; index < 53; index += 1) {
     awayEvents = stepGame(state, frame(), 0.05);
     assert.ok(!awayEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'));
   }
@@ -417,6 +421,34 @@ test('kickoff circle keeps non-kickers outside until the ball moves clear', () =
   assert.equal(state.kickoffTakerId, null);
 });
 
+test('kickoff lock holds non-kickers wholly in their own half while allowing the taker at center', () => {
+  const state = createGameState();
+  const centerX = FIELD.width / 2;
+  const taker = state.players.find((player) => player.id === state.kickoffTakerId);
+  const homePlayer = state.players.find((player) => player.id === 'home-mid-1');
+  const awayPlayer = state.players.find((player) => player.id === 'away-mid-1');
+  state.ball.ownerId = taker.id;
+  state.possessionTeam = taker.team;
+  homePlayer.x = centerX + 100;
+  awayPlayer.x = centerX - 100;
+
+  stepGame(state, frame(), 0.05);
+
+  assert.ok(homePlayer.x + PLAYER_BODY_WIDTH / 2 <= centerX);
+  assert.ok(awayPlayer.x - PLAYER_BODY_WIDTH / 2 >= centerX);
+  assert.equal(taker.x, centerX);
+  assert.equal(state.kickoffLocked, true);
+
+  stepGame(state, frame({ pressed: ['s'] }), 0.05);
+  assert.equal(state.kickoffLocked, false, 'the kickoff pass releases the lock');
+  state.controlledPlayerId = homePlayer.id;
+  state.possessionTeam = 'home';
+  state.ball.ownerId = homePlayer.id;
+  homePlayer.x = centerX - 2;
+  stepGame(state, frame({ moveX: 1 }), 0.05);
+  assert.ok(homePlayer.x > centerX, 'players can cross after the kickoff lock is released');
+});
+
 test('post-goal kickoff assigns only the conceding team taker to the center circle', () => {
   const state = createGameState();
   state.score = { home: 1, away: 0 };
@@ -430,6 +462,10 @@ test('post-goal kickoff assigns only the conceding team taker to the center circ
   const inside = state.players.filter((player) => Math.hypot(player.x - center.x, player.y - center.y) < KICKOFF_CIRCLE_RADIUS);
   assert.equal(state.kickoffLocked, true);
   assert.equal(state.kickoffTakerId, 'away-fw');
+  for (const player of state.players.filter((candidate) => candidate.id !== state.kickoffTakerId && !candidate.dismissed)) {
+    if (player.team === 'home') assert.ok(player.x + PLAYER_BODY_WIDTH / 2 <= center.x);
+    else assert.ok(player.x - PLAYER_BODY_WIDTH / 2 >= center.x);
+  }
   assert.deepEqual(inside.map((player) => player.id), ['away-fw']);
   assert.equal(state.ball.ownerId, 'away-fw');
   assert.deepEqual(state.score, { home: 1, away: 0 });
@@ -451,10 +487,12 @@ test('home kickoff after conceding selects the forward until the kickoff pass re
   assert.equal(state.controlledPlayerId, 'home-fw', 'control stays on the taker before the pass');
 
   const receiver = state.players.find((player) => player.id === 'home-mid-1');
-  Object.assign(receiver, { x: 620, y: 270 });
+  Object.assign(receiver, { x: FIELD.width / 2 - 140, y: 270 });
+  state.players.find((player) => player.id === 'home-fw').facingX = -1;
   stepGame(state, frame({ pressed: ['s'] }), 0.05);
   assert.equal(state.controlledPlayerId, state.ball.passReceiverId);
   assert.equal(state.controlledPlayerId, receiver.id);
+  assert.ok(receiver.x + PLAYER_BODY_WIDTH / 2 <= FIELD.width / 2);
 });
 
 test('away kickoff preserves the currently controlled home player', () => {
@@ -1784,7 +1822,7 @@ test('a golden-goal score immediately finishes the stage', () => {
   assert.ok(events.some((event) => event.type === 'matchWon'));
 });
 
-test('campaign goals stage three players and wait three seconds before kickoff while the clock runs', () => {
+test('campaign goals stage three players and wait five seconds before kickoff while the clock runs', () => {
   const state = createInitialGameState({ goalCelebrationId: 'rko' });
   state.remainingSeconds = 20;
   Object.assign(state.ball, { ownerId: null, x: FIELD.width - 1, y: 270, vx: 500, vy: 0, flightKind: 'shot', lastTouchTeam: 'home' });
@@ -1798,16 +1836,16 @@ test('campaign goals stage three players and wait three seconds before kickoff w
   assert.equal(event.participantIds.length, 3);
   assert.deepEqual(new Set(Object.values(event.rkoRoles)), new Set(event.participantIds));
   assert.equal(state.goalCelebration.elapsedSeconds, 0);
-  assert.equal(state.phaseSeconds, 3);
+  assert.equal(state.phaseSeconds, GOAL_CELEBRATION_DURATION_SECONDS);
   assert.ok(state.remainingSeconds < 20);
   assert.equal(state.pendingKickoffTeam, 'away');
 
   let kickoffCount = 0;
-  for (let index = 0; index < 59; index += 1) {
+  for (let index = 0; index < 99; index += 1) {
     kickoffCount += stepGame(state, frame(), 0.05).filter(({ type }) => type === 'kickoff').length;
   }
   assert.equal(state.phase, 'goalPause');
-  assert.ok(Math.abs(state.goalCelebration.elapsedSeconds - 2.95) < 1e-9);
+  assert.ok(Math.abs(state.goalCelebration.elapsedSeconds - 4.95) < 1e-9);
   assert.equal(kickoffCount, 0);
   kickoffCount += stepGame(state, frame(), 0.05).filter(({ type }) => type === 'kickoff').length;
   assert.equal(kickoffCount, 1);
@@ -1825,7 +1863,7 @@ test('campaign golden goal delays the result until the celebration finishes', ()
   assert.equal(state.goalCelebration.finishMatchAfter, true);
   assert.equal(events.some(({ type }) => type === 'matchWon'), false);
   let results = [];
-  for (let index = 0; index < 59; index += 1) results.push(...stepGame(state, frame(), 0.05));
+  for (let index = 0; index < 99; index += 1) results.push(...stepGame(state, frame(), 0.05));
   assert.equal(state.phase, 'goalPause');
   assert.equal(results.some(({ type }) => type.startsWith('match')), false);
   results.push(...stepGame(state, frame(), 0.05));
@@ -1850,12 +1888,59 @@ test('campaign ceremony safely uses remaining players and invalid RKO groups hav
   });
 });
 
+test('non-RKO celebration participants use wide camera-facing slots for one, two, or three players', () => {
+  for (const ceremonyId of GOAL_CELEBRATION_IDS.filter((id) => id !== 'rko')) {
+    for (const count of [1, 2, 3]) {
+      const state = createInitialGameState({ goalCelebrationId: ceremonyId });
+      const selected = state.players.filter((player) => player.team === 'home' && player.role !== 'goalkeeper').slice(0, count);
+      const selectedIds = new Set(selected.map((player) => player.id));
+      state.players = state.players.filter((player) => player.team !== 'home' || player.role === 'goalkeeper' || selectedIds.has(player.id));
+      for (const player of selected) player.y = 1;
+      Object.assign(state.ball, { ownerId: null, x: FIELD.width - 1, y: 270, vx: 500, vy: 0, flightKind: 'shot', lastTouchTeam: 'home' });
+
+      stepGame(state, frame(), 0.05, { random: () => 0 });
+
+      const staged = selected.map(({ x, y }) => ({ x, y })).sort((a, b) => a.y - b.y);
+      assert.equal(state.goalCelebration.participantIds.length, count);
+      assert.ok(staged.every(({ x, y }) => x >= PLAYER_BODY_WIDTH / 2 && x <= FIELD.width - PLAYER_BODY_WIDTH / 2
+        && y >= PLAYER_BODY_WIDTH / 2 && y <= FIELD.height - PLAYER_BODY_WIDTH / 2));
+      for (let index = 1; index < staged.length; index += 1) {
+        assert.ok(Math.abs(staged[index].y - staged[index - 1].y) >= PLAYER_BODY_WIDTH * 2 - 0.01);
+      }
+      if (count === 3) {
+        const depths = [...staged].sort((a, b) => a.y - b.y).map(({ x }) => x);
+        assert.ok(Math.abs(Math.abs(depths[0] - depths[1]) - PLAYER_BODY_WIDTH / 2) < 0.01);
+        assert.ok(Math.abs(Math.abs(depths[2] - depths[1]) - PLAYER_BODY_WIDTH / 2) < 0.01);
+      }
+    }
+  }
+});
+
+test('RKO stages the target in the center with striker and finisher on opposite sides', () => {
+  const state = createInitialGameState({ goalCelebrationId: 'rko' });
+  Object.assign(state.ball, { ownerId: null, x: FIELD.width - 1, y: 270, vx: 500, vy: 0, flightKind: 'shot', lastTouchTeam: 'home' });
+
+  stepGame(state, frame(), 0.05, { random: () => 0 });
+
+  const { targetId, strikerId, finisherId } = state.goalCelebration.rkoRoles;
+  const target = state.players.find(({ id }) => id === targetId);
+  const striker = state.players.find(({ id }) => id === strikerId);
+  const finisher = state.players.find(({ id }) => id === finisherId);
+  assert.ok(Math.abs(striker.y - target.y) >= PLAYER_BODY_WIDTH * 2 - 0.01);
+  assert.ok(Math.abs(finisher.y - target.y) >= PLAYER_BODY_WIDTH * 2 - 0.01);
+  assert.ok((striker.y - target.y) * (finisher.y - target.y) < 0);
+  assert.equal(Math.abs(striker.x - target.x), PLAYER_BODY_WIDTH / 2);
+  assert.equal(Math.abs(finisher.x - target.x), PLAYER_BODY_WIDTH / 2);
+  assert.equal(striker.vx, 0);
+  assert.equal(striker.vy, 0);
+});
+
 test('regulation result waits for an active campaign ceremony to finish', () => {
   const state = createInitialGameState({ goalCelebrationId: 'moonwalk' });
   state.phase = 'goalPause';
   state.phaseSeconds = 1;
   state.goalCelebration = {
-    ceremonyId: 'moonwalk', team: 'home', elapsedSeconds: 2, durationSeconds: 3,
+    ceremonyId: 'moonwalk', team: 'home', elapsedSeconds: 4, durationSeconds: GOAL_CELEBRATION_DURATION_SECONDS,
     participantIds: [], rkoRoles: null, finishMatchAfter: false,
   };
   state.score.home = 1;

@@ -6,6 +6,8 @@ export const GOAL_CELEBRATION_IDS = Object.freeze([
   'rko',
 ]);
 
+export const GOAL_CELEBRATION_DURATION_SECONDS = 5;
+
 export const GOAL_CELEBRATION_OPTIONS = Object.freeze([
   Object.freeze({ id: 'siuuu', label: 'SIUUU' }),
   Object.freeze({ id: 'moonwalk', label: '문워크' }),

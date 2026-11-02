@@ -1,6 +1,6 @@
-import { GOAL_CELEBRATION_IDS } from './goalCelebrations.js';
+import { GOAL_CELEBRATION_DURATION_SECONDS, GOAL_CELEBRATION_IDS } from './goalCelebrations.js';
 
-const DURATION_SECONDS = 3;
+const CHOREOGRAPHY_DURATION_SECONDS = 3;
 const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
 const smoothstep = (value) => {
   const t = clamp(value, 0, 1);
@@ -18,7 +18,7 @@ function blendToVictory(pose, time, amount) {
 
 function glideOutAndReturn(time, distance, returnStart) {
   if (time <= returnStart) return -distance * time / returnStart;
-  const returnProgress = smoothstep((time - returnStart) / (DURATION_SECONDS - returnStart));
+  const returnProgress = smoothstep((time - returnStart) / (CHOREOGRAPHY_DURATION_SECONDS - returnStart));
   return -distance * (1 - returnProgress);
 }
 
@@ -178,10 +178,11 @@ function getRkoPose(time, role) {
   return victoryPose(time);
 }
 
-/** Return one deterministic pose for the shared three-second celebration clock. */
+/** Return one deterministic pose for the shared five-second celebration clock. */
 export function getGoalCelebrationPose(ceremonyId, elapsedSeconds, role = null) {
   if (!GOAL_CELEBRATION_IDS.includes(ceremonyId) || !Number.isFinite(elapsedSeconds)) return null;
-  const time = clamp(elapsedSeconds, 0, DURATION_SECONDS);
+  const time = clamp(elapsedSeconds, 0, GOAL_CELEBRATION_DURATION_SECONDS)
+    * CHOREOGRAPHY_DURATION_SECONDS / GOAL_CELEBRATION_DURATION_SECONDS;
   const pose = neutralPose();
 
   if (ceremonyId === 'siuuu') {
