@@ -1,7 +1,7 @@
 import { GOAL_CELEBRATION_DURATION_SECONDS, GOAL_CELEBRATION_IDS } from './goalCelebrations.js';
 
 const CHOREOGRAPHY_DURATION_SECONDS = 3;
-const RKO_TARGET_LANDING_GLIDE = 1.2;
+const RKO_FINISHER_LANDING_GLIDE = 1.2;
 const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
 const smoothstep = (value) => {
   const t = clamp(value, 0, 1);
@@ -115,7 +115,6 @@ function getRkoPose(time, role) {
         rightElbowPitch: mix(-1.12, -0.28, slam),
         leftLegPitch: 0.36 * slam,
         rightLegPitch: -0.24 * slam,
-        rootGlide: RKO_TARGET_LANDING_GLIDE * slam,
         rootPitch: 1.35 * slam,
         rootLift: 0.035 * slam,
       };
@@ -132,14 +131,12 @@ function getRkoPose(time, role) {
         rightElbowPitch: -0.28,
         leftLegPitch: 0.36,
         rightLegPitch: -0.24,
-        rootGlide: RKO_TARGET_LANDING_GLIDE,
         rootPitch: 1.35,
         rootLift: 0.035,
       };
     }
     const recover = smoothstep((time - 2.1) / 0.55);
     return blendToVictory({
-      rootGlide: RKO_TARGET_LANDING_GLIDE,
       rootPitch: 1.35,
       rootLift: 0.035,
       torsoPitch: 0.18,
@@ -215,7 +212,7 @@ function getRkoPose(time, role) {
         leftLegPitch: mix(-0.12, -0.48, launch),
         rightLegPitch: mix(0.12, 0.42, launch),
         rootShiftX: -0.72,
-        rootGlide: mix(0.48, 0.7, impact),
+        rootGlide: mix(0.48, RKO_FINISHER_LANDING_GLIDE, impact),
         rootPitch: mix(forwardPitch, -Math.PI / 2, faceUp),
         rootLift: 0.035 + 0.38 * Math.sin(Math.PI * launch),
         rootYaw: -0.12,
@@ -233,7 +230,7 @@ function getRkoPose(time, role) {
         leftLegPitch: -0.48,
         rightLegPitch: 0.42,
         rootShiftX: -0.72,
-        rootGlide: 0.7,
+        rootGlide: RKO_FINISHER_LANDING_GLIDE,
         rootPitch: -Math.PI / 2,
         rootLift: 0.035,
         rootYaw: -0.12,
@@ -242,7 +239,7 @@ function getRkoPose(time, role) {
     const recover = smoothstep((time - 2.1) / 0.55);
     return blendToVictory({
       rootShiftX: -0.72,
-      rootGlide: 0.7,
+      rootGlide: RKO_FINISHER_LANDING_GLIDE,
       rootPitch: -Math.PI / 2,
       rootLift: 0.035,
       rootYaw: -0.12,

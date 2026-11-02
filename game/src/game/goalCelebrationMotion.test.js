@@ -87,7 +87,7 @@ test('RKO preview separates the three roles by depth and keeps the target center
   assert.ok(RKO_PREVIEW_CAMERA.position[2] > 0);
 });
 
-test('RKO requires a close kick before the target folds and drives the target forward/down', () => {
+test('RKO folds the target and lands the finisher forward after close contact', () => {
   const targetBeforeKick = getGoalCelebrationPose('rko', choreographyTime(0.34), 'target');
   const targetAfterContact = getGoalCelebrationPose('rko', choreographyTime(0.4), 'target');
   const strikerApproaching = getGoalCelebrationPose('rko', choreographyTime(0.3), 'striker');
@@ -126,9 +126,9 @@ test('RKO requires a close kick before the target folds and drives the target fo
   assert.ok(hooked.leftArmPitch < -0.9 && hooked.rightArmPitch < -0.8);
   assert.ok(leaping.rootLift > 0.3);
   assert.ok(targetEarlySlam.rootPitch >= 0);
-  assert.equal(targetEarlySlam.rootGlide, 0, 'the target starts moving forward at slam onset');
-  assert.ok(targetLaterSlam.rootGlide > targetEarlySlam.rootGlide);
-  assert.equal(held.rootGlide, 1.2, 'the target holds its forward offset while grounded');
+  assert.equal(targetEarlySlam.rootGlide, 0, 'the target stays in place at slam onset');
+  assert.equal(targetLaterSlam.rootGlide, 0, 'the target stays at its prior position during the slam');
+  assert.equal(held.rootGlide, 0, 'the target stays at its prior position while grounded');
   assert.ok(finisherEarlySlam.rootPitch >= 0);
   assert.ok(falling.rootPitch > 0.8);
   assert.ok(finisherFalling.rootPitch < 0);
@@ -137,16 +137,17 @@ test('RKO requires a close kick before the target folds and drives the target fo
   assert.equal(held.rootPitch, 1.35);
   assert.equal(finisherHeld.rootPitch, -Math.PI / 2);
   assert.equal(finisherHeld.rootShiftX, -0.72);
-  assert.equal(finisherHeld.rootGlide, 0.7);
+  assert.equal(finisherHeld.rootGlide, 1.2, 'the finisher lands farther forward than the target');
   assert.ok(recovering.rootPitch > 0 && recovering.rootPitch < 1.35);
-  assert.ok(recovering.rootGlide > 0 && recovering.rootGlide < held.rootGlide);
+  assert.equal(recovering.rootGlide, 0, 'the target remains at its prior position during recovery');
   assert.ok(finisherRecovering.rootPitch < 0 && finisherRecovering.rootPitch > -Math.PI / 2);
+  assert.ok(finisherRecovering.rootGlide > 0 && finisherRecovering.rootGlide < finisherHeld.rootGlide);
   assert.ok(finisherRecovering.rootShiftX > -0.72 && finisherRecovering.rootShiftX < 0);
   assert.equal(recovered.rootPitch, 0);
   assert.equal(recovered.rootGlide, 0);
+  assert.equal(finisherRecovered.rootGlide, 0);
   assert.equal(recovered.rootShiftX, 0);
   assert.equal(finisherRecovered.rootShiftX, 0);
-  assert.equal(finisherRecovered.rootGlide, 0);
   assert.equal(groupFallback.rootPitch, 0);
   assert.equal(groupFallback.rootShiftX, 0);
   assert.ok(groupFallback.leftArmRoll < 0);
