@@ -130,15 +130,18 @@ test('RKO requires a close kick before the target folds and drives the target fo
   assert.ok(finisherFalling.rootPitch > 0.8);
   assert.ok(Math.abs(falling.rootPitch - finisherFalling.rootPitch) < 0.01);
   assert.ok(finisherFalling.rootShiftX < 0 && finisherFalling.rootGlide > 0);
+  assert.ok(finisherFalling.rootGlide >= hooked.rootGlide + 0.3);
   assert.equal(held.rootPitch, 1.35);
   assert.equal(finisherHeld.rootPitch, 1.35);
   assert.equal(finisherHeld.rootShiftX, -0.72);
+  assert.equal(finisherHeld.rootGlide, 1.05);
   assert.ok(recovering.rootPitch > 0 && recovering.rootPitch < 1.35);
   assert.ok(finisherRecovering.rootPitch > 0 && finisherRecovering.rootPitch < 1.35);
   assert.ok(finisherRecovering.rootShiftX > -0.72 && finisherRecovering.rootShiftX < 0);
   assert.equal(recovered.rootPitch, 0);
   assert.equal(recovered.rootShiftX, 0);
   assert.equal(finisherRecovered.rootShiftX, 0);
+  assert.equal(finisherRecovered.rootGlide, 0);
   assert.equal(groupFallback.rootPitch, 0);
   assert.equal(groupFallback.rootShiftX, 0);
   assert.ok(groupFallback.leftArmRoll < 0);

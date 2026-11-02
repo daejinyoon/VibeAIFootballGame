@@ -10,7 +10,7 @@
 None. All tasks in P01 are complete.
 
 ## Status
-- T01–T02 implement depth-staggered RKO preview staging, close abdominal kick contact before target reaction, and a forward/down finisher slam. Ten motion tests and the production build pass; manual appearance review remains available in the local browser.
+- T01–T03 stage the trio, require close kick contact, and drive the finisher's body forward over the target before impact. Ten motion tests and the production build pass; the build retains its existing large-chunk advisory.
 
 ## Next Step
-Open the local game and review the corrected kick contact and forward/down RKO slam in the team customization preview.
+Open the local game and review the updated forward travel and impact in the team customization RKO preview.

@@ -18,3 +18,7 @@
 ## D04. User-corrected RKO action
 - **Chosen**: The striker must move into contact range before kicking the target's abdomen. The target remains upright until the kick lands, then folds forward. The finisher approaches along the forward/attacking direction, jumps forward, and drives the target down toward the ground; the target and finisher must not perform a paired backward fall.
 - **Rationale**: The previous preview allowed the target to bend before contact and showed both players falling backward, which did not match the supplied reference or the user's description.
+
+## D05. Forward body travel during the slam
+- **Chosen**: Make the finisher's rendered body translate visibly forward during the jump and finish its path over the target at impact. Keep the target and striker simulation coordinates unchanged.
+- **Rationale**: Forward pitch alone reads as bending in place; the supplied reference shows the finisher traveling forward before driving down.

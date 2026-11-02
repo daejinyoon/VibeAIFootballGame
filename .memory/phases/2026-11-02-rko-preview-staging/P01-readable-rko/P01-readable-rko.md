@@ -5,9 +5,10 @@
 | :--- | :--- | :--- | :--- |
 | T01 | `done` | Stage the three roles in depth and animate a connected RKO sequence | [T01](./T01-stage-and-animate-rko.md) |
 | T02 | `done` | Require close kick contact, then have the finisher drive the target forward/down | [T02](./T02-contact-and-forward-rko.md) |
+| T03 | `done` | Move the finisher's body forward across the target during the RKO slam | [T03](./T03-forward-body-translation.md) |
 
 ## Progress
-- done: 2/2
+- done: 3/3
 
 ## Status
-- Complete. The striker closes to kick contact before the target bends; the finisher launches forward/down and the target is driven forward/down. Motion tests and build pass.
+- Complete. RKO staging, kick contact, forward/down impact and visible forward travel pass the specified motion tests and production build.
