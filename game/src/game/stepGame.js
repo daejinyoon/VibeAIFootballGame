@@ -485,6 +485,7 @@ function resetForKickoff(state, kickoffTeam) {
     teamSkillDeck: state.teamSkillDecks?.home,
     opponentSkillDeck: state.teamSkillDecks?.away,
     teamBranding: state.teamBranding,
+    goalCelebrationId: state.goalCelebrationId,
   });
   const score = { ...state.score };
   const hasMatchClockStarted = state.hasMatchClockStarted;

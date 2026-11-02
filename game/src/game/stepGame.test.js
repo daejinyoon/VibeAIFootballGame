@@ -1892,6 +1892,60 @@ test('campaign goals stage three players and wait five seconds before kickoff wh
   assert.equal(state.phase, 'playing');
 });
 
+test('campaign keeps the same ceremony for goals after a kickoff reset', () => {
+  const state = createInitialGameState({ goalCelebrationId: 'siuuu' });
+  state.hasMatchClockStarted = true;
+  state.remainingSeconds = 30;
+
+  const scoreHomeGoal = () => {
+    Object.assign(state.ball, {
+      ownerId: null,
+      x: FIELD.width - 1,
+      y: 270,
+      vx: 500,
+      vy: 0,
+      flightKind: 'shot',
+      lastTouchTeam: 'home',
+    });
+    return stepGame(state, frame(), 0.05, { random: () => 0 });
+  };
+
+  const firstGoal = scoreHomeGoal().find(({ type }) => type === 'goalCelebrationStarted');
+  assert.equal(firstGoal?.ceremonyId, 'siuuu');
+
+  let kickoffEvents = [];
+  for (let index = 0; index < 110; index += 1) {
+    kickoffEvents = stepGame(state, frame(), 0.05);
+    if (kickoffEvents.some(({ type }) => type === 'kickoff')) break;
+  }
+  assert.ok(kickoffEvents.some(({ type, team }) => type === 'kickoff' && team === 'away'));
+  assert.equal(state.goalCelebrationId, 'siuuu');
+
+  const awayKickoffEvents = stepGame(state, frame(), 0.05);
+  assert.ok(awayKickoffEvents.some(({ type, team }) => type === 'pass' && team === 'away'));
+  assert.equal(state.kickoffLocked, false);
+
+  const secondGoalEvents = scoreHomeGoal();
+  const secondGoal = secondGoalEvents.find(({ type }) => type === 'goalCelebrationStarted');
+  assert.equal(secondGoal?.ceremonyId, 'siuuu');
+  assert.equal(state.goalCelebration.elapsedSeconds, 0);
+  assert.equal(state.goalCelebration.participantIds.length, 3);
+
+  const noCeremonyState = createInitialGameState();
+  Object.assign(noCeremonyState.ball, {
+    ownerId: null,
+    x: FIELD.width - 1,
+    y: 270,
+    vx: 500,
+    vy: 0,
+    flightKind: 'shot',
+    lastTouchTeam: 'home',
+  });
+  const noCeremonyEvents = stepGame(noCeremonyState, frame(), 0.05);
+  assert.equal(noCeremonyEvents.some(({ type }) => type === 'goalCelebrationStarted'), false);
+  assert.equal(noCeremonyState.goalCelebration, null);
+});
+
 test('campaign golden goal delays the result until the celebration finishes', () => {
   const state = createInitialGameState({ goalCelebrationId: 'siuuu' });
   state.phase = 'overtime';
