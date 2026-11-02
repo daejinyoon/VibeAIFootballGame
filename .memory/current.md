@@ -1,16 +1,16 @@
 # Current Context
 
 ## Active Plan
-[RKO Finisher Lead Spacing](./plans/2026-11-02-rko-finisher-lead-spacing.md)
+[RKO Face-Up from Start](./plans/2026-11-02-rko-face-up-from-start.md)
 
 ## Active Phase
-[P01 Finisher Lead](./phases/2026-11-02-rko-finisher-lead-spacing/P01-finisher-lead/phase.md)
+[P01 Face-Up Motion](./phases/2026-11-02-rko-face-up-from-start/P01-face-up-motion/phase.md)
 
 ## Active Task
-[T01 Finisher Ahead](./phases/2026-11-02-rko-finisher-lead-spacing/P01-finisher-lead/T01-finisher-ahead.md)
+[T01 Finisher Face-Up](./phases/2026-11-02-rko-face-up-from-start/P01-face-up-motion/T01-finisher-face-up.md)
 
 ## Status
-- RKO positioning is corrected and committed: only the finisher gains extra forward glide after impact, landing ahead of the target. The target stays at its previous root position.
+- RKO face-up timing is implemented and committed. The user confirmed that the finisher should face up from the start of the approach at choreography time 0.8 seconds, through impact and landing.
 
 ## Next Step (IMPORTANT)
-The RKO finisher lead-spacing task is complete; no active task remains.
+The RKO face-up timing task is complete; no active task remains.

@@ -194,13 +194,13 @@ function getRkoPose(time, role) {
         rootShiftX: -0.72 * approach,
         rootGlide: 0.48 * approach,
         rootYaw: -0.12 * approach,
+        rootPitch: -Math.PI / 2,
+        rootLift: 0.035,
       };
     }
     if (time < 1.75) {
       const launch = clamp((time - 1.25) / 0.5, 0, 1);
       const impact = smoothstep((time - 1.25) / 0.5);
-      const forwardPitch = 1.1 * smoothstep((time - 1.25) / 0.15);
-      const faceUp = smoothstep((time - 1.4) / 0.28);
       return {
         torsoPitch: mix(0.18, -0.16, impact),
         leftArmPitch: -1.12,
@@ -213,7 +213,7 @@ function getRkoPose(time, role) {
         rightLegPitch: mix(0.12, 0.42, launch),
         rootShiftX: -0.72,
         rootGlide: mix(0.48, RKO_FINISHER_LANDING_GLIDE, impact),
-        rootPitch: mix(forwardPitch, -Math.PI / 2, faceUp),
+        rootPitch: -Math.PI / 2,
         rootLift: 0.035 + 0.38 * Math.sin(Math.PI * launch),
         rootYaw: -0.12,
       };
