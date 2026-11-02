@@ -686,6 +686,13 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
 .kit-palette-swatches i { width: 25px; height: 12px; border: 1px solid #17364f55; border-radius: 3px; }
 .goal-ceremony-description { margin: 0 0 10px; color: #547284; font-size: 11px; line-height: 1.5; }
 .goal-ceremony-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.goal-ceremony-preview { position: relative; margin-top: 13px; overflow: hidden; border: 1px solid #b3c8cc; border-radius: 10px 4px 10px 4px; background: linear-gradient(180deg, #d6f2ef, #f8fbf3); }
+.goal-ceremony-preview-heading { position: relative; z-index: 1; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 11px 0; color: #29495b; font-size: 10px; font-weight: 900; }
+.goal-ceremony-preview-heading span:last-child { color: #6c828c; font-size: 9px; font-weight: 700; text-align: right; }
+.customization-3d-preview { position: relative; width: 100%; min-width: 0; height: 250px; }
+.customization-3d-preview canvas { display: block; width: 100% !important; height: 100% !important; }
+.customization-3d-preview-kit { position: absolute; z-index: 1; inset: 0; height: auto; }
+.customization-3d-preview-label { position: absolute; z-index: 2; right: 10px; bottom: 8px; left: 10px; overflow: hidden; color: #fff; font-size: 10px; font-weight: 900; pointer-events: none; text-align: center; text-overflow: ellipsis; text-shadow: 0 1px 3px #102b40; white-space: nowrap; }
 .goal-ceremony-card { position: relative; display: flex; min-width: 0; min-height: 66px; flex-direction: column; justify-content: center; gap: 5px; padding: 10px 10px 10px 30px; border: 2px solid #b3c8cc; border-radius: 11px 4px 11px 4px; background: white; cursor: pointer; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
 .goal-ceremony-card:hover { transform: translateY(-2px); }
 .goal-ceremony-card.is-selected { border-color: #e95449; background: #fff9e9; box-shadow: 0 0 0 2px #ff765e44, 3px 3px 0 #15334f; }
@@ -699,19 +706,6 @@ body { color: var(--ink); background: linear-gradient(180deg, #bdeeff 0, #e6f9ed
 .kit-preview-stage { position: relative; display: grid; min-height: 305px; place-items: center; overflow: hidden; border: 2px solid #17384b; background: radial-gradient(ellipse at 50% 100%, #fff3cf 0, #a7dddc 53%, #72c6d1 100%); }
 .kit-preview-grid { position: absolute; inset: 0; opacity: .25; background: linear-gradient(90deg, transparent 49.7%, white 50%, transparent 50.3%), linear-gradient(0deg, transparent 49.7%, white 50%, transparent 50.3%); }
 .kit-preview-brand { position: absolute; z-index: 2; top: 12px; left: 12px; display: grid; min-width: 54px; min-height: 38px; place-items: center; padding: 5px 8px; border: 1px solid #19374a; border-radius: 8px 3px 8px 3px; background: #ffffffed; box-shadow: 2px 2px 0 #15334f55; }
-.kit-player-silhouette { position: absolute; bottom: 35px; left: 50%; width: 150px; height: 235px; transform: translateX(-50%); filter: drop-shadow(7px 8px 0 #15334f33); }
-.kit-player-head { position: absolute; z-index: 2; top: 1px; left: 55px; width: 42px; height: 48px; border: 3px solid #15334f; border-radius: 44% 44% 48% 48%; background: #f1bd91; }
-.kit-player-head::before { position: absolute; top: -6px; left: -2px; width: 41px; height: 20px; border-radius: 55% 55% 20% 20%; background: #30283b; content: ''; }
-.kit-player-neck { position: absolute; z-index: 1; top: 39px; left: 68px; width: 17px; height: 15px; border-inline: 2px solid #15334f; background: #e5a77e; }
-.kit-player-shirt { position: absolute; z-index: 2; top: 49px; left: 31px; width: 90px; height: 95px; border: 3px solid #15334f; background: var(--kit-jersey); clip-path: polygon(20% 0, 38% 0, 50% 10%, 62% 0, 80% 0, 100% 18%, 84% 41%, 76% 32%, 76% 100%, 24% 100%, 24% 32%, 16% 41%, 0 18%); }
-.kit-player-shirt::before { position: absolute; inset: 0 0 auto; height: 9px; background: var(--kit-trim); content: ''; }
-.kit-player-shirt::after { position: absolute; top: 14px; left: 40px; width: 4px; height: 79px; background: var(--kit-trim); content: ''; }
-.kit-player-shirt i { position: absolute; top: 28px; left: 18px; width: 56px; height: 3px; background: var(--kit-trim); transform: rotate(-12deg); }
-.kit-player-shorts { position: absolute; z-index: 3; top: 139px; left: 37px; width: 78px; height: 42px; border: 3px solid #15334f; background: var(--kit-shorts); clip-path: polygon(0 0, 100% 0, 88% 100%, 58% 100%, 50% 45%, 40% 100%, 9% 100%); }
-.kit-player-leg { position: absolute; z-index: 2; top: 173px; width: 21px; height: 47px; border: 3px solid #15334f; background: #f1bd91; }
-.kit-player-leg-left { left: 49px; transform: rotate(3deg); }.kit-player-leg-right { right: 48px; transform: rotate(-3deg); }
-.kit-player-boot { position: absolute; z-index: 3; bottom: 0; width: 33px; height: 13px; border: 3px solid #15334f; border-radius: 8px 8px 3px 3px; background: var(--kit-boots); }
-.kit-player-boot-left { left: 39px; }.kit-player-boot-right { right: 38px; }
 .kit-preview-caption { position: absolute; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; background: #102b40e8; color: white; }
 .kit-preview-caption span { color: #83e8f8; font: 900 8px Consolas, monospace; letter-spacing: .12em; }
 .kit-preview-caption b { font-size: 11px; }

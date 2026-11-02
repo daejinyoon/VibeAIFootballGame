@@ -10,36 +10,7 @@ import {
   normalizeGoalCelebrationSettings,
 } from '../game/goalCelebrations.js';
 import { BrandLogo } from './BrandLogo.jsx';
-
-function KitPreview({ logo, palette }) {
-  return (
-    <div
-      className="kit-preview-stage"
-      role="img"
-      style={{
-        '--kit-jersey': palette.jersey,
-        '--kit-trim': palette.trim,
-        '--kit-shorts': palette.shorts,
-        '--kit-boots': palette.boots,
-      }}
-      aria-label={`${logo.displayName} 로고, ${palette.name} 유니폼 미리보기`}
-    >
-      <div className="kit-preview-grid" aria-hidden="true" />
-      <div className="kit-preview-brand"><BrandLogo logoId={logo.id} title="decorative" /></div>
-      <div className="kit-player-silhouette" aria-hidden="true">
-        <span className="kit-player-head" />
-        <span className="kit-player-neck" />
-        <span className="kit-player-shirt"><i /></span>
-        <span className="kit-player-shorts" />
-        <span className="kit-player-leg kit-player-leg-left" />
-        <span className="kit-player-leg kit-player-leg-right" />
-        <span className="kit-player-boot kit-player-boot-left" />
-        <span className="kit-player-boot kit-player-boot-right" />
-      </div>
-      <div className="kit-preview-caption"><span>HOME KIT</span><b>{palette.name}</b></div>
-    </div>
-  );
-}
+import { Customization3DPreview } from './Customization3DPreview.jsx';
 
 export default function TeamCustomizationScreen({
   customization,
@@ -146,11 +117,28 @@ export default function TeamCustomizationScreen({
                 </label>
               ))}
             </div>
+            <div className="goal-ceremony-preview">
+              <div className="goal-ceremony-preview-heading">
+                <span>동작 미리보기</span>
+                <span>{goalCelebrationDraft.mode === 'random' ? '5초마다 다음 동작' : '선택한 동작 반복'}</span>
+              </div>
+              <Customization3DPreview
+                ceremonyId={goalCelebrationDraft.ceremonyId}
+                palette={selectedPalette}
+                logoId={selectedLogo.id}
+                rotateRandom={goalCelebrationDraft.mode === 'random'}
+              />
+            </div>
           </fieldset>
         </div>
 
         <aside className="team-customization-preview" aria-label="현재 팀 유니폼 미리보기">
-          <KitPreview logo={selectedLogo} palette={selectedPalette} />
+          <div className="kit-preview-stage" role="img" aria-label={`${selectedLogo.displayName} 로고, ${selectedPalette.name} 유니폼 3D 미리보기`}>
+            <div className="kit-preview-grid" aria-hidden="true" />
+            <Customization3DPreview mode="kit" ceremonyId={null} palette={selectedPalette} logoId={selectedLogo.id} />
+            <div className="kit-preview-brand"><BrandLogo logoId={selectedLogo.id} title="decorative" /></div>
+            <div className="kit-preview-caption"><span>HOME KIT</span><b>{selectedPalette.name}</b></div>
+          </div>
           <div className="team-preview-details" aria-live="polite">
             <span>현재 선택</span>
             <b>{selectedLogo.displayName} <i>×</i> {selectedPalette.name}</b>
