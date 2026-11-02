@@ -4,10 +4,14 @@ import { FIELD } from './constants.js';
 const WORLD_SCALE = 80;
 const CAMERA_FOV_RADIANS = MathUtils.degToRad(42);
 const CELEBRATION_ELEVATION_RADIANS = MathUtils.degToRad(24);
+const CELEBRATION_AZIMUTH_RADIANS = MathUtils.degToRad(20);
 const HORIZONTAL_MARGIN = 0.45;
+const PLAYER_HEIGHT = 1.6;
+const VERTICAL_MARGIN = 0.2;
 const MIN_CAMERA_DISTANCE = 4.5;
+const CELEBRATION_TARGET_HEIGHT = 0.85;
 
-/** Frame the selected ceremony participants from the scoring team's attacking side. */
+/** Frame every selected participant from a low, three-quarter attacking-front view. */
 export function getGoalCelebrationCameraFrame({ players, participantIds, team, aspect } = {}) {
   if (!Array.isArray(players) || !Array.isArray(participantIds) || participantIds.length === 0
       || !['home', 'away'].includes(team)
@@ -23,19 +27,47 @@ export function getGoalCelebrationCameraFrame({ players, participantIds, team, a
   }));
   const targetX = worldPositions.reduce((sum, point) => sum + point.x, 0) / worldPositions.length;
   const targetZ = worldPositions.reduce((sum, point) => sum + point.z, 0) / worldPositions.length;
-  const lateralValues = worldPositions.map(({ z }) => z);
-  const halfWidth = (Math.max(...lateralValues) - Math.min(...lateralValues)) / 2 + HORIZONTAL_MARGIN;
-  const safeAspect = Number.isFinite(aspect) ? Math.max(0.35, aspect) : 1;
-  const horizontalHalfFov = Math.atan(Math.tan(CAMERA_FOV_RADIANS / 2) * safeAspect);
-  const cameraDistance = Math.max(MIN_CAMERA_DISTANCE, halfWidth / Math.tan(horizontalHalfFov));
   const attackDirection = team === 'home' ? 1 : -1;
+  const cameraRight = {
+    x: -attackDirection * Math.sin(CELEBRATION_AZIMUTH_RADIANS),
+    z: Math.cos(CELEBRATION_AZIMUTH_RADIANS),
+  };
+  const projectedWidths = worldPositions.map(({ x, z }) => (
+    (x - targetX) * cameraRight.x + (z - targetZ) * cameraRight.z
+  ));
+  const halfWidth = Math.max(...projectedWidths.map(Math.abs)) + HORIZONTAL_MARGIN;
+
+  const cameraUp = {
+    x: -attackDirection * Math.sin(CELEBRATION_ELEVATION_RADIANS) * Math.cos(CELEBRATION_AZIMUTH_RADIANS),
+    y: Math.cos(CELEBRATION_ELEVATION_RADIANS),
+    z: -Math.sin(CELEBRATION_ELEVATION_RADIANS) * Math.sin(CELEBRATION_AZIMUTH_RADIANS),
+  };
+  const projectedVerticalExtents = worldPositions.flatMap(({ x, z }) => {
+    const horizontalOffset = (x - targetX) * cameraUp.x + (z - targetZ) * cameraUp.z;
+    return [
+      horizontalOffset - CELEBRATION_TARGET_HEIGHT * cameraUp.y,
+      horizontalOffset + (PLAYER_HEIGHT - CELEBRATION_TARGET_HEIGHT) * cameraUp.y,
+    ];
+  });
+  const halfHeight = Math.max(1.0, Math.max(...projectedVerticalExtents.map(Math.abs)) + VERTICAL_MARGIN);
+
+  const safeAspect = Number.isFinite(aspect) ? Math.max(0.35, aspect) : 1;
+  const verticalHalfFov = CAMERA_FOV_RADIANS / 2;
+  const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * safeAspect);
+  const cameraDistance = Math.max(
+    MIN_CAMERA_DISTANCE,
+    halfWidth / Math.tan(horizontalHalfFov),
+    halfHeight / Math.tan(verticalHalfFov),
+  );
 
   return {
-    target: { x: targetX, y: 0.85, z: targetZ },
+    target: { x: targetX, y: CELEBRATION_TARGET_HEIGHT, z: targetZ },
     position: {
-      x: targetX + attackDirection * cameraDistance * Math.cos(CELEBRATION_ELEVATION_RADIANS),
-      y: cameraDistance * Math.sin(CELEBRATION_ELEVATION_RADIANS),
-      z: targetZ,
+      x: targetX + attackDirection * cameraDistance
+        * Math.cos(CELEBRATION_ELEVATION_RADIANS) * Math.cos(CELEBRATION_AZIMUTH_RADIANS),
+      y: CELEBRATION_TARGET_HEIGHT + cameraDistance * Math.sin(CELEBRATION_ELEVATION_RADIANS),
+      z: targetZ + cameraDistance * Math.cos(CELEBRATION_ELEVATION_RADIANS)
+        * Math.sin(CELEBRATION_AZIMUTH_RADIANS),
     },
   };
 }

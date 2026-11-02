@@ -33,21 +33,70 @@ test('camera comes from the correct front for each team', () => {
   assert.ok(away.position.x < away.target.x);
   assert.equal(home.position.y, away.position.y);
   assert.equal(home.position.z, away.position.z);
+  const homeAzimuth = Math.atan(Math.abs((home.position.z - home.target.z)
+    / (home.position.x - home.target.x)));
+  const awayAzimuth = Math.atan(Math.abs((away.position.z - away.target.z)
+    / (away.position.x - away.target.x)));
+  assert.ok(Math.abs(homeAzimuth - 20 * Math.PI / 180) < 1e-9);
+  assert.ok(Math.abs(awayAzimuth - 20 * Math.PI / 180) < 1e-9);
+  for (const frame of [home, away]) {
+    const horizontalDistance = Math.hypot(
+      frame.position.x - frame.target.x,
+      frame.position.z - frame.target.z,
+    );
+    const elevation = Math.atan2(frame.position.y - frame.target.y, horizontalDistance);
+    assert.ok(Math.abs(elevation - 24 * Math.PI / 180) < 1e-9);
+  }
 });
 
-test('narrow viewports increase camera distance enough to keep the lateral group within frame', () => {
-  const input = { players, participantIds: ['left', 'center', 'right'], team: 'home' };
+test('wide and narrow viewports fit the projected three-person group and full player height', () => {
+  const groupPlayers = [
+    { id: 'left', x: 300, y: 170 },
+    { id: 'center', x: 420, y: 270 },
+    { id: 'right', x: 540, y: 370 },
+  ];
+  const input = { players: groupPlayers, participantIds: ['left', 'center', 'right'], team: 'home' };
   const wide = getGoalCelebrationCameraFrame({ ...input, aspect: 16 / 9 });
   const narrow = getGoalCelebrationCameraFrame({ ...input, aspect: 0.5 });
-  const horizontalHalfFov = Math.atan(Math.tan(21 * Math.PI / 180) * 0.5);
-  const requiredHalfWidth = ((320 - 220) / 80) / 2 + 0.45;
-  const narrowDistance = Math.hypot(
-    narrow.position.x - narrow.target.x,
-    narrow.position.y,
+  const elevation = 24 * Math.PI / 180;
+  const azimuth = 20 * Math.PI / 180;
+  const verticalHalfFov = 21 * Math.PI / 180;
+  const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * 0.5);
+  const distance = (frame) => Math.hypot(
+    frame.position.x - frame.target.x,
+    frame.position.y - frame.target.y,
+    frame.position.z - frame.target.z,
   );
+  const attackDirection = 1;
+  const right = { x: -attackDirection * Math.sin(azimuth), z: Math.cos(azimuth) };
+  const up = {
+    x: -attackDirection * Math.sin(elevation) * Math.cos(azimuth),
+    y: Math.cos(elevation),
+    z: -Math.sin(elevation) * Math.sin(azimuth),
+  };
+  const participants = groupPlayers.filter(({ id }) => input.participantIds.includes(id));
+  const projectedX = participants.map(({ x }) => x / 80 - 6);
+  const projectedZ = participants.map(({ y }) => (y - 270) / 80);
+  const groupCenterX = projectedX.reduce((sum, value) => sum + value, 0) / projectedX.length;
+  const groupCenterZ = projectedZ.reduce((sum, value) => sum + value, 0) / projectedZ.length;
+  const requiredHalfWidth = Math.max(...participants.map((_, index) => Math.abs(
+    (projectedX[index] - groupCenterX) * right.x + (projectedZ[index] - groupCenterZ) * right.z,
+  ))) + 0.45;
+  const requiredHalfHeight = Math.max(1.0, Math.max(...participants.flatMap((_, index) => {
+    const horizontal = (projectedX[index] - groupCenterX) * up.x
+      + (projectedZ[index] - groupCenterZ) * up.z;
+    return [
+      Math.abs(horizontal - 0.85 * up.y),
+      Math.abs(horizontal + (1.6 - 0.85) * up.y),
+    ];
+  })) + 0.2);
 
-  assert.ok(narrowDistance > Math.hypot(wide.position.x - wide.target.x, wide.position.y));
-  assert.ok(narrowDistance * Math.tan(horizontalHalfFov) >= requiredHalfWidth - 1e-9);
+  assert.ok(distance(narrow) > distance(wide));
+  assert.ok(distance(wide) * Math.tan(Math.atan(Math.tan(verticalHalfFov) * (16 / 9)))
+    >= requiredHalfWidth - 1e-9);
+  assert.ok(distance(narrow) * Math.tan(horizontalHalfFov) >= requiredHalfWidth - 1e-9);
+  assert.ok(distance(wide) * Math.tan(verticalHalfFov) >= requiredHalfHeight - 1e-9);
+  assert.ok(distance(narrow) * Math.tan(verticalHalfFov) >= requiredHalfHeight - 1e-9);
 });
 
 test('invalid teams, missing participants, and malformed selections return null', () => {
