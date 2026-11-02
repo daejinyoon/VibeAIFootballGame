@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { APP_VERSION_LABEL, RELEASE_NOTES } from '../game/releaseNotes.js';
+import { APP_VERSION_LABEL, RELEASE_HISTORY } from '../game/releaseNotes.js';
 
 export default function ReleaseNotesDialog({ onClose }) {
   const dialogRef = useRef(null);
@@ -50,8 +50,8 @@ export default function ReleaseNotesDialog({ onClose }) {
         <header className="release-notes-header">
           <div>
             <p className="eyebrow">DEX FOOTBALL ARCADE · {APP_VERSION_LABEL}</p>
-            <h2 id="release-notes-title">정식 출시 패치 노트</h2>
-            <p>첫 번째 정식 버전에서 새로 만날 수 있는 기능을 확인해 보세요.</p>
+            <h2 id="release-notes-title">게임 패치 노트</h2>
+            <p>버전별 업데이트 내용을 최신순으로 확인해 보세요.</p>
           </div>
           <button
             ref={closeButtonRef}
@@ -63,13 +63,21 @@ export default function ReleaseNotesDialog({ onClose }) {
         </header>
 
         <div className="release-notes-content">
-          {RELEASE_NOTES.map(({ title, items }, index) => (
-            <section className="release-notes-section" key={title}>
-              <span className="release-notes-index">0{index + 1}</span>
-              <div>
-                <h3>{title}</h3>
-                <ul>{items.map((item) => <li key={item}>{item}</li>)}</ul>
-              </div>
+          {RELEASE_HISTORY.map(({ version, date, sections }) => (
+            <section className="release-notes-release" key={`${version}-${date}`} aria-label={`v${version}`}>
+              <header className="release-notes-release-header">
+                <h3>v{version}</h3>
+                <time dateTime={date}>{date}</time>
+              </header>
+              {sections.map(({ title, items }, index) => (
+                <section className="release-notes-section" key={title}>
+                  <span className="release-notes-index">0{index + 1}</span>
+                  <div>
+                    <h4>{title}</h4>
+                    <ul>{items.map((item) => <li key={item}>{item}</li>)}</ul>
+                  </div>
+                </section>
+              ))}
             </section>
           ))}
         </div>

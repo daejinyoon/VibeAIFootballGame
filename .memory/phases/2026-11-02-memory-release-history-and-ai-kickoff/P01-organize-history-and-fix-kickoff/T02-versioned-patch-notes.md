@@ -1,6 +1,6 @@
-# Task: T02 Build Versioned Patch-Note History
+﻿# Task: T02 Build Versioned Patch-Note History
 
-## Status: pending
+## Status: done
 
 ## Goal
 Turn the current single-version patch-note list into a release history that preserves v1.0.0 and visibly displays version and release date for each entry, ordered newest first.
@@ -80,6 +80,6 @@ Task: T02-versioned-patch-notes
 ```
 
 ## Progress
-- [ ] Implementation complete
-- [ ] Validation passed
-- commit: pending
+- [x] Implementation complete
+- [x] Validation passed (`npm run build`, `git diff --check`)
+- commit: completed (task commit)
