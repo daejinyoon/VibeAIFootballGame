@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { MathUtils, Vector3 } from 'three';
 import { FIELD } from '../game/constants.js';
+import { getGoalCelebrationCameraFrame } from '../game/goalCelebrationCamera.js';
 
 const clamp = (value, min, max) => MathUtils.clamp(value, min, max);
 const CAMERA_FOV = 42;
@@ -30,6 +31,33 @@ export function TrackingCamera3D({ ball, gameStateRef, actorsRef }) {
     const activeBall = gameState?.ball ?? ball;
     const ballX = Number.isFinite(activeBall?.x) ? activeBall.x : FIELD.width / 2;
     const ballY = Number.isFinite(activeBall?.y) ? activeBall.y : FIELD.height / 2;
+    const smoothing = 1 - Math.exp(-Math.max(0, delta) * 4.5);
+    const celebrationFrame = gameState?.goalCelebration
+      ? getGoalCelebrationCameraFrame({
+        players: gameState.players,
+        participantIds: gameState.goalCelebration.participantIds,
+        team: gameState.goalCelebration.team,
+        aspect: size.width / Math.max(1, size.height),
+      })
+      : null;
+
+    if (celebrationFrame) {
+      nextTarget.current.set(
+        celebrationFrame.target.x,
+        celebrationFrame.target.y,
+        celebrationFrame.target.z,
+      );
+      desiredPosition.current.set(
+        celebrationFrame.position.x,
+        celebrationFrame.position.y,
+        celebrationFrame.position.z,
+      );
+      lookTarget.current.lerp(nextTarget.current, smoothing);
+      camera.position.lerp(desiredPosition.current, smoothing);
+      camera.lookAt(lookTarget.current);
+      return;
+    }
+
     const leftBoundary = FIELD.width / 3;
     const rightBoundary = FIELD.width * 2 / 3;
     if (zone.current === 'center') {
@@ -62,8 +90,6 @@ export function TrackingCamera3D({ ball, gameStateRef, actorsRef }) {
     const maxFollowZ = Math.max(0.15, halfFrameDepth - FIELD.height / (2 * WORLD_SCALE));
     const followZ = clamp(worldZ * 0.28, -maxFollowZ, maxFollowZ);
     const followY = clamp((Number(activeBall?.height) || 0) / 80 * 0.12, 0, 0.2);
-    const smoothing = 1 - Math.exp(-Math.max(0, delta) * 4.5);
-
     nextTarget.current.set(focusWorldX, 0.12 + followY, followZ);
     lookTarget.current.lerp(nextTarget.current, smoothing);
     desiredPosition.current.set(
