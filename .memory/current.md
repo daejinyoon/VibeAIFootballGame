@@ -1,16 +1,16 @@
 # Current Context
 
 ## Active Plan
-[Opening Kickoff Teammate Pass](./plans/2026-11-02-opening-kickoff-teammate-pass.md)
+[RKO Landing Spacing](./plans/2026-11-02-rko-landing-spacing.md)
 
 ## Active Phase
-[P01 Kickoff Pass](./phases/2026-11-02-opening-kickoff-teammate-pass/P01-kickoff-pass/P01-kickoff-pass.md)
+[P01 Landing Motion](./phases/2026-11-02-rko-landing-spacing/P01-landing-motion/phase.md)
 
 ## Active Task
-[T01 Aim and Select Teammate](./phases/2026-11-02-opening-kickoff-teammate-pass/P01-kickoff-pass/T01-aim-and-select-teammate.md)
+[T01 Target Forward Landing](./phases/2026-11-02-rko-landing-spacing/P01-landing-motion/T01-target-forward-landing.md)
 
 ## Status
-- Opening kickoff teammate passing is complete and committed. RKO participant spacing remains a separate follow-up awaiting the user's clarification.
+- RKO landing spacing is implemented and committed: the target moves forward during the slam, holds the offset while grounded, and returns during recovery. Kick contact and the finisher's face-up pose are preserved.
 
 ## Next Step (IMPORTANT)
-Resume the RKO ceremony spacing adjustment after the user clarifies whether to widen the initial formation, landing positions, or both.
+The RKO landing-spacing task is complete; no active task remains.
