@@ -229,7 +229,12 @@ function advanceLockedKickoff(state, input, teamInputs, pvpMode) {
       return releasePass(state, taker, 'groundPass', receiver);
     }
   } else {
-    return releasePass(state, taker, 'groundPass');
+    const receiver = chooseReceiver(state, taker, 'groundPass')
+      ?? nearestPlayer(
+        getTeammates(state, taker).filter((player) => player.role !== 'goalkeeper'),
+        taker,
+      );
+    return releasePass(state, taker, 'groundPass', receiver);
   }
   return [];
 }

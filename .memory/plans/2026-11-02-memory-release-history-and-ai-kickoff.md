@@ -6,7 +6,7 @@ Make project history easier to scan, give the game a versioned patch-note archiv
 ## Phases
 | Phase | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
-| P01 | `in_progress` | Rename memory indexes, add versioned release history, and guarantee an away-team kickoff receiver | [P01](../phases/2026-11-02-memory-release-history-and-ai-kickoff/P01-organize-history-and-fix-kickoff/phase.md) |
+| P01 | `done` | Rename memory indexes, add versioned release history, and guarantee an away-team kickoff receiver | [P01](../phases/2026-11-02-memory-release-history-and-ai-kickoff/P01-organize-history-and-fix-kickoff/phase.md) |
 
 ## Decisions and Constraints
 - Decisions: `.memory/decisions/2026-11-02-memory-release-history-ai-kickoff.md`.
