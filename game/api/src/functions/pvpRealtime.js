@@ -1,4 +1,4 @@
-import { app, input } from '@azure/functions';
+import { app } from '@azure/functions';
 import { WebPubSubServiceClient } from '@azure/web-pubsub';
 import { EntraAuthError, requireEntraCaller } from '../auth/entra.js';
 import {
@@ -238,16 +238,6 @@ app.http('pvpNegotiate', {
   handler: realtime.negotiate,
 });
 
-const webPubSubContext = input.generic({
-  type: 'webPubSubContext',
-  name: 'wpsContext',
-  connection: CONNECTION_SETTING,
-});
-
-app.http('pvpEvents', {
-  route: 'pvp/events/{event}',
-  methods: ['POST'],
-  authLevel: 'anonymous',
-  extraInputs: [webPubSubContext],
-  handler: (request, context) => realtime.upstream(request, context.extraInputs.get('wpsContext'), context),
-});
+// Azure Static Web Apps managed Functions support HTTP-only triggers and
+// bindings. Keep the upstream domain handler above for a future standalone
+// Functions backend, but do not register its Web PubSub binding here.

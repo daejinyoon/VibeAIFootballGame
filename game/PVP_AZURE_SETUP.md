@@ -65,7 +65,7 @@ The Bicep hub sends `pvp-input` user events and `disconnected` system events to:
 https://mango-rock-0a79acd00.3.azurestaticapps.net/api/pvp/events/{event}
 ```
 
-The API endpoint is `POST /api/pvp/events/{event}`. Its Functions `WebPubSubContext` input binding uses the configured `WEBPUBSUB_CONNECTION_STRING` to validate signed upstream requests; the handler returns the binding's error/preflight response and ignores unrelated event names. The `pvp/*` API path is excluded from the Static Web App's SPA navigation fallback. Static Web Apps Functions use HTTP triggers for this integration. See [Azure Web PubSub bindings for Azure Functions](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-web-pubsub).
+The intended callback endpoint is `POST /api/pvp/events/{event}`. The existing handler uses a Functions `WebPubSubContext` input binding to validate signed upstream requests, but Azure Static Web Apps managed Functions only support HTTP triggers and bindings. This callback is therefore not registered in the managed API app; profile and other HTTP APIs remain deployed there. Move the callback to a standalone Azure Functions backend before enabling upstream event forwarding again. See [Azure Static Web Apps API support](https://learn.microsoft.com/en-us/azure/static-web-apps/apis-functions) and [Azure Web PubSub bindings for Azure Functions](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-web-pubsub).
 
 ## Two-user production smoke check
 

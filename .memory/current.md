@@ -1,16 +1,16 @@
 # Current Context
 
 ## Active Plan
-[Football 1.0 Release](./plans/2026-11-02-football-v1-release.md)
+[Cloud Profile API 404 Recovery](./plans/2026-11-02-cloud-profile-api-404.md)
 
 ## Active Phase
-[P02 Publish](./phases/2026-11-02-football-v1-release/P02-publish/phase.md) (complete)
+[P01 Managed API Recovery](./phases/2026-11-02-cloud-profile-api-404/P01-managed-api-recovery/phase.md)
 
 ## Active Task
-None — release plan complete.
+[T01 Remove Unsupported Binding and Deploy](./phases/2026-11-02-cloud-profile-api-404/P01-managed-api-recovery/T01-remove-unsupported-binding-and-deploy.md)
 
 ## Status
-- Version 1.0.0 and main-screen patch notes are live. The production build and focused release-note test passed; Azure workflow `41395500072` succeeded and deployed assets returned HTTP 200. The user approved deployment while the repository is public. The broader existing test suite had seven failures, including two campaign/knockdown issues explicitly excluded from this scope.
+- Production profile API routes return 404. The API package is uploaded, but the managed Function app registers an unsupported Web PubSub Context input binding. User chose profile-save recovery first; remove that registration, deploy, and verify the profile route returns an API response.
 
-## Next Step
-No active tasks. v1.0.0 deployment and live-site verification are complete.
+## Next Step (IMPORTANT)
+Complete T01. Keep PvP upstream event forwarding deferred until a separate Functions backend is configured.
