@@ -99,18 +99,20 @@ test('the opening clock stays stopped until the opening taker kicks and starts o
   assert.ok(homeSkillEvents.some((event) => event.type === 'skillUsed' && event.team === 'home'));
   assert.ok(!homeSkillEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'));
   assert.ok(state.remainingSeconds < 60 && state.remainingSeconds > 59.6);
-  let awayEvents = [];
-  for (let index = 0; index < 53; index += 1) {
-    awayEvents = stepGame(state, frame(), 0.05);
-    assert.ok(!awayEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'));
-  }
   assert.ok(state.aiSkillGraceSecondsRemaining > 0);
-  awayEvents = stepGame(state, frame(), 0.05);
+  let awayEvents = [];
+  for (let index = 0; index < 80; index += 1) {
+    awayEvents = stepGame(state, frame(), 0.05);
+    if (awayEvents.some((event) => event.type === 'skillUsed' && event.team === 'away')) break;
+  }
   assert.ok(awayEvents.some((event) => event.type === 'skillUsed' && event.team === 'away'));
 
   const shotState = createGameState();
   const shotEvents = stepGame(shotState, frame({ pressed: ['d'] }), 0.05);
-  assert.ok(shotEvents.some((event) => event.type === 'shot'));
+  assert.equal(shotEvents.some((event) => event.type === 'shot'), false);
+  assert.equal(shotState.hasMatchClockStarted, false);
+  const shotKickoffEvents = stepGame(shotState, frame({ pressed: ['s'] }), 0.05);
+  assert.ok(shotKickoffEvents.some((event) => event.type === 'pass'));
   assert.equal(shotState.aiSkillGraceSecondsRemaining, 3);
 });
 
@@ -187,16 +189,17 @@ test('only the opening kickoff taker can start the clock, and later kickoffs pre
   state.controlledPlayerId = 'home-def-1';
   state.ball.ownerId = 'home-def-1';
   state.possessionTeam = 'home';
-  state.players.find((player) => player.id === 'home-def-1').x -= 30;
-  state.ball.x -= 30;
 
   stepGame(state, frame({ pressed: ['s'] }), 0.05);
   assert.equal(state.hasMatchClockStarted, false);
   assert.equal(state.remainingSeconds, 60);
+  assert.equal(state.kickoffLocked, true);
 
   state.controlledPlayerId = 'home-fw';
   state.ball.ownerId = 'home-fw';
   stepGame(state, frame({ pressed: ['a'] }), 0.05);
+  assert.equal(state.hasMatchClockStarted, false, 'only S starts the kickoff');
+  stepGame(state, frame({ pressed: ['s'] }), 0.05);
   assert.equal(state.hasMatchClockStarted, true);
 
   const beforeGoalRestart = state.remainingSeconds;
@@ -216,7 +219,11 @@ test('both teams wait for the opening kickoff to start the clock before using sk
   assert.equal(homeState.eagleVolley, null);
   assert.equal(homeState.remainingSeconds, 60);
 
-  homeState.hasMatchClockStarted = true;
+  const homeKickoff = stepGame(homeState, frame({ pressed: ['s'] }), 0.05);
+  assert.ok(homeKickoff.some((event) => event.type === 'pass' && event.team === 'home'));
+  assert.equal(homeState.hasMatchClockStarted, true);
+  homeState.ball.ownerId = 'home-fw';
+  homeState.possessionTeam = 'home';
   const homeAfterKickoff = stepGame(homeState, frame({ pressed: ['f'] }), 0.05);
   assert.ok(homeAfterKickoff.some((event) => event.type === 'skillUsed' && event.team === 'home' && event.skillId === 'eagleShot'));
   assert.ok(homeState.eagleVolley);
@@ -250,6 +257,8 @@ test('home and away goalkeepers use team skills after kickoff without bypassing 
     .some((event) => event.type === 'skillUsed'));
   assert.equal(homeState.eagleVolley, null);
 
+  homeState.kickoffLocked = false;
+  homeState.kickoffTakerId = null;
   homeState.hasMatchClockStarted = true;
   homeState.ball.ownerId = homeKeeper.id;
   homeState.possessionTeam = 'home';
@@ -403,7 +412,7 @@ test('ordinary tackles keep their standard range and transfer possession', () =>
   assert.equal(tackler.motionAction, 'tackle');
 });
 
-test('kickoff circle keeps non-kickers outside until the ball moves clear', () => {
+test('kickoff holds every player until S kicks the ball clear', () => {
   const state = createGameState();
   const center = { x: FIELD.width / 2, y: FIELD.height / 2 };
   const awayForward = state.players.find((player) => player.id === 'away-fw');
@@ -415,10 +424,40 @@ test('kickoff circle keeps non-kickers outside until the ball moves clear', () =
   assert.ok(Math.hypot(awayForward.x - center.x, awayForward.y - center.y) >= KICKOFF_CIRCLE_RADIUS);
   assert.equal(state.kickoffLocked, true);
 
+  const positionsBeforeInput = state.players.map(({ id, x, y }) => ({ id, x, y }));
   stepGame(state, frame({ moveX: 1 }), 0.05);
 
+  assert.equal(state.kickoffLocked, true, 'movement input cannot release the kickoff lock');
+  assert.deepEqual(state.players.map(({ id, x, y }) => ({ id, x, y })), positionsBeforeInput);
+
+  const kickoffEvents = stepGame(state, frame({ pressed: ['s'] }), 0.05);
+  assert.ok(kickoffEvents.some((event) => event.type === 'pass' && event.team === 'home'));
   assert.equal(state.kickoffLocked, false);
   assert.equal(state.kickoffTakerId, null);
+});
+
+test('away AI automatically kicks after a goal while all other players stay fixed', () => {
+  const state = createGameState();
+  state.kickoffLocked = false;
+  state.kickoffTakerId = null;
+  state.hasMatchClockStarted = true;
+  state.phase = 'goalPause';
+  state.phaseSeconds = 0.01;
+  state.pendingKickoffTeam = 'away';
+
+  stepGame(state, frame(), 0.05);
+  assert.equal(state.kickoffLocked, true);
+  assert.equal(state.kickoffTakerId, 'away-fw');
+  const positionsBeforeAiKick = state.players.map(({ id, x, y }) => ({ id, x, y }));
+
+  const kickoffEvents = stepGame(state, frame({ moveX: 1 }), 0.05);
+
+  assert.ok(kickoffEvents.some((event) => event.type === 'pass' && event.team === 'away'));
+  assert.deepEqual(state.players.map(({ id, x, y }) => ({ id, x, y })), positionsBeforeAiKick);
+  assert.equal(state.ball.ownerId, null);
+  assert.equal(state.kickoffLocked, false);
+  assert.equal(state.kickoffTakerId, null);
+  assert.equal(state.hasMatchClockStarted, true);
 });
 
 test('kickoff lock holds non-kickers wholly in their own half while allowing the taker at center', () => {

@@ -195,12 +195,31 @@ function releaseKickoffLockIfBallCleared(state) {
   if (distance(state.ball, center) < 12) return;
   const owner = carrier(state);
   const taker = byId(state, state.kickoffTakerId);
-  const takerCarriedClear = owner?.id === state.kickoffTakerId && taker && distance(taker, center) >= 1;
-  const ballWasKicked = !owner || owner.id !== state.kickoffTakerId || state.ball.flightKind !== 'ground';
-  if (takerCarriedClear || ballWasKicked) {
+  const ballWasKicked = taker && !owner && state.ball.passTeam === taker.team
+    && Math.hypot(state.ball.vx ?? 0, state.ball.vy ?? 0) > 0;
+  if (ballWasKicked) {
     state.kickoffLocked = false;
     state.kickoffTakerId = null;
   }
+}
+
+function advanceLockedKickoff(state, input, teamInputs, pvpMode) {
+  const taker = byId(state, state.kickoffTakerId);
+  if (!taker || taker.dismissed || state.ball.ownerId !== taker.id) {
+    enforceKickoffCircle(state);
+    releaseKickoffLockIfBallCleared(state);
+    return [];
+  }
+
+  enforceKickoffCircle(state);
+  const takerInput = pvpMode ? teamInputs[taker.team] : input;
+  const isHumanKickoff = taker.team === 'home' || pvpMode;
+  if (isHumanKickoff) {
+    if (takerInput.pressed.has('s')) return releasePass(state, taker, 'groundPass');
+  } else {
+    return releasePass(state, taker, 'groundPass');
+  }
+  return [];
 }
 
 function placeKickoffPlayers(state, kickoffTeam) {
@@ -2272,8 +2291,6 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
     advanceKeeperAction(player, dt);
     player.aiTackleCooldownSeconds = Math.max(0, (player.aiTackleCooldownSeconds ?? 0) - dt);
   }
-  releaseKickoffLockIfBallCleared(state);
-
   if (state.hasMatchClockStarted) {
     if (state.overtimeRemainingSeconds !== null) {
       state.overtimeRemainingSeconds = Math.max(0, state.overtimeRemainingSeconds - dt);
@@ -2319,6 +2336,12 @@ export function stepGame(state, inputFrame = {}, deltaSeconds = 0, options = {})
   if (state.phase === 'goalKick') return finishFrame([...events, ...beginGoalKick(state, dt, { pvpMode })]);
   if (state.phase === 'throwIn' || state.phase === 'cornerKick') return finishFrame(events);
   if (state.phase === 'freeKick' || state.phase === 'penaltyKick') return finishFrame([...events, ...beginSetPiece(state, dt)]);
+
+  if (state.kickoffLocked) {
+    events.push(...advanceLockedKickoff(state, input, teamInputs, pvpMode));
+    releaseKickoffLockIfBallCleared(state);
+    return finishFrame(events);
+  }
 
   if (pvpMode) {
     state.controlledPlayerIds ??= { home: state.controlledPlayerId ?? 'home-fw', away: 'away-fw' };
