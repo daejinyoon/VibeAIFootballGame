@@ -10,7 +10,7 @@
 None. All tasks in P01 are complete.
 
 ## Status
-- RKO roles now use a depth-staggered preview formation and connected shared motion. The RKO motion tests and production build pass; the build retains its existing large-chunk advisory. Manual browser visual review was not available because the running Edge process intercepted headless capture.
+- T01–T02 implement depth-staggered RKO preview staging, close abdominal kick contact before target reaction, and a forward/down finisher slam. Ten motion tests and the production build pass; manual appearance review remains available in the local browser.
 
 ## Next Step
-Open the local game and review the new RKO staging and paired fall in the team customization ceremony preview.
+Open the local game and review the corrected kick contact and forward/down RKO slam in the team customization preview.

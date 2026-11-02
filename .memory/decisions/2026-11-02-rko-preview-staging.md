@@ -14,3 +14,7 @@
 ## D03. Shared animation implementation
 - **Chosen**: Add only local horizontal root translation to the existing role-specific pose data and have `MiiPlayerModel` apply it alongside existing root lift/glide. Reuse the same pose path in preview and match; preserve the existing pose fields and behavior for every other ceremony.
 - **Rationale**: The finisher needs to close the visible gap in both preview and match without changing player simulation or introducing preview-only choreography.
+
+## D04. User-corrected RKO action
+- **Chosen**: The striker must move into contact range before kicking the target's abdomen. The target remains upright until the kick lands, then folds forward. The finisher approaches along the forward/attacking direction, jumps forward, and drives the target down toward the ground; the target and finisher must not perform a paired backward fall.
+- **Rationale**: The previous preview allowed the target to bend before contact and showed both players falling backward, which did not match the supplied reference or the user's description.

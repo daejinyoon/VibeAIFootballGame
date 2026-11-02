@@ -61,113 +61,125 @@ function victoryPose(time) {
 
 function getRkoPose(time, role) {
   if (role === 'target') {
-    if (time < 0.2) return {};
-    if (time < 0.45) {
-      const impact = smoothstep((time - 0.2) / 0.25);
+    // The target stays upright until the striker reaches contact with the kick.
+    if (time < 0.35) return {};
+    if (time < 0.62) {
+      const impact = smoothstep((time - 0.35) / 0.27);
       return {
         torsoPitch: 0.2 * impact,
-        headPitch: 0.38 * impact,
-        leftArmPitch: -0.4 * impact,
-        rightArmPitch: -0.55 * impact,
-        leftArmRoll: -0.24 * impact,
-        rightArmRoll: 0.24 * impact,
-        leftElbowPitch: -0.78 * impact,
-        rightElbowPitch: -0.78 * impact,
+        headPitch: 0.36 * impact,
+        leftArmPitch: -0.38 * impact,
+        rightArmPitch: -0.52 * impact,
+        leftArmRoll: -0.22 * impact,
+        rightArmRoll: 0.22 * impact,
+        leftElbowPitch: -0.72 * impact,
+        rightElbowPitch: -0.72 * impact,
       };
     }
-    if (time < 0.82) {
-      const bend = smoothstep((time - 0.45) / 0.37);
+    if (time < 1) {
+      const bend = smoothstep((time - 0.62) / 0.38);
       return {
-        torsoPitch: mix(0.2, 0.86, bend),
-        headPitch: mix(0.38, 0.72, bend),
-        leftArmPitch: mix(-0.4, -0.72, bend),
-        rightArmPitch: mix(-0.55, -0.72, bend),
-        leftArmRoll: mix(-0.24, -0.46, bend),
-        rightArmRoll: mix(0.24, 0.46, bend),
-        leftElbowPitch: mix(-0.78, -1.12, bend),
-        rightElbowPitch: mix(-0.78, -1.12, bend),
+        torsoPitch: mix(0.2, 0.88, bend),
+        headPitch: mix(0.36, 0.76, bend),
+        leftArmPitch: mix(-0.38, -0.74, bend),
+        rightArmPitch: mix(-0.52, -0.74, bend),
+        leftArmRoll: mix(-0.22, -0.48, bend),
+        rightArmRoll: mix(0.22, 0.48, bend),
+        leftElbowPitch: mix(-0.72, -1.12, bend),
+        rightElbowPitch: mix(-0.72, -1.12, bend),
       };
     }
-    if (time < 1.1) {
+    if (time < 1.25) {
       return {
-        torsoPitch: 0.86,
-        headPitch: 0.72,
-        leftArmPitch: -0.72,
-        rightArmPitch: -0.72,
-        leftArmRoll: -0.46,
-        rightArmRoll: 0.46,
+        torsoPitch: 0.88,
+        headPitch: 0.76,
+        leftArmPitch: -0.74,
+        rightArmPitch: -0.74,
+        leftArmRoll: -0.48,
+        rightArmRoll: 0.48,
         leftElbowPitch: -1.12,
         rightElbowPitch: -1.12,
       };
     }
-    if (time < 1.65) {
-      const fall = smoothstep((time - 1.1) / 0.55);
+    if (time < 1.75) {
+      const slam = smoothstep((time - 1.25) / 0.5);
       return {
-        torsoPitch: mix(0.86, 0.18, fall),
-        headPitch: mix(0.72, -0.12, fall),
-        leftArmPitch: mix(-0.72, -0.16, fall),
-        rightArmPitch: mix(-0.72, -0.16, fall),
-        leftArmRoll: mix(-0.46, -0.92, fall),
-        rightArmRoll: mix(0.46, 0.92, fall),
-        leftElbowPitch: mix(-1.12, -0.32, fall),
-        rightElbowPitch: mix(-1.12, -0.32, fall),
-        leftLegPitch: 0.48 * fall,
-        rightLegPitch: -0.28 * fall,
-        rootPitch: -1.38 * fall,
-        rootLift: 0.035 * fall,
+        torsoPitch: mix(0.88, 0.18, slam),
+        headPitch: mix(0.76, -0.16, slam),
+        leftArmPitch: mix(-0.74, -0.12, slam),
+        rightArmPitch: mix(-0.74, -0.12, slam),
+        leftArmRoll: mix(-0.48, -0.9, slam),
+        rightArmRoll: mix(0.48, 0.9, slam),
+        leftElbowPitch: mix(-1.12, -0.28, slam),
+        rightElbowPitch: mix(-1.12, -0.28, slam),
+        leftLegPitch: 0.36 * slam,
+        rightLegPitch: -0.24 * slam,
+        rootPitch: 1.35 * slam,
+        rootLift: 0.035 * slam,
       };
     }
     if (time < 2.1) {
       return {
         torsoPitch: 0.18,
-        headPitch: -0.12,
-        leftArmPitch: -0.16,
-        rightArmPitch: -0.16,
-        leftArmRoll: -0.92,
-        rightArmRoll: 0.92,
-        leftElbowPitch: -0.32,
-        rightElbowPitch: -0.32,
-        leftLegPitch: 0.48,
-        rightLegPitch: -0.28,
-        rootPitch: -1.38,
+        headPitch: -0.16,
+        leftArmPitch: -0.12,
+        rightArmPitch: -0.12,
+        leftArmRoll: -0.9,
+        rightArmRoll: 0.9,
+        leftElbowPitch: -0.28,
+        rightElbowPitch: -0.28,
+        leftLegPitch: 0.36,
+        rightLegPitch: -0.24,
+        rootPitch: 1.35,
         rootLift: 0.035,
       };
     }
     const recover = smoothstep((time - 2.1) / 0.55);
     return blendToVictory({
-      rootPitch: -1.38,
+      rootPitch: 1.35,
       rootLift: 0.035,
       torsoPitch: 0.18,
-      headPitch: -0.12,
-      leftArmRoll: -0.92,
-      rightArmRoll: 0.92,
-      leftLegPitch: 0.48,
-      rightLegPitch: -0.28,
+      headPitch: -0.16,
+      leftArmRoll: -0.9,
+      rightArmRoll: 0.9,
+      leftLegPitch: 0.36,
+      rightLegPitch: -0.24,
     }, time, recover);
   }
 
   if (role === 'striker') {
-    if (time >= 2) return victoryPose(time);
-    const extend = smoothstep((time - 0.12) / 0.14);
-    const retract = smoothstep((time - 0.34) / 0.36);
-    const punch = extend * (1 - retract);
-    const strikePose = {
-      torsoPitch: 0.24 * punch,
-      leftArmPitch: mix(0.18, 0.72, punch),
-      rightArmPitch: mix(0.16, -1.28, punch),
-      leftArmRoll: -0.2 - 0.24 * punch,
-      rightArmRoll: 0.18 + 0.18 * punch,
-      rightElbowPitch: -0.62 * punch,
-      leftLegPitch: -0.12 * punch,
-      rightLegPitch: 0.16 * punch,
+    if (time >= 0.9) {
+      const strikePose = {
+        rightLegPitch: 0,
+        rightFootPitch: 0,
+        rootShiftX: 0.65,
+        rootGlide: 0.32,
+      };
+      return blendToVictory(strikePose, time, smoothstep((time - 0.9) / 0.3));
+    }
+    const close = smoothstep(time / 0.35);
+    const kickOut = smoothstep((time - 0.35) / 0.1);
+    const kickReturn = smoothstep((time - 0.5) / 0.12);
+    const kick = kickOut * (1 - kickReturn);
+    const retreat = smoothstep((time - 0.62) / 0.28);
+    return {
+      torsoPitch: 0.16 * close + 0.18 * kick,
+      leftArmPitch: 0.18 * kick,
+      rightArmPitch: 0.1 + 0.28 * kick,
+      leftArmRoll: -0.2 - 0.24 * kick,
+      rightArmRoll: 0.18 + 0.18 * kick,
+      rightLegPitch: -1.28 * kick,
+      rightFootPitch: -0.52 * kick,
+      leftLegPitch: -0.12 * kick,
+      rootShiftX: 0.65 * close * (1 - retreat),
+      rootGlide: 0.32 * close * (1 - retreat),
     };
-    return blendToVictory(strikePose, time, smoothstep((time - 0.84) / 1.06));
   }
 
   if (role === 'finisher') {
-    if (time < 0.65) return {};
-    if (time < 1.1) {
-      const approach = smoothstep((time - 0.65) / 0.45);
+    if (time < 0.8) return {};
+    if (time < 1.25) {
+      const approach = smoothstep((time - 0.8) / 0.45);
       return {
         torsoPitch: 0.18 * approach,
         leftArmPitch: mix(0.14, -1.02, approach),
@@ -183,39 +195,40 @@ function getRkoPose(time, role) {
         rootYaw: -0.12 * approach,
       };
     }
-    if (time < 1.65) {
-      const fall = smoothstep((time - 1.1) / 0.55);
+    if (time < 1.75) {
+      const launch = clamp((time - 1.25) / 0.5, 0, 1);
+      const impact = smoothstep((time - 1.25) / 0.5);
       return {
-        torsoPitch: mix(0.18, -0.12, fall),
-        leftArmPitch: -1.02,
-        rightArmPitch: -0.92,
-        leftArmRoll: -0.78,
-        rightArmRoll: 0.78,
-        leftElbowPitch: -0.88,
-        rightElbowPitch: -0.78,
-        leftLegPitch: mix(-0.12, 0.44, fall),
-        rightLegPitch: mix(0.12, -0.34, fall),
+        torsoPitch: mix(0.18, -0.16, impact),
+        leftArmPitch: -1.12,
+        rightArmPitch: -1.04,
+        leftArmRoll: -0.82,
+        rightArmRoll: 0.82,
+        leftElbowPitch: -0.96,
+        rightElbowPitch: -0.88,
+        leftLegPitch: mix(-0.12, -0.48, launch),
+        rightLegPitch: mix(0.12, 0.42, launch),
         rootShiftX: -0.72,
-        rootGlide: 0.48,
-        rootPitch: -1.38 * fall,
-        rootLift: 0.035 * fall,
+        rootGlide: mix(0.48, 0.7, impact),
+        rootPitch: 1.35 * impact,
+        rootLift: 0.035 + 0.38 * Math.sin(Math.PI * launch),
         rootYaw: -0.12,
       };
     }
     if (time < 2.1) {
       return {
-        torsoPitch: -0.12,
-        leftArmPitch: -1.02,
-        rightArmPitch: -0.92,
-        leftArmRoll: -0.78,
-        rightArmRoll: 0.78,
-        leftElbowPitch: -0.88,
-        rightElbowPitch: -0.78,
-        leftLegPitch: 0.44,
-        rightLegPitch: -0.34,
+        torsoPitch: -0.16,
+        leftArmPitch: -1.12,
+        rightArmPitch: -1.04,
+        leftArmRoll: -0.82,
+        rightArmRoll: 0.82,
+        leftElbowPitch: -0.96,
+        rightElbowPitch: -0.88,
+        leftLegPitch: -0.48,
+        rightLegPitch: 0.42,
         rootShiftX: -0.72,
-        rootGlide: 0.48,
-        rootPitch: -1.38,
+        rootGlide: 0.7,
+        rootPitch: 1.35,
         rootLift: 0.035,
         rootYaw: -0.12,
       };
@@ -223,18 +236,18 @@ function getRkoPose(time, role) {
     const recover = smoothstep((time - 2.1) / 0.55);
     return blendToVictory({
       rootShiftX: -0.72,
-      rootGlide: 0.48,
-      rootPitch: -1.38,
+      rootGlide: 0.7,
+      rootPitch: 1.35,
       rootLift: 0.035,
       rootYaw: -0.12,
-      leftArmPitch: -1.02,
-      rightArmPitch: -0.92,
-      leftArmRoll: -0.78,
-      rightArmRoll: 0.78,
-      leftElbowPitch: -0.88,
-      rightElbowPitch: -0.78,
-      leftLegPitch: 0.44,
-      rightLegPitch: -0.34,
+      leftArmPitch: -1.12,
+      rightArmPitch: -1.04,
+      leftArmRoll: -0.82,
+      rightArmRoll: 0.82,
+      leftElbowPitch: -0.96,
+      rightElbowPitch: -0.88,
+      leftLegPitch: -0.48,
+      rightLegPitch: 0.42,
     }, time, recover);
   }
 

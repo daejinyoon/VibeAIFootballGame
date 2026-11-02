@@ -6,7 +6,7 @@ Make the three-person RKO recognizable in both customization preview and match b
 ## Phases
 | Phase | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
-| P01 | `done` | Stage the RKO trio in depth and complete the shared role choreography | [P01](../phases/2026-11-02-rko-preview-staging/P01-readable-rko/P01-readable-rko.md) |
+| P01 | `done` | Stage the RKO trio in depth and complete the user-corrected connected choreography | [P01](../phases/2026-11-02-rko-preview-staging/P01-readable-rko/P01-readable-rko.md) |
 
 ## Dependencies and Constraints
 - Decisions: `.memory/decisions/2026-11-02-rko-preview-staging.md`.
