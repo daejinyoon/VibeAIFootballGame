@@ -55,10 +55,11 @@ Task: T02-publish-and-verify
 ```
 
 ## Progress
-- [ ] History reconciled
+- [x] History reconciled locally without force-pushing (`c448b11`)
 - [ ] User resolved source visibility and release pushed
 - [ ] Azure deployment verified
 - commit: pending
 
 ## Current Blocker
 - The remote GitHub repository is public. The earlier hosting plan specified private source and explicitly deferred closing deployment until the visibility mismatch was resolved. The v1.0 release is built locally; do not push until the user confirms the public-source deployment or the repository is made private.
+- The local release commit is `4f65d68`; the local merge commit is `c448b11`. Production build passed; full suite has 7 failures in the existing skill and knockdown tests, none in release-note code.
