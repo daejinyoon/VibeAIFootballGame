@@ -1936,11 +1936,11 @@ test('RKO stages the target in the center with striker and finisher on opposite 
 });
 
 test('regulation result waits for an active campaign ceremony to finish', () => {
-  const state = createInitialGameState({ goalCelebrationId: 'moonwalk' });
+  const state = createInitialGameState({ goalCelebrationId: 'siuuu' });
   state.phase = 'goalPause';
   state.phaseSeconds = 1;
   state.goalCelebration = {
-    ceremonyId: 'moonwalk', team: 'home', elapsedSeconds: 4, durationSeconds: GOAL_CELEBRATION_DURATION_SECONDS,
+    ceremonyId: 'siuuu', team: 'home', elapsedSeconds: 4, durationSeconds: GOAL_CELEBRATION_DURATION_SECONDS,
     participantIds: [], rkoRoles: null, finishMatchAfter: false,
   };
   state.score.home = 1;

@@ -86,16 +86,19 @@ test('campaign match resolves a random ceremony once and retains that ID for the
     return 0.81;
   });
 
-  assert.equal(state.goalCelebrationId, GOAL_CELEBRATION_IDS[4]);
+  assert.equal(state.goalCelebrationId, GOAL_CELEBRATION_IDS[3]);
   assert.equal(calls, 1);
   assert.equal(state.goalCelebration, null);
 });
 
-test('campaign match uses a specific ceremony without drawing randomness', () => {
+test('legacy Moonwalk selection becomes Random at match creation', () => {
   const campaign = createCampaign(() => 0.25);
+  let calls = 0;
   const state = createCampaignMatchState(campaign, undefined, { mode: 'specific', ceremonyId: 'moonwalk' }, () => {
-    throw new Error('specific mode must not draw randomness');
+    calls += 1;
+    return 0.7;
   });
 
-  assert.equal(state.goalCelebrationId, 'moonwalk');
+  assert.equal(state.goalCelebrationId, 'slickback');
+  assert.equal(calls, 1);
 });

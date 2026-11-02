@@ -8,14 +8,14 @@ import {
   selectGoalCelebrationId,
 } from './goalCelebrations.js';
 
-test('lists the five ceremony IDs and labels in picker order', () => {
-  assert.deepEqual(GOAL_CELEBRATION_IDS, ['siuuu', 'moonwalk', 'takeTheL', 'slickback', 'rko']);
+test('lists the four supported ceremony IDs and labels in picker order', () => {
+  assert.deepEqual(GOAL_CELEBRATION_IDS, ['siuuu', 'takeTheL', 'slickback', 'rko']);
   assert.deepEqual(GOAL_CELEBRATION_OPTIONS.map(({ id }) => id), GOAL_CELEBRATION_IDS);
-  assert.deepEqual(GOAL_CELEBRATION_OPTIONS.map(({ label }) => label), ['SIUUU', '문워크', 'L을 가져가', '슬릭백', 'RKO']);
+  assert.deepEqual(GOAL_CELEBRATION_OPTIONS.map(({ label }) => label), ['SIUUU', 'L을 가져가', '슬릭백', 'RKO']);
 });
 
-test('normalizes missing and malformed settings to a fresh random default', () => {
-  for (const value of [null, undefined, [], {}, { mode: 'other' }, { mode: 'specific', ceremonyId: 'missing' }]) {
+test('normalizes missing, malformed, and legacy Moonwalk settings to a fresh random default', () => {
+  for (const value of [null, undefined, [], {}, { mode: 'other' }, { mode: 'specific', ceremonyId: 'missing' }, { mode: 'specific', ceremonyId: 'moonwalk' }]) {
     assert.deepEqual(normalizeGoalCelebrationSettings(value), DEFAULT_GOAL_CELEBRATION_SETTINGS);
   }
 

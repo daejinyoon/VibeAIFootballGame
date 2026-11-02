@@ -252,6 +252,25 @@ test('repairs invalid v8 ceremony settings without discarding other profile data
   assert.deepEqual(profile.goalCelebration, DEFAULT_GOAL_CELEBRATION_SETTINGS);
 });
 
+test('normalizes a legacy Moonwalk profile to Random and persists the normalized setting', () => {
+  const storage = createMemoryStorage({ 'dex-pixel-football:v1': JSON.stringify({
+    schemaVersion: 8,
+    nickname: 'Dex',
+    campaignSave: null,
+    bestRecord: null,
+    teamCustomization: { logoId: 'apple', paletteId: 'rose-petal' },
+    goalCelebration: { mode: 'specific', ceremonyId: 'moonwalk' },
+  }) });
+
+  const profile = readProfile(storage);
+  assert.deepEqual(profile.goalCelebration, DEFAULT_GOAL_CELEBRATION_SETTINGS);
+  writeProfile(profile, storage);
+  assert.deepEqual(
+    JSON.parse(storage.getItem('dex-pixel-football:v1')).goalCelebration,
+    DEFAULT_GOAL_CELEBRATION_SETTINGS,
+  );
+});
+
 test('persists the starter team skill from a new campaign in the existing profile format', () => {
   const storage = createMemoryStorage();
   const campaign = createNewCampaign({ rng: () => 0.25 });

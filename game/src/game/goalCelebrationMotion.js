@@ -229,24 +229,6 @@ export function getGoalCelebrationPose(ceremonyId, elapsedSeconds, role = null) 
       const exitTurn = smoothstep((time - 2.45) / 0.55);
       Object.assign(pose, victoryPose(time), { rootYaw: (Math.PI / 2) * (1 - exitTurn) });
     }
-  } else if (ceremonyId === 'moonwalk') {
-    const phase = 2 * Math.PI * 1.25 * time;
-    const step = Math.sin(phase);
-    Object.assign(pose, {
-      leftLegPitch: 0.18 * step,
-      rightLegPitch: -0.18 * step,
-      leftFootPitch: 0.52 * Math.max(0, step),
-      rightFootPitch: 0.52 * Math.max(0, -step),
-      leftArmPitch: -0.08,
-      rightArmPitch: -0.08,
-      leftArmRoll: -0.04,
-      rightArmRoll: 0.04,
-      leftElbowPitch: -0.12,
-      rightElbowPitch: -0.12,
-      torsoPitch: -0.04,
-      rootGlide: glideOutAndReturn(time, 0.9, 2.25),
-      rootYaw: 0.025 * step,
-    });
   } else if (ceremonyId === 'takeTheL') {
     const phase = 2 * Math.PI * 1.5 * time;
     const bounce = Math.abs(Math.sin(phase));

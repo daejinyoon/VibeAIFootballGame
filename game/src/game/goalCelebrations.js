@@ -1,6 +1,5 @@
 export const GOAL_CELEBRATION_IDS = Object.freeze([
   'siuuu',
-  'moonwalk',
   'takeTheL',
   'slickback',
   'rko',
@@ -10,7 +9,6 @@ export const GOAL_CELEBRATION_DURATION_SECONDS = 5;
 
 export const GOAL_CELEBRATION_OPTIONS = Object.freeze([
   Object.freeze({ id: 'siuuu', label: 'SIUUU' }),
-  Object.freeze({ id: 'moonwalk', label: '문워크' }),
   Object.freeze({ id: 'takeTheL', label: 'L을 가져가' }),
   Object.freeze({ id: 'slickback', label: '슬릭백' }),
   Object.freeze({ id: 'rko', label: 'RKO' }),

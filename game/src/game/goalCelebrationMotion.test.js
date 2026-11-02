@@ -24,17 +24,18 @@ test('every ceremony returns a complete finite pose through its five-second time
 
 test('unknown ceremonies and non-finite time samples return null', () => {
   assert.equal(getGoalCelebrationPose('missing', 0), null);
+  assert.equal(getGoalCelebrationPose('moonwalk', 0), null);
   assert.equal(getGoalCelebrationPose('siuuu', Number.NaN), null);
   assert.equal(getGoalCelebrationPose('siuuu', Number.POSITIVE_INFINITY), null);
 });
 
 test('time clamps to the five-second interval', () => {
-  assert.deepEqual(getGoalCelebrationPose('moonwalk', -4), getGoalCelebrationPose('moonwalk', 0));
-  assert.deepEqual(getGoalCelebrationPose('moonwalk', 8), getGoalCelebrationPose('moonwalk', GOAL_CELEBRATION_DURATION_SECONDS));
-  assert.ok(Math.abs(getGoalCelebrationPose('moonwalk', GOAL_CELEBRATION_DURATION_SECONDS).rootGlide) < 1e-9);
+  assert.deepEqual(getGoalCelebrationPose('slickback', -4), getGoalCelebrationPose('slickback', 0));
+  assert.deepEqual(getGoalCelebrationPose('slickback', 8), getGoalCelebrationPose('slickback', GOAL_CELEBRATION_DURATION_SECONDS));
+  assert.ok(Math.abs(getGoalCelebrationPose('slickback', GOAL_CELEBRATION_DURATION_SECONDS).rootGlide) < 1e-9);
 });
 
-test('the five ceremonies use different signature poses', () => {
+test('the four supported ceremonies use different signature poses', () => {
   const signatures = GOAL_CELEBRATION_IDS.map((ceremonyId) => {
     const pose = getGoalCelebrationPose(ceremonyId, choreographyTime(0.4), null);
     return POSE_FIELDS.map((field) => pose[field].toFixed(4)).join(',');
@@ -55,19 +56,14 @@ test('SIUU stages anticipation, a jump turn, and an arms-wide landing', () => {
   assert.equal(landed.rootYaw, Math.PI / 2);
 });
 
-test('Take the L raises a bent arm while Moonwalk and Slickback use different glides', () => {
+test('Take the L raises a bent arm and Slickback glides out and returns', () => {
   const takeTheL = getGoalCelebrationPose('takeTheL', choreographyTime(0.3));
-  const moonwalk = getGoalCelebrationPose('moonwalk', choreographyTime(0.3));
   const slickback = getGoalCelebrationPose('slickback', choreographyTime(0.3));
 
   assert.ok(takeTheL.leftArmRoll < -2);
   assert.ok(takeTheL.leftElbowPitch < -0.5);
   assert.ok(takeTheL.rootLift > 0);
-  assert.notEqual(moonwalk.leftFootPitch, slickback.leftFootPitch);
-  assert.notEqual(moonwalk.rootGlide, slickback.rootGlide);
-  assert.ok(moonwalk.rootGlide < 0);
   assert.ok(slickback.rootGlide < 0);
-  assert.ok(Math.abs(getGoalCelebrationPose('moonwalk', 5).rootGlide) < 1e-9);
   assert.ok(Math.abs(getGoalCelebrationPose('slickback', 5).rootGlide) < 1e-9);
 });
 

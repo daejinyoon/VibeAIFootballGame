@@ -30,14 +30,15 @@ test('cloud profile save and subsequent load preserve customization and ceremony
   const account = { idTokenClaims: { tid: 'tenant-guid', oid: 'user-guid' } };
   const customization = { logoId: 'google', paletteId: 'royal-gold' };
   const goalCelebration = { mode: 'specific', ceremonyId: 'moonwalk' };
+  const normalizedCelebration = { mode: 'random', ceremonyId: null };
   const savedProfile = { ...createEmptyProfile(), teamCustomization: customization, goalCelebration };
 
   await saveCloudProfile({ account, profile: savedProfile, acquireToken: async () => 'test-token', storage });
   assert.deepEqual(JSON.parse(requests[0].body).profile.teamCustomization, customization);
-  assert.deepEqual(JSON.parse(requests[0].body).profile.goalCelebration, goalCelebration);
+  assert.deepEqual(JSON.parse(requests[0].body).profile.goalCelebration, normalizedCelebration);
 
   const loaded = await loadCloudProfile({ account, acquireToken: async () => 'test-token', storage });
   assert.deepEqual(loaded.profile.teamCustomization, customization);
-  assert.deepEqual(loaded.profile.goalCelebration, goalCelebration);
+  assert.deepEqual(loaded.profile.goalCelebration, normalizedCelebration);
   assert.equal(loaded.synced, true);
 });
