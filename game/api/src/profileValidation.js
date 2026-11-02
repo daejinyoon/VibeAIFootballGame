@@ -1,4 +1,12 @@
 const MAX_PROFILE_BYTES = 48 * 1024;
+const SUPPORTED_PROFILE_VERSIONS = new Set([7, 8]);
+const SUPPORTED_GOAL_CELEBRATION_IDS = new Set([
+  'siuuu',
+  'moonwalk',
+  'takeTheL',
+  'slickback',
+  'rko',
+]);
 
 export class ProfileValidationError extends Error {
   constructor(status, code, message) {
@@ -17,7 +25,14 @@ function badRequest(message) {
   throw new ProfileValidationError(400, 'INVALID_PROFILE', message);
 }
 
-/** Reads a { profile } request and returns only the supported v7 profile fields. */
+function isGoalCelebration(value) {
+  if (!isPlainObject(value)) return false;
+  if (value.mode === 'random') return value.ceremonyId === null;
+  if (value.mode === 'specific') return SUPPORTED_GOAL_CELEBRATION_IDS.has(value.ceremonyId);
+  return false;
+}
+
+/** Reads a { profile } request and returns only supported v7/v8 profile fields. */
 export async function readProfilePayload(request) {
   const contentLength = Number(request.headers.get('content-length'));
   if (Number.isFinite(contentLength) && contentLength > MAX_PROFILE_BYTES) {
@@ -47,7 +62,8 @@ export async function readProfilePayload(request) {
   }
 
   const profile = body.profile;
-  if (profile.schemaVersion !== 7
+  const schemaVersion = profile.schemaVersion;
+  if (!SUPPORTED_PROFILE_VERSIONS.has(schemaVersion)
       || typeof profile.nickname !== 'string'
       || profile.nickname.length > 16
       || !(profile.campaignSave === null || isPlainObject(profile.campaignSave))
@@ -56,11 +72,24 @@ export async function readProfilePayload(request) {
     badRequest('The profile does not match the supported profile schema.');
   }
 
-  return {
-    schemaVersion: 7,
+  if (schemaVersion === 8 && !isGoalCelebration(profile.goalCelebration)) {
+    badRequest('The goal celebration preference does not match the supported profile schema.');
+  }
+
+  const validatedProfile = {
+    schemaVersion,
     nickname: profile.nickname,
     campaignSave: profile.campaignSave,
     bestRecord: profile.bestRecord,
     teamCustomization: profile.teamCustomization,
   };
+
+  if (schemaVersion === 8) {
+    validatedProfile.goalCelebration = {
+      mode: profile.goalCelebration.mode,
+      ceremonyId: profile.goalCelebration.ceremonyId,
+    };
+  }
+
+  return validatedProfile;
 }

@@ -1,20 +1,20 @@
-﻿# Current Context
+# Current Context
 
 ## Active Plan
-[Goal Celebration Motion Polish](./plans/2026-10-30-goal-celebration-motion-polish.md)
+[Profile v8 API Compatibility](./plans/2026-11-02-profile-v8-api-compatibility.md)
 
 ## Active Phase
-[P01 Motion Polish](./phases/2026-10-30-goal-celebration-motion-polish/P01-motion-polish/phase.md) — complete
+[P01 API Schema Fix](./phases/2026-11-02-profile-v8-api-compatibility/P01-api-schema-fix/phase.md) — in progress
 
 ## Active Task
-None; all tasks in P01 are complete.
+[T02 Deploy Profile v8 Fix](./phases/2026-11-02-profile-v8-api-compatibility/P01-api-schema-fix/T02-deploy-profile-v8-fix.md)
 
 ## Status
-- T01 is complete and committed as 4650877. Its profile/UI tests pass and the production build succeeds.
-- T02 is complete and committed as 10ad47e. Goal timing and campaign/Eagle Shot event tests pass; production build succeeds. Three unrelated stepGame tests also fail on the HEAD baseline.
-- T03 is complete and committed as a208144. Six pose timeline tests pass and the production build succeeds.
-- Goal-celebration audio is complete: SIUU, Take the L, Slickback, and combined RKO effect/commentary clips are installed. The user confirmed distribution rights. Moonwalk stays silent.
-- Motion-polish decisions are complete. T01 added elbow, foot, and body-pitch articulation; T02 staged the five choreographies. T01 commit: 2cc4acc.
+- Confirmed cause: the frontend sends profile schema v8, but `game/api/src/profileValidation.js` accepted only v7, producing HTTP 400.
+- Decision: accept both v7 and v8; preserve v7 shape and v8 `goalCelebration` settings.
+- Azure API route, Entra identifiers, Cosmos connection, and `football/profiles` container were checked and are present.
+- T01 is implemented; all 4 focused API validation tests pass, and the production Vite build succeeds.
+- Separate pending item from the deployment plan: GitHub source repository visibility is public although the old deployment plan says private.
 
 ## Next Step (IMPORTANT)
-The motion pass is complete and ready for the user's visual review in the local game. No deployment has been started.
+Release the validated API fix to the latest `origin/master`, then verify the Azure workflow and production endpoints from T02.
