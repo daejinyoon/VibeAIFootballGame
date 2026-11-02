@@ -22,3 +22,11 @@
 ## D05. Forward body travel during the slam
 - **Chosen**: Make the finisher's rendered body translate visibly forward during the jump and finish its path over the target at impact. Keep the target and striker simulation coordinates unchanged.
 - **Rationale**: Forward pitch alone reads as bending in place; the supplied reference shows the finisher traveling forward before driving down.
+
+## D06. Different impact poses for target and finisher
+- **Chosen**: At impact, the target lands face-down with a forward pitch, while the finisher lands on their back with the front of the body facing straight up. Recover both roles afterward.
+- **Rationale**: The supplied reference shows the finisher supine and looking at the sky while the target is driven face-down.
+
+## D07. Keep the previous impact spacing
+- **Chosen**: Revert T03's extra finisher root travel from `1.05` to the previous `0.7` impact/hold position. Keep the T02 staging distance; change only the finisher's face-up landing orientation.
+- **Rationale**: The added forward travel pushed the finisher too far and made the spacing worse; the user prefers the prior distance.

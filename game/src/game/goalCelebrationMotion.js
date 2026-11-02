@@ -198,6 +198,8 @@ function getRkoPose(time, role) {
     if (time < 1.75) {
       const launch = clamp((time - 1.25) / 0.5, 0, 1);
       const impact = smoothstep((time - 1.25) / 0.5);
+      const forwardPitch = 1.1 * smoothstep((time - 1.25) / 0.15);
+      const faceUp = smoothstep((time - 1.4) / 0.28);
       return {
         torsoPitch: mix(0.18, -0.16, impact),
         leftArmPitch: -1.12,
@@ -209,8 +211,8 @@ function getRkoPose(time, role) {
         leftLegPitch: mix(-0.12, -0.48, launch),
         rightLegPitch: mix(0.12, 0.42, launch),
         rootShiftX: -0.72,
-        rootGlide: mix(0.48, 1.05, launch),
-        rootPitch: 1.35 * impact,
+        rootGlide: mix(0.48, 0.7, impact),
+        rootPitch: mix(forwardPitch, -Math.PI / 2, faceUp),
         rootLift: 0.035 + 0.38 * Math.sin(Math.PI * launch),
         rootYaw: -0.12,
       };
@@ -227,8 +229,8 @@ function getRkoPose(time, role) {
         leftLegPitch: -0.48,
         rightLegPitch: 0.42,
         rootShiftX: -0.72,
-        rootGlide: 1.05,
-        rootPitch: 1.35,
+        rootGlide: 0.7,
+        rootPitch: -Math.PI / 2,
         rootLift: 0.035,
         rootYaw: -0.12,
       };
@@ -236,8 +238,8 @@ function getRkoPose(time, role) {
     const recover = smoothstep((time - 2.1) / 0.55);
     return blendToVictory({
       rootShiftX: -0.72,
-      rootGlide: 1.05,
-      rootPitch: 1.35,
+      rootGlide: 0.7,
+      rootPitch: -Math.PI / 2,
       rootLift: 0.035,
       rootYaw: -0.12,
       leftArmPitch: -1.12,
