@@ -2,11 +2,15 @@
 
 ## Status: in_progress
 
+## Diagnostic update
+- Two successful deployments still returned a platform 404 for `/api/profile`.
+- Temporarily register only the profile function to test whether importing the PvP HTTP module prevents managed API function registration. PvP room routes remain deferred during this profile-first probe.
+
 ## Goal
 Allow Azure Static Web Apps managed Functions to index the profile and other HTTP functions by not registering its unsupported Web PubSub Context binding.
 
 ## Implementation
-- `game/api/src/index.js`: do not import the real-time PvP module into the managed API app while its `WebPubSubContext` binding is unsupported.
+- `game/api/src/index.js`: keep only the profile function imported during hosted route isolation; do not import the PvP HTTP or real-time modules until profile routing is confirmed.
 - `game/api/src/functions/pvpRealtime.js`: remove the `pvpEvents` registration that declares `webPubSubContext`; keep the pure handler for a future standalone Functions backend.
 - `game/PVP_AZURE_SETUP.md`: document the managed API limitation and defer the upstream callback until an external supported Functions backend is configured.
 - Keep all unrelated dirty working tree files untouched.
