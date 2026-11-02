@@ -21,6 +21,7 @@ import SkillRewardScreen from './components/SkillRewardScreen.jsx';
 import StartScreen from './components/StartScreen.jsx';
 import StageSelectScreen from './components/StageSelectScreen.jsx';
 import TeamCustomizationScreen from './components/TeamCustomizationScreen.jsx';
+import ReleaseNotesDialog from './components/ReleaseNotesDialog.jsx';
 import { createPvpApi } from './pvp/pvpApi.js';
 import { createPvpConnection } from './pvp/pvpConnection.js';
 import { createForfeitPvpResult, createNormalPvpResult, createPvpMatchState, getConfirmationStatus } from './pvp/pvpMatchFlow.js';
@@ -59,6 +60,7 @@ export default function App({ authBootstrap = {} }) {
   const [profileRetry, setProfileRetry] = useState(0);
   const [authActionError, setAuthActionError] = useState('');
   const [screen, setScreen] = useState('start');
+  const [patchNotesOpen, setPatchNotesOpen] = useState(false);
   const [pvpRoom, setPvpRoom] = useState(null);
   const [pvpLoading, setPvpLoading] = useState(false);
   const [pvpError, setPvpError] = useState('');
@@ -678,7 +680,7 @@ export default function App({ authBootstrap = {} }) {
         }}>{profileErrorStatus === 401 ? '다시 로그인' : '저장 다시 시도'}</button>
       </div>}
 
-      {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} onOpenTeamCustomization={openTeamCustomization} onOpenPvp={openPvpLobby} onOpenPvpLeaderboard={() => openPvpLeaderboard('start')} showCompanyPvpActions={!localDevelopmentMode} />}
+      {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} onOpenTeamCustomization={openTeamCustomization} onOpenPvp={openPvpLobby} onOpenPvpLeaderboard={() => openPvpLeaderboard('start')} onOpenPatchNotes={() => setPatchNotesOpen(true)} showCompanyPvpActions={!localDevelopmentMode} />}
       {screen === 'pvpLobby' && <PvpLobbyScreen
         room={pvpRoom}
         loading={pvpLoading}
@@ -805,6 +807,7 @@ export default function App({ authBootstrap = {} }) {
       />}
       {screen === 'leaderboard' && <LeaderboardScreen records={records} onBack={() => setScreen('start')} />}
 
+      {patchNotesOpen && <ReleaseNotesDialog onClose={() => setPatchNotesOpen(false)} />}
       <footer className="footer"><span>DEX FOOTBALL ARCADE</span><span>E sprint &middot; A/S/D actions &middot; F skill</span></footer>
     </main>
   );

@@ -1,16 +1,16 @@
 # Current Context
 
 ## Active Plan
-[RKO Contact Face-Up](./plans/2026-11-02-rko-contact-face-up.md)
+[Football 1.0 Release](./plans/2026-11-02-football-v1-release.md)
 
 ## Active Phase
-[P01 Contact Pose](./phases/2026-11-02-rko-contact-face-up/P01-contact-pose/phase.md)
+[P02 Publish](./phases/2026-11-02-football-v1-release/P02-publish/phase.md)
 
 ## Active Task
-[T01 Face-Up at Contact](./phases/2026-11-02-rko-contact-face-up/P01-contact-pose/T01-face-up-at-contact.md)
+[T02 Publish and Verify](./phases/2026-11-02-football-v1-release/P02-publish/T02-publish-and-verify.md)
 
 ## Status
-- RKO face-up timing is corrected and committed: the finisher stays upright while approaching, turns face-up at contact (choreography time 1.2 seconds), and remains face-up through impact and landing.
+- Version 1.0.0 and main-screen patch notes are implemented. The targeted test and build passed; full tests have seven failures in untouched skill/campaign knockdown cases. Deployment is prepared but public source visibility must be resolved before pushing.
 
 ## Next Step (IMPORTANT)
-The RKO contact face-up timing task is complete; no active task remains.
+Do not push the release commit until the user confirms that deploying from the public GitHub repository is acceptable or the repository has been made private; then reconcile `origin/master`, push without force, and verify the Azure workflow and live URL.

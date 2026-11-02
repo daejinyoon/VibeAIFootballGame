@@ -1,12 +1,13 @@
 import { useState } from 'react';
+import { APP_VERSION_LABEL } from '../game/releaseNotes.js';
 
-export default function StartScreen({ hasSave, nickname, profileError, onNicknameSave, onStart, onContinue, onOpenLeaderboard, onOpenTeamCustomization, onOpenPvp, onOpenPvpLeaderboard, showCompanyPvpActions = true }) {
+export default function StartScreen({ hasSave, nickname, profileError, onNicknameSave, onStart, onContinue, onOpenLeaderboard, onOpenTeamCustomization, onOpenPvp, onOpenPvpLeaderboard, onOpenPatchNotes, showCompanyPvpActions = true }) {
   const [draftNickname, setDraftNickname] = useState(nickname);
 
   return (
     <section className="screen-panel start-panel" aria-labelledby="game-title">
       <div className="start-copy">
-        <p className="eyebrow"><span>DEX ARCADE</span> · SUNNY CUP <b className="beta-badge">BETA</b></p>
+        <p className="eyebrow"><span>DEX ARCADE</span> · SUNNY CUP <b className="version-badge">{APP_VERSION_LABEL}</b></p>
         <p className="start-kicker">LOCAL ARCADE · 4 VS 4</p>
         <h1 id="game-title">골 넣고<br /><em>레벨 업!</em></h1>
         <p className="intro">필드 선수 3명과 골키퍼가 팀을 이뤄 5단계 AI 리그에 도전합니다. 승리할 때마다 스킬 카드를 골라 팀을 성장시키세요.</p>
@@ -24,6 +25,7 @@ export default function StartScreen({ hasSave, nickname, profileError, onNicknam
             <button className="secondary-button pvp-entry-button" type="button" onClick={onOpenPvp}>회사 사용자 대전 <span aria-hidden="true">↗</span></button>
             <button className="secondary-button pvp-leaderboard-entry" type="button" onClick={onOpenPvpLeaderboard}>회사 PvP 순위 보기</button>
           </>}
+          <button className="secondary-button patch-notes-entry" type="button" onClick={onOpenPatchNotes}>v1.0 패치 노트 <span aria-hidden="true">↗</span></button>
           <button className="secondary-button team-customization-entry" type="button" onClick={onOpenTeamCustomization}>팀 꾸미기 <span aria-hidden="true">→</span></button>
           <button className="primary-button" disabled={!nickname} onClick={onStart}>새 캠페인 시작 <span aria-hidden="true">→</span></button>
           {hasSave && <button className="secondary-button" disabled={!nickname} onClick={onContinue}>이어 하기 <span aria-hidden="true">↗</span></button>}
