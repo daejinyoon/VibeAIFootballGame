@@ -1,6 +1,6 @@
 # Task: T02 Client API
 
-## Status: pending
+## Status: done
 
 ## Goal
 Add a browser API client that authenticates requests for today's challenge and posts bounded match scores while validating server responses before the UI uses them.
@@ -54,9 +54,9 @@ Add a browser API client that authenticates requests for today's challenge and p
 - Verify response mapping discards extra private fields even if the server returns them.
 
 ## Acceptance Criteria
-- [ ] UI callers can fetch today's challenge and submit a result through one injectable client.
-- [ ] Requests follow existing Entra API header conventions and avoid browser caching.
-- [ ] Invalid responses and network/auth errors produce stable user-safe `DailyChallengeApiError` values.
+- [x] UI callers can fetch today's challenge and submit a result through one injectable client.
+- [x] Requests follow existing Entra API header conventions and avoid browser caching.
+- [x] Invalid responses and network/auth errors produce stable user-safe `DailyChallengeApiError` values.
 
 ## Validation
 - `npm test -- src/dailyChallenge/dailyChallengeApi.test.js` from `game` — client contract tests pass.
@@ -75,6 +75,6 @@ Task: T02-client-api
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
-- commit: pending
+- [x] 구현 완료
+- [x] `npm test -- src/dailyChallenge/dailyChallengeApi.test.js` 및 `npm run build` 통과
+- commit: `e0632db`
