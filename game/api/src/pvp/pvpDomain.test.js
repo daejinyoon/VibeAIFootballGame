@@ -11,6 +11,7 @@ import {
   validateSkillIds,
 } from './pvpDomain.js';
 import { SKILL_IDS } from '../../../src/game/skills.js';
+import { PVP_SKILL_IDS } from './skillIds.js';
 
 test('room codes are six allowed uppercase characters and normalize user input', () => {
   assert.equal(generateRoomCode(() => Uint8Array.from([0, 1, 2, 3, 4, 5])).length, 6);
@@ -19,6 +20,7 @@ test('room codes are six allowed uppercase characters and normalize user input',
 });
 
 test('loadout requires three unique known skills', () => {
+  assert.deepEqual(PVP_SKILL_IDS, SKILL_IDS);
   assert.deepEqual(validateSkillIds(SKILL_IDS.slice(0, 3)), SKILL_IDS.slice(0, 3));
   assert.throws(() => validateSkillIds(SKILL_IDS.slice(0, 2)), PvpError);
   assert.throws(() => validateSkillIds([SKILL_IDS[0], SKILL_IDS[0], SKILL_IDS[1]]), PvpError);

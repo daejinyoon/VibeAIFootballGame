@@ -1,5 +1,5 @@
 import { randomBytes as cryptoRandomBytes } from 'node:crypto';
-import { SKILL_IDS } from '../../../src/game/skills.js';
+import { PVP_SKILL_IDS } from './skillIds.js';
 
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ROOM_CODE_PATTERN = /^[A-HJ-NP-Z2-9]{6}$/;
@@ -68,7 +68,7 @@ export function generateRoomCode(randomBytes = cryptoRandomBytes) {
 export function validateSkillIds(skillIds) {
   if (!Array.isArray(skillIds) || skillIds.length !== 3
       || new Set(skillIds).size !== 3
-      || !skillIds.every((skillId) => typeof skillId === 'string' && SKILL_IDS.includes(skillId))) {
+      || !skillIds.every((skillId) => typeof skillId === 'string' && PVP_SKILL_IDS.includes(skillId))) {
     throw new PvpError(400, 'INVALID_LOADOUT', 'Choose exactly three different PvP skills.');
   }
   return [...skillIds];
