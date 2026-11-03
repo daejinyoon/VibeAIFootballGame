@@ -1,6 +1,6 @@
 # Task: T02 Verify Hosted Profile Sync
 
-## Status: pending
+## Status: in_progress
 
 ## Goal
 Confirm the deployed, Entra-authenticated profile API can load and save the signed-in account's cloud profile and restore the same values after refresh, without changing the user's saved profile data.
