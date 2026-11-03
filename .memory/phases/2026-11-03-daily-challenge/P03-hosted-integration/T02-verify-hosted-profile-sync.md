@@ -84,6 +84,7 @@ Task: T02-verify-hosted-profile-sync
 ## Progress
 - [x] Deployment run #31 succeeded and a fresh anonymous `GET /api/profile` probe returned JSON `401 AUTH_REQUIRED`.
 - [x] Source inspection confirms submitting the unchanged nickname calls `saveProfile` without an equality short-circuit, so it exercises the normal PUT path.
+- [x] Checked for a usable existing CLI login; Azure CLI did not have consent for this API scope (`AADSTS65001`), so no access token was issued and no profile data was read or changed.
 - [ ] Authenticated GET, unchanged-profile PUT, and refresh persistence need verification in the user's signed-in company-account browser session.
 - [ ] Verification complete
 - commit: pending
