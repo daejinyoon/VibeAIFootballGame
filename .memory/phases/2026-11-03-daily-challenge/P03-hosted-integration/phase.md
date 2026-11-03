@@ -9,3 +9,4 @@
 ## Progress
 - done: 1/2 (active: T02)
 - 2026-11-03: deployment #31 succeeded; unauthenticated profile, daily challenge, PvP leaderboard, and PvP room probes all returned application JSON 401. Authenticated profile GET/PUT and refresh persistence remain for T02.
+- 2026-11-03 01:35 UTC: rechecked anonymous `/api/profile` as JSON 401. Code inspection confirms saving the unchanged nickname invokes `saveProfile`; authenticated GET/PUT and refresh persistence remain manual checks in the signed-in company account.

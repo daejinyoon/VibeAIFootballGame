@@ -82,6 +82,8 @@ Task: T02-verify-hosted-profile-sync
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
+- [x] Deployment run #31 succeeded and a fresh anonymous `GET /api/profile` probe returned JSON `401 AUTH_REQUIRED`.
+- [x] Source inspection confirms submitting the unchanged nickname calls `saveProfile` without an equality short-circuit, so it exercises the normal PUT path.
+- [ ] Authenticated GET, unchanged-profile PUT, and refresh persistence need verification in the user's signed-in company-account browser session.
+- [ ] Verification complete
 - commit: pending
