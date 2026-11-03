@@ -168,5 +168,50 @@ export function createPvpRepository({ container: injectedContainer, env = proces
         throw new PvpStorageError('The PvP leaderboard could not be loaded.', error);
       }
     },
+
+    async getDailyChallengeRecord(tenantId, challengeDate, objectId) {
+      const resolved = await resolveContainer();
+      return readItem(resolved, `daily:${challengeDate}:${objectId}`, tenantId);
+    },
+
+    async listDailyChallengeRecords(tenantId, challengeDate) {
+      const resolved = await resolveContainer();
+      try {
+        const response = await resolved.items.query({
+          query: 'SELECT * FROM c WHERE c.kind = @kind AND c.challengeDate = @challengeDate',
+          parameters: [
+            { name: '@kind', value: 'dailyChallengeResult' },
+            { name: '@challengeDate', value: challengeDate },
+          ],
+        }, { partitionKey: tenantId }).fetchAll();
+        return response.resources ?? [];
+      } catch (error) {
+        throw new PvpStorageError('The daily challenge leaderboard could not be loaded.', error);
+      }
+    },
+
+    async createDailyChallengeRecord(record) {
+      const resolved = await resolveContainer();
+      try {
+        const response = await resolved.items.create(applicationFields(record));
+        return readDocument(response);
+      } catch (error) {
+        if (isConflict(error)) throw new PvpConcurrencyError();
+        throw new PvpStorageError('The daily challenge result could not be created.', error);
+      }
+    },
+
+    async replaceDailyChallengeRecord(record, etag) {
+      const resolved = await resolveContainer();
+      try {
+        const response = await resolved.item(record.id, record.tenantId).replace(applicationFields(record), {
+          accessCondition: { type: 'IfMatch', condition: etag },
+        });
+        return readDocument(response);
+      } catch (error) {
+        if (isConflict(error) || isPreconditionFailed(error)) throw new PvpConcurrencyError();
+        throw new PvpStorageError('The daily challenge result could not be updated.', error);
+      }
+    },
   };
 }

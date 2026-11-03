@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/index.js && node --check src/auth/entra.js && node --check src/profileValidation.js && node --check src/storage/profileCosmos.js && node --check src/functions/profile.js && node --check src/dailyChallenge/dailyChallengeDomain.js && node --check src/pvp/pvpDomain.js && node --check src/storage/pvpCosmos.js && node --check src/functions/pvp.js && node --check src/functions/pvpRealtime.js"
+    "check": "node --check src/index.js && node --check src/auth/entra.js && node --check src/profileValidation.js && node --check src/storage/profileCosmos.js && node --check src/functions/profile.js && node --check src/dailyChallenge/dailyChallengeDomain.js && node --check src/functions/dailyChallenge.js && node --check src/pvp/pvpDomain.js && node --check src/storage/pvpCosmos.js && node --check src/functions/pvp.js && node --check src/functions/pvpRealtime.js"
   },
   "dependencies": {
     "@azure/cosmos": "^4.9.3",

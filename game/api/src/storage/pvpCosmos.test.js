@@ -5,9 +5,11 @@ import { PvpConcurrencyError, PvpRoomCollisionError, PvpStorageError } from '../
 
 function fakeContainer() {
   const docs = new Map();
+  const queries = [];
   let etag = 0;
   return {
     docs,
+    queries,
     read: async () => ({ resource: { id: 'pvp' } }),
     items: {
       create: async (doc) => {
@@ -21,7 +23,14 @@ function fakeContainer() {
         docs.set(key, stored);
         return { resource: stored, etag: stored._etag };
       },
-      query: (spec, options) => ({ fetchAll: async () => ({ resources: [...docs.values()].filter((doc) => doc.tenantId === options.partitionKey && doc.kind === spec.parameters[0].value) }) }),
+      query: (spec, options) => ({ fetchAll: async () => {
+        const parameters = Object.fromEntries(spec.parameters.map(({ name, value }) => [name, value]));
+        const call = { spec, options };
+        queries.push(call);
+        return { resources: [...docs.values()].filter((doc) => doc.tenantId === options.partitionKey
+          && doc.kind === parameters['@kind']
+          && (parameters['@challengeDate'] === undefined || doc.challengeDate === parameters['@challengeDate'])) };
+      } }),
     },
     item: (id, tenantId) => ({
       read: async () => {
@@ -79,4 +88,46 @@ test('match creation is idempotent and leaderboard query is tenant partitioned',
   assert.equal((await repo.createMatchOnce(match)).created, false);
   assert.equal((await repo.listMatches('t')).length, 1);
   assert.equal((await repo.listMatches('other')).length, 0);
+});
+
+test('daily results are keyed by tenant, date, and account and queried within one tenant and date', async () => {
+  const container = fakeContainer();
+  const repo = createPvpRepository({ container });
+  const record = {
+    id: 'daily:2026-11-03:account-a', tenantId: 'tenant-a', kind: 'dailyChallengeResult',
+    challengeDate: '2026-11-03', objectId: 'account-a', displayName: 'Player A',
+    homeGoals: 2, awayGoals: 1, outcome: 'win', goalDifference: 1, recordedAt: '2026-11-03T00:00:00.000Z',
+  };
+  await repo.createDailyChallengeRecord(record);
+  await repo.createDailyChallengeRecord({ ...record, id: 'daily:2026-11-04:account-b', objectId: 'account-b', challengeDate: '2026-11-04' });
+  await repo.createDailyChallengeRecord({ ...record, id: 'daily:2026-11-03:account-c', tenantId: 'tenant-b', objectId: 'account-c' });
+
+  const found = await repo.getDailyChallengeRecord('tenant-a', '2026-11-03', 'account-a');
+  assert.equal(found.document.displayName, 'Player A');
+  assert.ok(found.etag);
+  assert.equal((await repo.getDailyChallengeRecord('tenant-b', '2026-11-03', 'account-a')).document, null);
+  assert.deepEqual((await repo.listDailyChallengeRecords('tenant-a', '2026-11-03')).map(({ objectId }) => objectId), ['account-a']);
+  assert.equal(container.queries.at(-1).options.partitionKey, 'tenant-a');
+  assert.deepEqual(container.queries.at(-1).spec.parameters, [
+    { name: '@kind', value: 'dailyChallengeResult' },
+    { name: '@challengeDate', value: '2026-11-03' },
+  ]);
+});
+
+test('daily result creates reject duplicate keys and ETag updates reject stale versions', async () => {
+  const container = fakeContainer();
+  const repo = createPvpRepository({ container });
+  const record = {
+    id: 'daily:2026-11-03:account-a', tenantId: 'tenant-a', kind: 'dailyChallengeResult',
+    challengeDate: '2026-11-03', objectId: 'account-a', displayName: 'Player A',
+    homeGoals: 1, awayGoals: 0, outcome: 'win', goalDifference: 1, recordedAt: '2026-11-03T00:00:00.000Z',
+  };
+  const created = await repo.createDailyChallengeRecord(record);
+  await assert.rejects(repo.createDailyChallengeRecord(record), PvpConcurrencyError);
+  const updated = await repo.replaceDailyChallengeRecord({ ...record, homeGoals: 2, goalDifference: 2 }, created.etag);
+  assert.equal(updated.document.homeGoals, 2);
+  await assert.rejects(
+    repo.replaceDailyChallengeRecord({ ...record, homeGoals: 3, goalDifference: 3 }, created.etag),
+    PvpConcurrencyError,
+  );
 });
