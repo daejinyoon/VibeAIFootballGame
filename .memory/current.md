@@ -14,8 +14,8 @@
 - P02-T01 완료: 공정한 챌린지 경기 설정 및 스킬 1회 제한 구현
 - P02-T02 완료: Entra 토큰 기반 챌린지 API 클라이언트 및 응답 검증 구현
 - P02-T03 완료: 챌린지 진입, 경기 결과 제출·재시도 및 오늘 순위 UI 구현
-- P03-T01 배포 검사 후 PvP import 되돌림: 네 호스팅 API 경로가 모두 빈 본문 404 반환
-- 기존 profile/daily 라우트 복구 재배포 및 probe 대기
+- P03-T01 롤백 배포 완료: PvP import 제외 상태로 복구
+- profile/daily 경로도 빈 본문 404를 반환하여 관리형 API 라우트 복구 확인 전까지 T01 진행 보류
 
 ## Next Step (IMPORTANT)
-P03-T01 PvP import rollback을 master에 배포한 뒤 profile/daily 경로의 unauthenticated JSON 401을 확인하고 원인을 기록
+관리형 API의 profile/daily 경로 404 원인을 해결하고 JSON 401 복구를 확인한 뒤 P03-T01 재시도

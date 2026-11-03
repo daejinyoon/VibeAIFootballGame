@@ -93,6 +93,7 @@ Task: T01-register-pvp-http-routes
 ## Progress
 - [x] 로컬 구현 완료: `functions/pvp.js` 등록 및 관리형 API 지원 범위 문서화
 - [x] 로컬 API 39개 테스트, API 구문 검사, 프런트 빌드 통과
-- [ ] 배포 검증 실패: workflow run [#29](https://github.com/daejinyoon/VibeAIFootballGame/actions/runs/41555521311) 성공 후 네 경로 모두 빈 본문/Content-Type 없는 404; 조건에 따라 PvP import 되돌림
-- [ ] profile/daily 경로 복구 재배포 및 인증 없는 JSON 401 확인
-- commit: `ae382d4` (PvP route attempt), `6da284f` (rollback; awaiting deploy/probes)
+- [x] PvP import 롤백 후 workflow run [#30](https://github.com/daejinyoon/VibeAIFootballGame/actions/runs/41555808316) 배포 성공
+- [ ] 복구 probe 미통과: 롤백 배포 후에도 `/api/profile`, `/api/daily-challenge`가 빈 본문/Content-Type 없는 404 반환; 관리형 API 라우트 장애 원인 확인 필요
+- [ ] PvP room routes 배포 및 네 개 경로 JSON 401 확인은 profile/daily 라우트 복구 후 재시도
+- commits: `ae382d4` (PvP route attempt), `775ecf0` (rollback; deployed)
