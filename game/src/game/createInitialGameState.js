@@ -78,8 +78,17 @@ export function createInitialGameState({
   opponentSkillDeck,
   teamBranding,
   goalCelebrationId = null,
+  regulationSeconds = REGULATION_SECONDS,
+  skillUsesPerEntry = null,
 } = {}) {
   const safeStage = Number.isInteger(stage) && stage >= 1 && stage <= STAGE_COUNT ? stage : 1;
+  const safeRegulationSeconds = Number.isInteger(regulationSeconds)
+    && regulationSeconds >= 30 && regulationSeconds <= REGULATION_SECONDS
+    ? regulationSeconds
+    : REGULATION_SECONDS;
+  const safeSkillUsesPerEntry = Number.isInteger(skillUsesPerEntry) && skillUsesPerEntry > 0
+    ? skillUsesPerEntry
+    : null;
   const safeOpponentSkills = Array.isArray(opponentSkillIds)
     ? opponentSkillIds.filter((skillId) => typeof skillId === 'string')
     : [];
@@ -99,6 +108,10 @@ export function createInitialGameState({
   const awayDeck = sanitizeDeck(Array.isArray(opponentSkillDeck)
     ? opponentSkillDeck
     : safeOpponentSkills.map((skillId) => ({ skillId, level: 1 })));
+  const teamSkillUsesRemaining = safeSkillUsesPerEntry === null ? null : {
+    home: Object.fromEntries(homeDeck.map(({ skillId }) => [skillId, safeSkillUsesPerEntry])),
+    away: Object.fromEntries(awayDeck.map(({ skillId }) => [skillId, safeSkillUsesPerEntry])),
+  };
 
   const homePlayers = homeFormation.map((player, index) => createPlayer({
     ...player,
@@ -123,7 +136,7 @@ export function createInitialGameState({
     openingKickoffTakerId: 'home-fw',
     hasMatchClockStarted: false,
     aiSkillGraceSecondsRemaining: 0,
-    remainingSeconds: REGULATION_SECONDS,
+    remainingSeconds: safeRegulationSeconds,
     overtimeRemainingSeconds: null,
     score: { home: 0, away: 0 },
     players,
@@ -157,6 +170,7 @@ export function createInitialGameState({
     tornadoShotEffect: null,
     vacuumEffect: null,
     teamSkillDecks: { home: homeDeck, away: awayDeck },
+    ...(teamSkillUsesRemaining ? { teamSkillUsesRemaining } : {}),
     skillCooldownRemaining: {
       home: Object.fromEntries(homeDeck.map(({ skillId }) => [skillId, 0])),
       away: Object.fromEntries(awayDeck.map(({ skillId }) => [skillId, 0])),

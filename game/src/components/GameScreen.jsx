@@ -53,6 +53,19 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
   const controlledPlayerId = viewState.controlledPlayerIds?.[localTeam] ?? viewState.controlledPlayerId;
   const controlledPlayer = viewState.players.find((player) => player.id === controlledPlayerId);
   const cooldownFor = (team, skillId) => Math.max(0, viewState.skillCooldownRemaining?.[team]?.[skillId] ?? 0);
+  const usesRemainingFor = (team, skillId) => {
+    const uses = viewState.teamSkillUsesRemaining?.[team];
+    return uses && Object.prototype.hasOwnProperty.call(uses, skillId) && Number.isInteger(uses[skillId])
+      ? Math.max(0, uses[skillId])
+      : null;
+  };
+  const allSkillUsesSpent = (team, deck) => deck.length > 0
+    && deck.every((entry) => usesRemainingFor(team, entry.skillId) === 0);
+  const skillStatusFor = (team, skillId) => {
+    const usesRemaining = usesRemainingFor(team, skillId);
+    if (usesRemaining !== null) return usesRemaining > 0 ? `남은 ${usesRemaining}회` : '사용 완료';
+    return cooldownFor(team, skillId) > 0 ? `대기 ${cooldownFor(team, skillId).toFixed(1)}초` : '준비 완료';
+  };
   const teamGlobalCooldownFor = (team) => {
     const remaining = viewState.teamSkillGlobalCooldownRemaining?.[team];
     return Number.isFinite(remaining) ? Math.max(0, remaining) : 0;
@@ -66,6 +79,7 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
     for (let offset = 0; offset < deck.length; offset += 1) {
       const entry = deck[(start + offset) % deck.length];
       if (cooldownFor(team, entry.skillId) > 0) continue;
+      if (usesRemainingFor(team, entry.skillId) === 0) continue;
       return entry;
     }
     return null;
@@ -199,22 +213,24 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
             {homeDeck.map((entry, index) => (
               <span key={`${entry.skillId}-${index}`} className={`team-skill-item${entry.skillId === homeNextSkill?.skillId ? ' is-next' : ''}`}>
                 {index + 1}. {SKILLS[entry.skillId]?.name ?? entry.skillId} · Lv.{entry.level}
-                <small>{cooldownFor('home', entry.skillId) > 0 ? `대기 ${cooldownFor('home', entry.skillId).toFixed(1)}초` : '준비 완료'}</small>
+                <small>{skillStatusFor('home', entry.skillId)}</small>
               </span>
             ))}
             {!homeDeck.length && <span className="team-skill-item">아직 보유한 필살기가 없습니다</span>}
           </div>
-          <small>{homeNextSkill ? `다음 사용: ${SKILLS[homeNextSkill.skillId]?.name} · F` : 'F · 장착한 스킬 순서대로 사용'}</small>
+          <small>{homeNextSkill ? `다음 사용: ${SKILLS[homeNextSkill.skillId]?.name} · F`
+            : allSkillUsesSpent('home', homeDeck) ? 'F · 모든 스킬 사용 완료' : 'F · 장착한 스킬 순서대로 사용'}</small>
         </div>
         <div className="skill-stock away-skill-stock">
           <span>상대 필살기</span>
           {awayTeamGlobalCooldown > 0 && <small>상대 팀 공통 대기 {awayTeamGlobalCooldown.toFixed(1)}초</small>}
-          <small>{awayNextSkill ? `다음 사용: ${SKILLS[awayNextSkill.skillId]?.name}` : '모든 스킬이 준비 중'}</small>
+          <small>{awayNextSkill ? `다음 사용: ${SKILLS[awayNextSkill.skillId]?.name}`
+            : allSkillUsesSpent('away', awayDeck) ? '모든 스킬 사용 완료' : '모든 스킬이 준비 중'}</small>
           <div className="team-skill-list away-team-skill-list">
             {awayDeck.map((entry, index) => (
               <span key={`${entry.skillId}-${index}`} className="team-skill-item">
                 {index + 1}. {SKILLS[entry.skillId]?.name ?? entry.skillId} · Lv.{entry.level}
-                <small>{cooldownFor('away', entry.skillId) > 0 ? `대기 ${cooldownFor('away', entry.skillId).toFixed(1)}초` : '준비 완료'}</small>
+                <small>{skillStatusFor('away', entry.skillId)}</small>
               </span>
             ))}
             {!awayDeck.length && <span className="team-skill-item">보유 스킬 없음</span>}

@@ -349,6 +349,11 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
   if (!SKILL_IDS.includes(skillId)) return result(false, skillId ?? null, player.team, 'invalidSkill');
   if (!Number.isInteger(level) || level < 1 || level > SKILL_MAX_LEVELS[skillId]) return result(false, skillId, player.team, 'invalidLevel');
   if (!['playing', 'overtime'].includes(state.phase)) return result(false, skillId, player.team, 'matchNotActive');
+  const skillUsesRemaining = state.teamSkillUsesRemaining?.[team];
+  if (skillUsesRemaining && Object.prototype.hasOwnProperty.call(skillUsesRemaining, skillId)
+      && (!Number.isInteger(skillUsesRemaining[skillId]) || skillUsesRemaining[skillId] <= 0)) {
+    return result(false, skillId, player.team, 'noUsesRemaining');
+  }
 
   let events = [];
   const opponentCarrier = state.players.find((candidate) => candidate.team !== player.team && candidate.id === state.ball.ownerId);
@@ -453,6 +458,9 @@ export function applySkill(state, { team, sourcePlayerId, skillId, level = 1 } =
     ...(state.lastSkillCasterByTeam ?? { home: null, away: null }),
     [team]: player.id,
   };
+  if (skillUsesRemaining && Object.prototype.hasOwnProperty.call(skillUsesRemaining, skillId)) {
+    skillUsesRemaining[skillId] = Math.max(0, skillUsesRemaining[skillId] - 1);
+  }
   return result(true, skillId, player.team, null, events);
 }
 
@@ -485,6 +493,9 @@ export function activateNextTeamSkill(state, team, sourcePlayerId) {
     const index = (start + offset) % deck.length;
     const entry = deck[index];
     if ((state.skillCooldownRemaining?.[team]?.[entry.skillId] ?? 0) > 0) continue;
+    const skillUsesRemaining = state.teamSkillUsesRemaining?.[team];
+    if (skillUsesRemaining && Object.prototype.hasOwnProperty.call(skillUsesRemaining, entry.skillId)
+        && (!Number.isInteger(skillUsesRemaining[entry.skillId]) || skillUsesRemaining[entry.skillId] <= 0)) continue;
     const attempt = applySkill(state, { team, sourcePlayerId, skillId: entry.skillId, level: entry.level });
     if (!attempt.ok) continue;
     state.skillQueueIndex[team] = (index + 1) % deck.length;

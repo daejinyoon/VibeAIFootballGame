@@ -46,6 +46,28 @@ test('starts stage one at a home kickoff with a clean score and no skill gauges'
     .every((player) => player.aiTarget === null && player.aiRetargetSeconds >= 1.2 && player.aiRetargetSeconds <= 1.8));
 });
 
+test('accepts a regulation duration and initializes optional per-skill use counters from sanitized decks', () => {
+  const state = createInitialGameState({
+    regulationSeconds: 45,
+    skillUsesPerEntry: 1,
+    teamSkillDeck: [{ skillId: 'eagleShot', level: 1 }, { skillId: 'invalid', level: 1 }],
+    opponentSkillDeck: [{ skillId: 'tornadoShot', level: 1 }],
+  });
+  assert.equal(state.remainingSeconds, 45);
+  assert.deepEqual(state.teamSkillUsesRemaining, {
+    home: { eagleShot: 1 },
+    away: { tornadoShot: 1 },
+  });
+
+  for (const regulationSeconds of [29, 61, 45.5, '45', null]) {
+    assert.equal(createInitialGameState({ regulationSeconds }).remainingSeconds, 60);
+  }
+  for (const skillUsesPerEntry of [null, 0, -1, 1.5]) {
+    assert.equal('teamSkillUsesRemaining' in createInitialGameState({ skillUsesPerEntry }), false);
+  }
+  assert.equal('teamSkillUsesRemaining' in createInitialGameState(), false);
+});
+
 test('clamps stage and sanitizes both shared skill decks', () => {
   const state = createInitialGameState({
     stage: 5,

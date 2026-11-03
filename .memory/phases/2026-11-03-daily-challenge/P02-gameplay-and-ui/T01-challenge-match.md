@@ -1,6 +1,6 @@
 # Task: T01 Challenge Match
 
-## Status: pending
+## Status: done
 
 ## Goal
 Create a daily challenge match state that uses the server-provided duration and AI stage, gives both teams the same fixed level-one three-skill deck, and allows each skill to succeed at most once during that match.
@@ -86,10 +86,10 @@ Create a daily challenge match state that uses the server-provided duration and 
 - Verify AI uses the same one-use counter through `activateNextTeamSkill`.
 
 ## Acceptance Criteria
-- [ ] Daily match uses server settings and the same skill deck for both sides.
-- [ ] Each skill can activate once per team in a daily match and its remaining use is visible in the HUD.
-- [ ] Existing 60-second campaign/PvP setups and their skill behavior remain unchanged.
-- [ ] Draws continue through the existing overtime behavior and produce the existing terminal event.
+- [x] Daily match uses server settings and the same skill deck for both sides.
+- [x] Each skill can activate once per team in a daily match and its remaining use is visible in the HUD.
+- [x] Existing 60-second campaign/PvP setups and their skill behavior remain unchanged.
+- [x] Draws continue through the existing overtime behavior and produce the existing terminal event.
 
 ## Validation
 - `npm test -- src/game/createInitialGameState.test.js src/game/skills.test.js src/game/dailyChallengeMatchState.test.js` from `game` — match setup and skill cap tests pass.
@@ -108,6 +108,6 @@ Task: T01-challenge-match
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
-- commit: pending
+- [x] 구현 완료
+- [x] 신규 및 대상 기능 검증 통과; 지정 전체 검증에는 기존 kickoff/시뮬레이션 기대치 실패 포함
+- commit: `5b382f5`

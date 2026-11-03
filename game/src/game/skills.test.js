@@ -21,6 +21,50 @@ const carrier = (state, playerId = 'home-fw') => {
   return player;
 };
 
+test('daily skill counters consume only successful uses and the ordered activation skips exhausted skills', () => {
+  const state = createInitialGameState({
+    teamSkillDeck: [{ skillId: 'eagleShot', level: 1 }, { skillId: 'tornadoShot', level: 1 }],
+    opponentSkillDeck: teamDeck('eagleShot'),
+    skillUsesPerEntry: 1,
+  });
+  carrier(state);
+
+  const first = applySkill(state, { team: 'home', sourcePlayerId: 'home-fw', skillId: 'eagleShot' });
+  assert.equal(first.ok, true);
+  assert.equal(state.teamSkillUsesRemaining.home.eagleShot, 0);
+  assert.equal(state.teamSkillUsesRemaining.away.eagleShot, 1);
+  const exhausted = applySkill(state, { team: 'home', sourcePlayerId: 'home-fw', skillId: 'eagleShot' });
+  assert.deepEqual({ ok: exhausted.ok, reason: exhausted.reason }, { ok: false, reason: 'noUsesRemaining' });
+
+  state.teamSkillGlobalCooldownRemaining.home = 0;
+  state.skillCooldownRemaining.home.eagleShot = 0;
+  state.skillQueueIndex.home = 0;
+  carrier(state);
+  const next = activateNextTeamSkill(state, 'home', 'home-fw');
+  assert.equal(next.ok, true);
+  assert.equal(next.skillId, 'tornadoShot');
+  assert.equal(state.teamSkillUsesRemaining.home.tornadoShot, 0);
+});
+
+test('failed capped casts do not consume a use and uncapped states remain unlimited by match count', () => {
+  const capped = createInitialGameState({ teamSkillDeck: teamDeck('eulryongta'), skillUsesPerEntry: 1 });
+  for (const target of capped.players.filter((player) => player.team === 'away')) Object.assign(target, { x: 950, y: 10 });
+  const result = applySkill(capped, { team: 'home', sourcePlayerId: 'home-fw', skillId: 'eulryongta' });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'noTargetInFront');
+  assert.equal(capped.teamSkillUsesRemaining.home.eulryongta, 1);
+
+  const uncapped = createInitialGameState({ teamSkillDeck: teamDeck('eagleShot') });
+  carrier(uncapped);
+  assert.equal(applySkill(uncapped, { team: 'home', sourcePlayerId: 'home-fw', skillId: 'eagleShot' }).ok, true);
+  uncapped.skillCooldownRemaining.home.eagleShot = 0;
+  uncapped.teamSkillGlobalCooldownRemaining.home = 0;
+  uncapped.skillEffects = [];
+  carrier(uncapped);
+  assert.equal(applySkill(uncapped, { team: 'home', sourcePlayerId: 'home-fw', skillId: 'eagleShot' }).ok, true);
+  assert.equal('teamSkillUsesRemaining' in uncapped, false);
+});
+
 test('every named skill maps to its own existing transparent PNG artwork', () => {
   assert.deepEqual(Object.keys(SKILLS), SKILL_IDS);
   assert.equal(SKILL_IDS.includes('powerTackle'), false);
