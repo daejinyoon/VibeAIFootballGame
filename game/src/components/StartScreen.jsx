@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { APP_VERSION_LABEL } from '../game/releaseNotes.js';
 
-export default function StartScreen({ hasSave, nickname, profileError, onNicknameSave, onStart, onContinue, onOpenLeaderboard, onOpenTeamCustomization, onOpenPvp, onOpenPvpLeaderboard, onOpenPatchNotes, showCompanyPvpActions = true }) {
+export default function StartScreen({ hasSave, nickname, profileError, onNicknameSave, onStart, onContinue, onOpenLeaderboard, onOpenTeamCustomization, onOpenPvp, onOpenPvpLeaderboard, onOpenDailyChallenge, onOpenPatchNotes, showCompanyPvpActions = true }) {
   const [draftNickname, setDraftNickname] = useState(nickname);
 
   return (
@@ -22,6 +22,7 @@ export default function StartScreen({ hasSave, nickname, profileError, onNicknam
         {profileError && <p className="profile-error" role="alert">{profileError}</p>}
         <div className="actions">
           {showCompanyPvpActions && <>
+            <button className="secondary-button daily-challenge-entry" type="button" onClick={onOpenDailyChallenge}>오늘의 챌린지 <span aria-hidden="true">★</span></button>
             <button className="secondary-button pvp-entry-button" type="button" onClick={onOpenPvp}>회사 사용자 대전 <span aria-hidden="true">↗</span></button>
             <button className="secondary-button pvp-leaderboard-entry" type="button" onClick={onOpenPvpLeaderboard}>회사 PvP 순위 보기</button>
           </>}

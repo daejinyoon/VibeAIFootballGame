@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { canStartPvpRoom, isPvpLoadoutSaved, shouldPollPvpRoom } from './pvp/pvpLobbyState.js';
 import { createForfeitPvpResult, createNormalPvpResult, createPvpMatchState, getConfirmationStatus } from './pvp/pvpMatchFlow.js';
+import { canEnterDailyChallenge, getDailyChallengeTerminalResult } from './dailyChallenge/dailyChallengeFlow.js';
 
 const room = {
   code: 'ABC234', status: 'ready', isHost: true,
@@ -51,4 +52,15 @@ test('PvP results use team-relative outcomes, never fabricate a forfeit score, a
   assert.deepEqual(['awaitingResults', 'completed', 'disputed', 'forfeit'].map(getConfirmationStatus), [
     'awaitingOpponent', 'recorded', 'disputed', 'recorded',
   ]);
+});
+
+test('daily challenge is company-only and terminal results contain no campaign profile data', () => {
+  assert.equal(canEnterDailyChallenge(true), false);
+  assert.equal(canEnterDailyChallenge(false), true);
+  const dailyResult = getDailyChallengeTerminalResult([{ type: 'matchWon', score: { home: 3, away: 1 } }]);
+  assert.deepEqual(dailyResult, {
+    homeGoals: 3, awayGoals: 1, outcome: 'win', goalDifference: 2,
+  });
+  assert.equal(Object.hasOwn(dailyResult, 'campaignSave'), false);
+  assert.equal(Object.hasOwn(dailyResult, 'bestRecord'), false);
 });

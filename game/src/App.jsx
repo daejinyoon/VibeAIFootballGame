@@ -17,6 +17,7 @@ import SignInScreen from './components/SignInScreen.jsx';
 import PvpLobbyScreen from './components/PvpLobbyScreen.jsx';
 import PvpResultsScreen from './components/PvpResultsScreen.jsx';
 import PvpLeaderboardScreen from './components/PvpLeaderboardScreen.jsx';
+import DailyChallengeScreen from './components/DailyChallengeScreen.jsx';
 import SkillRewardScreen from './components/SkillRewardScreen.jsx';
 import StartScreen from './components/StartScreen.jsx';
 import StageSelectScreen from './components/StageSelectScreen.jsx';
@@ -26,6 +27,9 @@ import { createPvpApi } from './pvp/pvpApi.js';
 import { createPvpConnection } from './pvp/pvpConnection.js';
 import { createForfeitPvpResult, createNormalPvpResult, createPvpMatchState, getConfirmationStatus } from './pvp/pvpMatchFlow.js';
 import { shouldPollPvpRoom } from './pvp/pvpLobbyState.js';
+import { createDailyChallengeApi } from './dailyChallenge/dailyChallengeApi.js';
+import { canRetryDailyChallengeSubmission, canEnterDailyChallenge, getDailyChallengeTerminalResult, isDailyChallengeChangedError, isFirstDailyChallengeTerminal } from './dailyChallenge/dailyChallengeFlow.js';
+import { createDailyChallengeMatchState } from './game/dailyChallengeMatchState.js';
 
 const GameScreen = lazy(() => import('./components/GameScreen.jsx'));
 const LOCAL_DEVELOPMENT_ACCOUNT = Object.freeze({ name: '로컬 테스트', username: 'local-test' });
@@ -74,6 +78,13 @@ export default function App({ authBootstrap = {} }) {
   const [pvpLeaderboardLoading, setPvpLeaderboardLoading] = useState(false);
   const [pvpLeaderboardError, setPvpLeaderboardError] = useState('');
   const [pvpLeaderboardRetry, setPvpLeaderboardRetry] = useState(0);
+  const [dailyChallengeData, setDailyChallengeData] = useState(null);
+  const [dailyChallengeLoading, setDailyChallengeLoading] = useState(false);
+  const [dailyChallengeError, setDailyChallengeError] = useState('');
+  const [dailyChallengeMatchState, setDailyChallengeMatchState] = useState(null);
+  const [dailyChallengeResult, setDailyChallengeResult] = useState(null);
+  const [dailyChallengeSaving, setDailyChallengeSaving] = useState(false);
+  const [dailyChallengeSubmitError, setDailyChallengeSubmitError] = useState('');
   const [campaign, setCampaign] = useState(null);
   const [selectedStage, setSelectedStage] = useState(1);
   const [matchState, setMatchState] = useState(null);
@@ -93,7 +104,13 @@ export default function App({ authBootstrap = {} }) {
   const pvpForfeitRef = useRef(false);
   const pvpTerminalMatchRef = useRef(null);
   const pvpLeaderboardReturnRef = useRef('start');
+  const dailyChallengeApiRef = useRef(null);
+  const dailyChallengeRequestRef = useRef(0);
+  const dailyChallengeMatchInstanceRef = useRef(0);
+  const dailyChallengeTerminalRef = useRef(null);
+  const dailyChallengeSubmissionPendingRef = useRef(false);
   if (!pvpApiRef.current) pvpApiRef.current = createPvpApi({ acquireToken: getProfileApiToken });
+  if (!dailyChallengeApiRef.current) dailyChallengeApiRef.current = createDailyChallengeApi({ acquireToken: getProfileApiToken });
 
   useEffect(() => {
     if (!shouldPollPvpRoom(screen, pvpRoom)) return undefined;
@@ -408,6 +425,141 @@ export default function App({ authBootstrap = {} }) {
     setScreen('pvpLobby');
   };
 
+  const loadDailyChallenge = async () => {
+    if (!canEnterDailyChallenge(localDevelopmentMode)) return null;
+    const requestId = dailyChallengeRequestRef.current + 1;
+    dailyChallengeRequestRef.current = requestId;
+    setDailyChallengeData(null);
+    setDailyChallengeLoading(true);
+    setDailyChallengeError('');
+    try {
+      const data = await dailyChallengeApiRef.current.getDailyChallenge();
+      if (dailyChallengeRequestRef.current !== requestId) return null;
+      setDailyChallengeData(data);
+      setDailyChallengeResult((current) => current?.challengeId
+          && current.challengeId !== data.challenge.challengeId
+        ? { ...current, dayChanged: true }
+        : current);
+      return data;
+    } catch (error) {
+      if (dailyChallengeRequestRef.current === requestId) {
+        setDailyChallengeError(error.message || '오늘의 챌린지를 불러오지 못했습니다. 다시 시도해 주세요.');
+      }
+      return null;
+    } finally {
+      if (dailyChallengeRequestRef.current === requestId) setDailyChallengeLoading(false);
+    }
+  };
+
+  const openDailyChallenge = () => {
+    if (!canEnterDailyChallenge(localDevelopmentMode)) return;
+    setDailyChallengeResult(null);
+    setDailyChallengeSubmitError('');
+    setScreen('dailyChallenge');
+    void loadDailyChallenge();
+  };
+
+  const startDailyChallenge = () => {
+    if (!canEnterDailyChallenge(localDevelopmentMode) || !dailyChallengeData?.challenge) return;
+    const initialState = createDailyChallengeMatchState(
+      dailyChallengeData.challenge,
+      profile.teamCustomization,
+      profile.goalCelebration,
+    );
+    if (!initialState) {
+      setDailyChallengeError('오늘의 경기 설정을 확인할 수 없습니다. 챌린지를 새로고침해 주세요.');
+      setDailyChallengeData(null);
+      return;
+    }
+    dailyChallengeMatchInstanceRef.current += 1;
+    dailyChallengeTerminalRef.current = null;
+    dailyChallengeSubmissionPendingRef.current = false;
+    setDailyChallengeMatchState(initialState);
+    setDailyChallengeResult(null);
+    setDailyChallengeSubmitError('');
+    setDailyChallengeError('');
+    setScreen('dailyMatch');
+    prepareMatchAudio();
+    void startCrowdAmbience();
+    void playCrowdCheer('kickoff');
+  };
+
+  const leaveDailyChallenge = () => {
+    dailyChallengeRequestRef.current += 1;
+    dailyChallengeSubmissionPendingRef.current = false;
+    setDailyChallengeMatchState(null);
+    setScreen('start');
+  };
+
+  const submitDailyChallengeResult = async (matchResult) => {
+    if (!matchResult || dailyChallengeSubmissionPendingRef.current) return;
+    dailyChallengeSubmissionPendingRef.current = true;
+    setDailyChallengeSaving(true);
+    setDailyChallengeSubmitError('');
+    try {
+      const response = await dailyChallengeApiRef.current.submitResult({
+        challengeId: matchResult.challengeId,
+        displayName: account.name || account.username,
+        homeGoals: matchResult.homeGoals,
+        awayGoals: matchResult.awayGoals,
+      });
+      setDailyChallengeData((current) => current?.challenge.challengeId === matchResult.challengeId
+        ? { ...current, myRecord: response.record, records: response.records }
+        : current);
+      setDailyChallengeResult((current) => current?.matchId === matchResult.matchId
+        ? { ...current, saved: true, rank: response.record.rank, stale: false }
+        : current);
+    } catch (error) {
+      if (isDailyChallengeChangedError(error)) {
+        setDailyChallengeResult((current) => current?.matchId === matchResult.matchId
+          ? { ...current, saved: false, stale: true, rank: null }
+          : current);
+        await loadDailyChallenge();
+      } else {
+        const message = error.message || '경기 결과를 제출하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.';
+        setDailyChallengeSubmitError(canRetryDailyChallengeSubmission(error)
+          ? message
+          : `${message} 결과 제출을 다시 시도하거나 메인 화면으로 돌아갈 수 있습니다.`);
+      }
+    } finally {
+      dailyChallengeSubmissionPendingRef.current = false;
+      setDailyChallengeSaving(false);
+    }
+  };
+
+  const handleDailyChallengeEvents = (events) => {
+    if (screen !== 'dailyMatch' || !dailyChallengeData?.challenge) return;
+    const matchResult = getDailyChallengeTerminalResult(events);
+    if (!matchResult) return;
+    const matchId = dailyChallengeMatchInstanceRef.current;
+    if (!isFirstDailyChallengeTerminal(dailyChallengeTerminalRef.current, matchId)) return;
+    dailyChallengeTerminalRef.current = matchId;
+    const resultWithMatch = {
+      ...matchResult,
+      challengeId: dailyChallengeData.challenge.challengeId,
+      matchId,
+      saved: false,
+      rank: null,
+      stale: false,
+      dayChanged: false,
+    };
+    setDailyChallengeResult(resultWithMatch);
+    setDailyChallengeSubmitError('');
+    setScreen('dailyResult');
+    void submitDailyChallengeResult(resultWithMatch);
+  };
+
+  const retryDailyChallengeSubmission = () => {
+    if (!dailyChallengeResult || dailyChallengeResult.saved || dailyChallengeResult.stale) return;
+    void submitDailyChallengeResult(dailyChallengeResult);
+  };
+
+  const retryDailyChallengeMatch = () => {
+    setDailyChallengeResult(null);
+    setDailyChallengeSubmitError('');
+    setScreen('dailyChallenge');
+  };
+
   const openTeamCustomization = () => {
     setProfileError('');
     setScreen('teamCustomization');
@@ -663,7 +815,7 @@ export default function App({ authBootstrap = {} }) {
   return (
     <main className="page-shell app-shell">
       <header className="topbar">
-        <a className="brand" href="#home" onClick={(event) => { event.preventDefault(); if (screen.startsWith('pvp')) leavePvp(); else home(); }}>
+        <a className="brand" href="#home" onClick={(event) => { event.preventDefault(); if (screen.startsWith('pvp')) leavePvp(); else if (screen.startsWith('daily')) leaveDailyChallenge(); else home(); }}>
           <span className="brand-mark" aria-hidden="true">D</span><span>DEX ARCADE</span>
         </a>
         <div className="account-control">
@@ -680,7 +832,40 @@ export default function App({ authBootstrap = {} }) {
         }}>{profileErrorStatus === 401 ? '다시 로그인' : '저장 다시 시도'}</button>
       </div>}
 
-      {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} onOpenTeamCustomization={openTeamCustomization} onOpenPvp={openPvpLobby} onOpenPvpLeaderboard={() => openPvpLeaderboard('start')} onOpenPatchNotes={() => setPatchNotesOpen(true)} showCompanyPvpActions={!localDevelopmentMode} />}
+      {screen === 'start' && <StartScreen hasSave={Boolean(profile.campaignSave)} nickname={profile.nickname} profileError={profileError} onNicknameSave={handleNicknameSave} onStart={startNewCampaign} onContinue={continueSavedCampaign} onOpenLeaderboard={() => setScreen('leaderboard')} onOpenTeamCustomization={openTeamCustomization} onOpenPvp={openPvpLobby} onOpenPvpLeaderboard={() => openPvpLeaderboard('start')} onOpenDailyChallenge={openDailyChallenge} onOpenPatchNotes={() => setPatchNotesOpen(true)} showCompanyPvpActions={!localDevelopmentMode} />}
+      {screen === 'dailyChallenge' && <DailyChallengeScreen
+        data={dailyChallengeData}
+        loading={dailyChallengeLoading}
+        errorMessage={dailyChallengeError}
+        result={null}
+        onRefresh={() => { void loadDailyChallenge(); }}
+        onStart={startDailyChallenge}
+        onHome={leaveDailyChallenge}
+      />}
+      {screen === 'dailyResult' && <DailyChallengeScreen
+        data={dailyChallengeData}
+        loading={dailyChallengeLoading}
+        errorMessage={dailyChallengeError}
+        result={dailyChallengeResult}
+        saving={dailyChallengeSaving}
+        submitError={dailyChallengeSubmitError}
+        onRefresh={() => { void loadDailyChallenge(); }}
+        onRetrySubmit={retryDailyChallengeSubmission}
+        onRetryMatch={retryDailyChallengeMatch}
+        onHome={leaveDailyChallenge}
+      />}
+      {screen === 'dailyMatch' && dailyChallengeMatchState && <Suspense fallback={<div className="game-screen-loading" role="status">오늘의 경기를 준비하고 있어요…</div>}>
+        <GameScreen
+          key={`daily-${dailyChallengeMatchInstanceRef.current}`}
+          gameState={dailyChallengeMatchState}
+          paused={false}
+          errorMessage={dailyChallengeError}
+          audioEnabled={audioEnabled}
+          onToggleAudio={toggleGameAudio}
+          onGameEvents={handleDailyChallengeEvents}
+          simulationMode="dailyChallenge"
+        />
+      </Suspense>}
       {screen === 'pvpLobby' && <PvpLobbyScreen
         room={pvpRoom}
         loading={pvpLoading}

@@ -1,6 +1,6 @@
 # Task: T03 Challenge UI Flow
 
-## Status: pending
+## Status: done
 
 ## Goal
 Let signed-in company users open today's challenge, review its conditions and current leaderboard, play or retry one match, submit the final score, and see the updated daily rank without changing campaign progress.
@@ -88,11 +88,11 @@ Let signed-in company users open today's challenge, review its conditions and cu
 - Use the Vite build as the component/JSX compilation check because this repository has no DOM component-testing dependency.
 
 ## Acceptance Criteria
-- [ ] Signed-in company users can enter, play, retry, and inspect today's challenge leaderboard from the start screen.
-- [ ] Each completed match produces at most one submission; failed submissions can be retried without losing the local result.
-- [ ] Only server-confirmed best records appear as saved, and all UI shows the current KST day's data.
-- [ ] Daily play does not alter campaign saves, campaign records, or reward flow.
-- [ ] Mobile and keyboard-accessible loading, empty, error, lobby, and result states render correctly.
+- [x] Signed-in company users can enter, play, retry, and inspect today's challenge leaderboard from the start screen.
+- [x] Each completed match produces at most one submission; failed submissions can be retried without losing the local result.
+- [x] Only server-confirmed best records appear as saved, and all UI shows the current KST day's data.
+- [x] Daily play does not alter campaign saves, campaign records, or reward flow.
+- [x] Mobile and keyboard-accessible loading, empty, error, lobby, and result states render correctly.
 
 ## Validation
 - `npm test -- src/dailyChallenge/dailyChallengeFlow.test.js src/dailyChallenge/dailyChallengeApi.test.js` from `game` — flow and API client tests pass.
@@ -112,6 +112,6 @@ Task: T03-challenge-ui-flow
 ```
 
 ## Progress
-- [ ] 구현 완료
-- [ ] 검증 통과
-- commit: pending
+- [x] 구현 완료
+- [x] 플로우/API 테스트, App 순수 로직 테스트, Vite production build 통과
+- commit: `4a32cd8`

@@ -7,8 +7,8 @@ Add a one-match daily challenge to YDJ Football 3D. All authenticated company us
 | Phase | Status | Summary | Blueprint |
 | :--- | :--- | :--- | :--- |
 | P01 | `done` | Add the deterministic daily challenge rules, authenticated result API, and Cosmos-backed daily records. | [P01](../phases/2026-11-03-daily-challenge/P01-server-api/phase.md) |
-| P02 | `in_progress` | Add the challenge match setup, client API flow, and player-facing challenge and leaderboard screens. | [P02](../phases/2026-11-03-daily-challenge/P02-gameplay-and-ui/phase.md) |
-| P03 | `pending` | Re-register supported company PvP HTTP routes and verify hosted profile cloud reads and writes. | [P03](../phases/2026-11-03-daily-challenge/P03-hosted-integration/phase.md) |
+| P02 | `done` | Add the challenge match setup, client API flow, and player-facing challenge and leaderboard screens. | [P02](../phases/2026-11-03-daily-challenge/P02-gameplay-and-ui/phase.md) |
+| P03 | `in_progress` | Re-register supported company PvP HTTP routes and verify hosted profile cloud reads and writes. | [P03](../phases/2026-11-03-daily-challenge/P03-hosted-integration/phase.md) |
 
 ## Scope Notes
 - Challenge rows use the existing `football/pvp` Cosmos container and its `/tenantId` partition key. Only current-day rows are queried for display; prior rows remain stored because the container has no TTL.

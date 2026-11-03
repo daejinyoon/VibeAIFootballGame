@@ -165,7 +165,9 @@ export default function GameScreen({ gameState, paused, errorMessage, onPause, o
 
   return (
     <section className="game-panel" aria-label="축구 경기">
-      <div className="game-topline"><div><p className="eyebrow">{simulationMode === 'local' ? `STAGE 0${stage}${stage === 5 ? ' · BOSS MATCH' : ''}` : `COMPANY PVP · ${localTeam === 'home' ? 'HOME' : 'AWAY'}`}</p><h1>경기 진행 중</h1></div>{simulationMode === 'local' && <button className="secondary-button pause-button" onClick={onPause}>Ⅱ 일시정지</button>}</div>
+      <div className="game-topline"><div><p className="eyebrow">{simulationMode === 'local' ? `STAGE 0${stage}${stage === 5 ? ' · BOSS MATCH' : ''}`
+        : simulationMode === 'dailyChallenge' ? `DAILY CHALLENGE · STAGE 0${stage}`
+          : `COMPANY PVP · ${localTeam === 'home' ? 'HOME' : 'AWAY'}`}</p><h1>경기 진행 중</h1></div>{simulationMode === 'local' && <button className="secondary-button pause-button" onClick={onPause}>Ⅱ 일시정지</button>}</div>
       <div className="match-card-status" aria-live="polite">
         <span>ACTIVE PLAYERS <b>{activeHome}</b> : <b>{activeAway}</b> · {possession}</span>
         {isGoalKick && <strong className="goal-kick-status">GOAL KICK · {goalKickTeam === 'home' ? '우리 팀' : '상대 팀'}</strong>}
