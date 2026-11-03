@@ -2,6 +2,8 @@
 
 ## Status: done
 
+> Production storage target superseded on 2026-11-03: daily results now use the existing `football/profiles` container to avoid depending on unprovisioned PvP infrastructure. See [Daily Challenge Storage Recovery](../../../plans/2026-11-03-daily-challenge-storage-recovery.md).
+
 ## Goal
 Expose an authenticated company API that returns today's KST challenge and leaderboard, accepts bounded client results, and keeps one best result per account per date in the existing Cosmos PvP container.
 

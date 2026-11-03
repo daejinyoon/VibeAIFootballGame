@@ -7,6 +7,7 @@ import {
   DailyChallengeDomainError,
   getDailyChallenge,
   getKstDate,
+  normalizeDailyChallengeDisplayName,
   validateDailyChallengeScore,
 } from './dailyChallengeDomain.js';
 
@@ -72,6 +73,17 @@ test('validates bounded integer scores and derives win, draw, and loss', () => {
       error instanceof DailyChallengeDomainError
         && error.status === 400
         && error.code === 'INVALID_SCORE'
+    ));
+  }
+});
+
+test('normalizes daily challenge display names without PvP domain dependencies', () => {
+  assert.equal(normalizeDailyChallengeDisplayName('  Player A  '), 'Player A');
+  for (const displayName of ['', '  ', 'x'.repeat(101), 'Player\nA', null]) {
+    assert.throws(() => normalizeDailyChallengeDisplayName(displayName), (error) => (
+      error instanceof DailyChallengeDomainError
+        && error.status === 400
+        && error.code === 'INVALID_DISPLAY_NAME'
     ));
   }
 });

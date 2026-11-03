@@ -1,6 +1,6 @@
 # Task: T02 Verify Hosted Profile Sync
 
-## Status: in_progress
+## Status: pending
 
 ## Goal
 Confirm the deployed, Entra-authenticated profile API can load and save the signed-in account's cloud profile and restore it after refresh. The user authorized changing only the nickname to the new value provided in chat; preserve all other profile values.

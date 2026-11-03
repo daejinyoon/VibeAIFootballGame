@@ -90,6 +90,17 @@ export function validateDailyChallengeScore(value) {
   };
 }
 
+export function normalizeDailyChallengeDisplayName(displayName) {
+  if (typeof displayName !== 'string') {
+    throw new DailyChallengeDomainError(400, 'INVALID_DISPLAY_NAME', 'A company account display name is required.');
+  }
+  const normalized = displayName.trim();
+  if (!normalized || normalized.length > 100 || /[\u0000-\u001F\u007F]/u.test(normalized)) {
+    throw new DailyChallengeDomainError(400, 'INVALID_DISPLAY_NAME', 'The company account display name is invalid.');
+  }
+  return normalized;
+}
+
 export function compareDailyChallengeResults(left, right) {
   const leftWeight = outcomeWeight[left?.outcome];
   const rightWeight = outcomeWeight[right?.outcome];

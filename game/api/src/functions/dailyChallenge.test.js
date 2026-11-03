@@ -3,7 +3,10 @@ import test from 'node:test';
 import { createDailyChallengeHandler } from './dailyChallenge.js';
 import { getDailyChallenge } from '../dailyChallenge/dailyChallengeDomain.js';
 import { EntraAuthError } from '../auth/entra.js';
-import { PvpConcurrencyError, PvpStorageError } from '../pvp/pvpDomain.js';
+import {
+  DailyChallengeConcurrencyError,
+  DailyChallengeStorageError,
+} from '../storage/dailyChallengeCosmos.js';
 
 const fixedNow = new Date('2026-11-03T12:00:00.000Z');
 const host = { tenantId: 'tenant-a', objectId: 'account-a' };
@@ -28,7 +31,7 @@ function makeRepository() {
     },
     async createDailyChallengeRecord(record) {
       const key = keyFor(record.tenantId, record.challengeDate, record.objectId);
-      if (records.has(key)) throw new PvpConcurrencyError();
+      if (records.has(key)) throw new DailyChallengeConcurrencyError();
       const document = attachEtag(record);
       records.set(key, document);
       return { document, etag: document._etag };
@@ -36,7 +39,7 @@ function makeRepository() {
     async replaceDailyChallengeRecord(record, etag) {
       const key = keyFor(record.tenantId, record.challengeDate, record.objectId);
       const existing = records.get(key);
-      if (!existing || existing._etag !== etag) throw new PvpConcurrencyError();
+      if (!existing || existing._etag !== etag) throw new DailyChallengeConcurrencyError();
       const document = attachEtag(record);
       records.set(key, document);
       return { document, etag: document._etag };
@@ -222,7 +225,7 @@ test('a concurrent create conflict rereads and preserves a better competing scor
     createAttempts += 1;
     if (createAttempts === 1) {
       await createDailyChallengeRecord(savedRecord({ account: host, displayName: 'Other name', homeGoals: 3, awayGoals: 0 }));
-      throw new PvpConcurrencyError();
+      throw new DailyChallengeConcurrencyError();
     }
     return createDailyChallengeRecord(record);
   };
@@ -239,7 +242,7 @@ test('a concurrent create conflict rereads and preserves a better competing scor
 
 test('exhausted concurrency retries return a safe conflict response', async () => {
   const repository = makeRepository();
-  repository.createDailyChallengeRecord = async () => { throw new PvpConcurrencyError(); };
+  repository.createDailyChallengeRecord = async () => { throw new DailyChallengeConcurrencyError(); };
   const { invoke } = setup({ repository });
   const challenge = getDailyChallenge(fixedNow);
   const response = await invoke('submitResult', {
@@ -256,7 +259,7 @@ test('exhausted concurrency retries return a safe conflict response', async () =
 test('storage failures return a generic 503 without exposing Cosmos errors', async () => {
   const repository = makeRepository();
   repository.listDailyChallengeRecords = async () => {
-    throw new PvpStorageError('private connection string details');
+    throw new DailyChallengeStorageError('private connection string details');
   };
   const { invoke } = setup({ repository });
   const response = await invoke('getDailyChallenge');

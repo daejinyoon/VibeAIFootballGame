@@ -5,15 +5,14 @@ import {
   compareDailyChallengeResults,
   DailyChallengeDomainError,
   getDailyChallenge,
+  normalizeDailyChallengeDisplayName,
   validateDailyChallengeScore,
 } from '../dailyChallenge/dailyChallengeDomain.js';
 import {
-  PvpConcurrencyError,
-  PvpError,
-  PvpStorageError,
-  normalizeDisplayName,
-} from '../pvp/pvpDomain.js';
-import { createPvpRepository } from '../storage/pvpCosmos.js';
+  createDailyChallengeRepository,
+  DailyChallengeConcurrencyError,
+  DailyChallengeStorageError,
+} from '../storage/dailyChallengeCosmos.js';
 
 const MAX_BODY_BYTES = 8 * 1024;
 const MAX_CAS_ATTEMPTS = 3;
@@ -32,33 +31,32 @@ function jsonResponse(status, body) {
 async function readJsonBody(request) {
   const text = await request.text();
   if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) {
-    throw new PvpError(413, 'PAYLOAD_TOO_LARGE', 'The request body is too large.');
+    throw new DailyChallengeDomainError(413, 'PAYLOAD_TOO_LARGE', 'The request body is too large.');
   }
   let body;
   try {
     body = JSON.parse(text);
   } catch {
-    throw new PvpError(400, 'INVALID_JSON', 'The request body must be valid JSON.');
+    throw new DailyChallengeDomainError(400, 'INVALID_JSON', 'The request body must be valid JSON.');
   }
   if (!body || typeof body !== 'object' || Array.isArray(body)
       || Object.keys(body).some((key) => !RESULT_BODY_FIELDS.has(key))) {
-    throw new PvpError(400, 'INVALID_BODY', 'The request body contains invalid fields.');
+    throw new DailyChallengeDomainError(400, 'INVALID_BODY', 'The request body contains invalid fields.');
   }
   return body;
 }
 
 function errorResponse(error) {
-  if (error instanceof EntraAuthError || error instanceof PvpError
-      || error instanceof DailyChallengeDomainError) {
+  if (error instanceof EntraAuthError || error instanceof DailyChallengeDomainError) {
     return jsonResponse(error.status, { code: error.code, message: error.message });
   }
-  if (error instanceof PvpConcurrencyError) {
+  if (error instanceof DailyChallengeConcurrencyError) {
     return jsonResponse(409, {
       code: 'DAILY_RESULT_CHANGED',
       message: 'The daily result changed while it was being saved. Please retry.',
     });
   }
-  if (error instanceof PvpStorageError || error?.status === 503) {
+  if (error instanceof DailyChallengeStorageError || error?.status === 503) {
     return jsonResponse(503, {
       code: 'DAILY_CHALLENGE_STORAGE_UNAVAILABLE',
       message: 'Daily challenge storage is unavailable. Please retry.',
@@ -119,7 +117,7 @@ async function saveBestResult(repository, record) {
         const created = await repository.createDailyChallengeRecord(record);
         return created.document ?? record;
       } catch (error) {
-        if (!(error instanceof PvpConcurrencyError) || attempt === MAX_CAS_ATTEMPTS - 1) throw error;
+        if (!(error instanceof DailyChallengeConcurrencyError) || attempt === MAX_CAS_ATTEMPTS - 1) throw error;
         continue;
       }
     }
@@ -129,15 +127,15 @@ async function saveBestResult(repository, record) {
       const replaced = await repository.replaceDailyChallengeRecord(record, existing.etag);
       return replaced.document ?? record;
     } catch (error) {
-      if (!(error instanceof PvpConcurrencyError) || attempt === MAX_CAS_ATTEMPTS - 1) throw error;
+      if (!(error instanceof DailyChallengeConcurrencyError) || attempt === MAX_CAS_ATTEMPTS - 1) throw error;
     }
   }
-  throw new PvpConcurrencyError();
+  throw new DailyChallengeConcurrencyError();
 }
 
 export function createDailyChallengeHandler({
   authenticate = requireEntraCaller,
-  repository = createPvpRepository(),
+  repository = createDailyChallengeRepository(),
   now = () => new Date(),
 } = {}) {
   async function execute(request, action) {
@@ -181,14 +179,14 @@ export function createDailyChallengeHandler({
     return execute(request, async (account) => {
       const body = await readJsonBody(request);
       if (typeof body.challengeId !== 'string' || !body.challengeId.trim()) {
-        throw new PvpError(400, 'INVALID_BODY', 'A challenge ID is required.');
+        throw new DailyChallengeDomainError(400, 'INVALID_BODY', 'A challenge ID is required.');
       }
-      const displayName = normalizeDisplayName(body.displayName);
+      const displayName = normalizeDailyChallengeDisplayName(body.displayName);
       const score = validateDailyChallengeScore(body);
       const instant = await currentTime();
       const challenge = getDailyChallenge(instant);
       if (body.challengeId !== challenge.challengeId) {
-        throw new PvpError(409, 'CHALLENGE_CHANGED', 'The daily challenge has changed. Refresh and try again.');
+        throw new DailyChallengeDomainError(409, 'CHALLENGE_CHANGED', 'The daily challenge has changed. Refresh and try again.');
       }
 
       const record = {

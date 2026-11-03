@@ -11,7 +11,7 @@ Add a one-match daily challenge to YDJ Football 3D. All authenticated company us
 | P03 | `in_progress` | Re-register supported company PvP HTTP routes and verify hosted profile cloud reads and writes. | [P03](../phases/2026-11-03-daily-challenge/P03-hosted-integration/phase.md) |
 
 ## Scope Notes
-- Challenge rows use the existing `football/pvp` Cosmos container and its `/tenantId` partition key. Only current-day rows are queried for display; prior rows remain stored because the container has no TTL.
+- Challenge rows initially targeted `football/pvp`; production recovery now moves them to separate `daily:` documents in the existing `football/profiles` container with the same `/tenantId` partition key. Only current-day rows are queried for display.
 - P01 registers the daily challenge function. P03 later registers the supported company PvP room-management HTTP routes after the challenge API is complete.
 - P03 does not re-enable Web PubSub upstream event forwarding or `/api/pvp/negotiate`; Azure Static Web Apps does not support the required WebPubSubContext binding. A standalone Functions backend is still required for real-time PvP.
 - P03 includes the previously pending authenticated profile cloud-save smoke check. It does not repeat the already completed profile-only routing deployment.
