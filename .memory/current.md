@@ -14,8 +14,8 @@
 - P02-T01 완료: 공정한 챌린지 경기 설정 및 스킬 1회 제한 구현
 - P02-T02 완료: Entra 토큰 기반 챌린지 API 클라이언트 및 응답 검증 구현
 - P02-T03 완료: 챌린지 진입, 경기 결과 제출·재시도 및 오늘 순위 UI 구현
-- P03-T01 로컬 구현 완료: 지원되는 PvP HTTP 경로 등록 및 API 안내 갱신
-- P03-T01 배포/호스팅 검증 대기: GitHub 연결은 읽기 전용이며 로컬 git remote 미설정
+- P03-T01 배포 검사 후 PvP import 되돌림: 네 호스팅 API 경로가 모두 빈 본문 404 반환
+- 기존 profile/daily 라우트 복구 재배포 및 probe 대기
 
 ## Next Step (IMPORTANT)
-P03-T01의 로컬 구현과 검증은 완료됨. 쓰기 가능한 `origin` 또는 GitHub push 권한을 연결한 뒤 master 배포를 실행하고 4개 경로의 unauthenticated JSON 401을 확인
+P03-T01 PvP import rollback을 master에 배포한 뒤 profile/daily 경로의 unauthenticated JSON 401을 확인하고 원인을 기록

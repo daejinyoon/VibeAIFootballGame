@@ -65,8 +65,8 @@ Restore the existing company PvP room-management and leaderboard HTTP routes in 
 - Record the deployment run and four observed status codes in this Task's Progress section; do not record any access token or secret.
 
 ## Acceptance Criteria
-- [x] All ten `functions/pvp.js` HTTP routes are indexed by the managed API.
-- [x] Profile and daily challenge endpoints remain registered after adding PvP routes.
+- [ ] All ten `functions/pvp.js` HTTP routes are indexed by the managed API.
+- [ ] Profile and daily challenge endpoints remain registered after adding PvP routes.
 - [ ] Unauthenticated probes return function JSON 401 rather than platform 404 for profile, daily challenge, PvP leaderboard, and PvP room lookup.
 - [x] `functions/pvpRealtime.js`, `/api/pvp/negotiate`, and Web PubSub event forwarding remain disabled and documented.
 - [ ] API tests, API syntax checks, frontend build, and deployment pass.
@@ -93,5 +93,6 @@ Task: T01-register-pvp-http-routes
 ## Progress
 - [x] 로컬 구현 완료: `functions/pvp.js` 등록 및 관리형 API 지원 범위 문서화
 - [x] 로컬 API 39개 테스트, API 구문 검사, 프런트 빌드 통과
-- [ ] 배포 및 네 개 호스팅 경로의 JSON 401 probe — GitHub 연결에 push 권한이 없고 로컬 git remote가 없어 보류
-- commit: `ae382d4` (local; awaiting hosted deployment)
+- [ ] 배포 검증 실패: workflow run [#29](https://github.com/daejinyoon/VibeAIFootballGame/actions/runs/41555521311) 성공 후 네 경로 모두 빈 본문/Content-Type 없는 404; 조건에 따라 PvP import 되돌림
+- [ ] profile/daily 경로 복구 재배포 및 인증 없는 JSON 401 확인
+- commit: `ae382d4` (PvP route attempt), `6da284f` (rollback; awaiting deploy/probes)

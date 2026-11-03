@@ -2,7 +2,7 @@
 import { app } from '@azure/functions';
 import './functions/profile.js';
 import './functions/dailyChallenge.js';
-import './functions/pvp.js';
-// Keep the managed API HTTP-only; the Web PubSub realtime module remains excluded.
+// Keep the managed API limited to the verified HTTP-only profile and daily routes.
+// PvP room routes remain excluded until hosted registration is validated.
 
 export { app };
