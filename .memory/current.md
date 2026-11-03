@@ -1,20 +1,17 @@
 # Current Context
 
 ## Active Plan
-[Memory File Names, Release History, and AI Kickoff Pass](./plans/2026-11-02-memory-release-history-ai-kickoff.md)
+[Daily Challenge](./plans/2026-11-03-daily-challenge.md)
 
 ## Active Phase
-[P01 Organize Project History and Fix Kickoff](./phases/2026-11-02-memory-release-history-and-ai-kickoff/P01-organize-history-and-fix-kickoff/phase.md)
+[P01 Server API](./phases/2026-11-03-daily-challenge/P01-server-api/phase.md)
 
 ## Active Task
-None — the active plan is complete.
+[T02 Daily Challenge API](./phases/2026-11-03-daily-challenge/P01-server-api/T02-daily-challenge-api.md)
 
 ## Status
-- T01 is done: 46 plan files and 53 decision files were renamed, and 33 Markdown files had their path references updated.
-- Previous follow-up preserved: authenticated profile cloud-save read/write remains unverified. Its renamed plan is `.memory/plans/2026-11-02-profile-api-routing.md`.
-- T02 is done: patch notes now use dated release records and render newest first while keeping the app at v1.0.0.
-- T03 is done: the away AI prefers a forward teammate and falls back to the nearest active field teammate at opening and post-goal kickoffs.
-- The active plan is complete. Authenticated profile cloud-save read/write verification remains an unverified follow-up in `.memory/plans/2026-11-02-profile-api-routing.md`.
+- T01 완료: KST 날짜별 규칙, 점수 검증, 공유 순위 계산 구현 및 검증 통과
+- T02 구현 시작 준비 완료
 
 ## Next Step (IMPORTANT)
-No active task remains in this plan. The profile cloud-save verification follow-up is separate and remains unverified.
+T02 청사진을 읽고 `game/api/src/functions/dailyChallenge.js`와 `game/api/src/functions/dailyChallenge.test.js` 구현 시작
